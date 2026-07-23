@@ -248,6 +248,15 @@ function wipeLegacyCore(db: Database.Database) {
   `);
 }
 
+function countRows(db: Database.Database, table: string): number {
+  if (!tableExists(db, table)) return 0;
+  try {
+    return Number((db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+  } catch {
+    return 0;
+  }
+}
+
 export function openDatabase(filename = process.env.DATABASE_PATH ?? "data/wiring.sqlite") {
   mkdirSync(dirname(filename), { recursive: true });
   const db = new Database(filename);
@@ -255,7 +264,15 @@ export function openDatabase(filename = process.env.DATABASE_PATH ?? "data/wirin
   db.pragma("foreign_keys = ON");
 
   if (needsLegacyMigration(db)) {
-    wipeLegacyCore(db);
+    const rows = countRows(db, "components") + countRows(db, "wire_connections") + countRows(db, "pages");
+    // Never destroy a populated production DB over a false-positive legacy check.
+    if (rows === 0) {
+      wipeLegacyCore(db);
+    } else {
+      console.warn(
+        `[db] Skipping legacy wipe: detected ${rows} rows in core tables (path=${filename}). Using additive migration only.`,
+      );
+    }
   }
 
   db.exec(CORE_DDL);

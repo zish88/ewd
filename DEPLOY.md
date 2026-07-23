@@ -76,19 +76,25 @@ docker restart volvo-xc70-wiring
 На многих панелях нельзя вставить многострочные команды, а `docker-compose` 1.29 падает с `KeyError: 'ContainerConfig'`.
 Скрипт сам: git sync → восстановление SQLite → `docker build` → `docker run` (без compose).
 
-Вставьте **одну** строку:
+Если в веб-консоли **нет вставки**, наберите три строки:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zish88/ewd/master/scripts/vps-deploy.sh | bash
+cd /opt/ewd-app
+git pull
+bash deploy.sh
 ```
 
-Если `curl` нет:
+Скрипт: остановит контейнер → восстановит `data/wiring.sqlite` из git → проверит `components > 0` → `docker build --no-cache` → `docker run`.
+
+Быстрый ремонт БД без пересборки (если образ уже новый):
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/zish88/ewd/master/scripts/vps-deploy.sh | bash
+cd /opt/ewd-app
+git pull
+bash fixdb.sh
 ```
 
-В конце должны быть `docker ps` с `volvo-xc70-wiring` и JSON от `/api/health` с `"ok":true`.
+В конце `/api/health` должен дать `"ok":true` и `"components":746`.
 
 ## 5. Проверка API
 
