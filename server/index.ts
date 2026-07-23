@@ -16,6 +16,18 @@ const db = openDatabase(process.env.DATABASE_PATH);
 const manualRoot = resolve(process.env.MANUAL_DIR ?? "E:\\manual");
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
 
+function resolveManualFile(filename: string): string | null {
+  const primary = resolve(manualRoot, filename);
+  if (existsSync(primary)) return primary;
+  // ASCII fallback for VPS uploads without Cyrillic filenames
+  const fallbacks = ["schemes-xc70.pdf", "Elektroshemy-XC70.pdf", "xc70.pdf"];
+  for (const name of fallbacks) {
+    const p = resolve(manualRoot, name);
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
 app.use(express.json());
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
@@ -28,7 +40,7 @@ app.get("/api/health", (_req, res) => {
   const ewdSource = resolve(
     process.env.EWD_SOURCE_DIR ?? resolve(ewdData, "ewd_source", "39363002", "1", "2"),
   );
-  const pdfPath = resolve(manualRoot, "Электросхемы XC70.pdf");
+  const pdfPath = resolveManualFile("Электросхемы XC70.pdf") ?? resolve(manualRoot, "schemes-xc70.pdf");
   let components = 0;
   let wires = 0;
   let pages = 0;
@@ -164,8 +176,8 @@ app.get("/api/manual", (_req, res) => {
   if (!manual?.filename) {
     return res.status(404).json({ error: "Руководство ещё не импортировано." });
   }
-  const file = resolve(manualRoot, manual.filename);
-  if (!existsSync(file)) {
+  const file = resolveManualFile(manual.filename);
+  if (!file) {
     return res.status(404).json({ error: "Исходный PDF недоступен." });
   }
   return res.sendFile(file);
@@ -179,8 +191,8 @@ app.get("/api/pdf/view", (req, res) => {
   }
   const manual = db.prepare("SELECT filename FROM manuals WHERE id = ?").get(bookId) as { filename?: string } | undefined;
   if (!manual?.filename) return res.status(404).json({ error: "Книга не найдена." });
-  const file = resolve(manualRoot, manual.filename);
-  if (relative(manualRoot, file).startsWith("..") || !existsSync(file)) {
+  const file = resolveManualFile(manual.filename);
+  if (!file || relative(manualRoot, file).startsWith("..")) {
     return res.status(404).json({ error: "PDF книги недоступен." });
   }
   return res.sendFile(file);

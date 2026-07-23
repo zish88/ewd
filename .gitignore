@@ -18,6 +18,7 @@ assets/
 app.zip
 *.zip
 !package-lock.json
+dist-upload/
 
 # SQLite WAL sidecars & page caches (keep wiring.sqlite via exception below)
 data/*.sqlite-*

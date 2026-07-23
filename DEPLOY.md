@@ -63,42 +63,31 @@ curl -s http://127.0.0.1:3000/api/health
 docker restart volvo-xc70-wiring
 ```
 
-## 3. Схемы (SVG) и таблицы (PDF) — через File Manager
+## 3. Схемы (SVG) и таблицы (PDF) — без прямого доступа ПК→VPS
 
-Список узлов = SQLite. **Схемы** и кнопка **«Таблица»** требуют файлы с ПК (~0.9 GB + 46 MB).
+Список узлов = SQLite. Схемы/таблицы = архив ~287 MB.
 
-### Схемы (иначе `SVG file missing`)
+### A. Один раз: выложить архив в GitHub Release (с ПК в браузере)
 
-1. На ПК: упаковать папку  
-   `C:\Users\eni19\volvo-xc70-wiring\data\ewd\ewd_source` → `ewd_source.zip`
-2. File Manager: залить zip в `/opt/ewd-app/data/ewd/`
-3. Распаковать так, чтобы было:  
-   `/opt/ewd-app/data/ewd/ewd_source/39363002/1/2/`  
-   (внутри — папки `UID…` и файлы `.svg`)
+Архив уже собран локально:  
+`C:\Users\eni19\volvo-xc70-wiring\dist-upload\ewd-runtime.tar.gz`
 
-Проверка в консоли:
+1. Откройте https://github.com/zish88/ewd/releases/new  
+2. Tag: `ewd-runtime-v1`  
+3. Title: `EWD runtime assets`  
+4. Прикрепите файл `ewd-runtime.tar.gz`  
+5. Publish release  
 
-```bash
-ls /opt/ewd-app/data/ewd/ewd_source/39363002/1/2 | head
-```
-
-### Таблицы / PDF (иначе «PDF недоступен»)
-
-1. С ПК скопировать файл  
-   `Электросхемы XC70.pdf`  
-   (лежит рядом с `data\ewd\` или в `E:\manual\`)
-2. File Manager: залить в `/opt/ewd-app/manual/Электросхемы XC70.pdf`
-
-### После заливки файлов
-
-Освободить место и пересобрать образ (нужен фикс путей Windows→Linux):
+### B. На VPS (веб-консоль, короткие команды)
 
 ```bash
 cd /opt/ewd-app
-docker system prune -af
 git pull
+bash fetch-ewd.sh
 BUILD=1 bash deploy.sh
 ```
+
+`fetch-ewd.sh` скачает архив с GitHub на сервер, распакует SVG+PDF и перезапустит контейнер.
 
 В `health` смотрите: `"ewdSourceExists":true` и `"pdfExists":true`.
 
