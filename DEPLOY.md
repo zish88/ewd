@@ -168,8 +168,22 @@ SMTP_PASS=xxxx-xxxx-xxxx-xxxx
 SMTP_FROM=elzidevelop@gmail.com
 ```
 
-После правок `.env` перезапустите контейнер: `BUILD=1 bash deploy.sh` или `bash fixdb.sh`.  
-Проверка: отправить ✎ → в ответе `emailSent: true`, письмо на `MODERATOR_EMAIL`.
+После правок `.env` перезапустите контейнер: `BUILD=1 bash scripts/vps-deploy.sh` или `bash fixdb.sh`  
+(скрипты подхватывают `.env` через `docker --env-file`).
+
+Проверка SMTP в консоли VPS:
+
+```bash
+docker exec volvo-xc70-wiring printenv SMTP_HOST SMTP_USER SMTP_FROM MODERATOR_EMAIL
+docker logs volvo-xc70-wiring --tail 40
+# после входа в /admin:
+curl -sS -X POST http://127.0.0.1:3000/api/admin/smtp-test -H "Cookie: $(…)" 
+```
+
+Или снова ✎ на карточке: в ответе должно быть `emailSent: true`.  
+Если снова ошибка — в `warning` теперь будет код (`EAUTH` / `ETIMEDOUT` / `ESOCKET`).
+
+Частые причины: App Password отозван; outbound TCP 587 закрыт у хостера; контейнер без `SMTP_*` (не сделали restart после правки `.env`).
 
 **Важно:** пароль приложения Gmail (`SMTP_PASS`) только в `/opt/ewd-app/.env` на VPS — никогда в git.
 

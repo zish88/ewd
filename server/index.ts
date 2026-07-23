@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { resolve, relative } from "node:path";
 import { existsSync } from "node:fs";
 import "dotenv/config";
-import nodemailer from "nodemailer";
 import { openDatabase } from "./db/schema.js";
 import { createLocationRouter, createOverrideRouter, createSearchRouter } from "./routes/search.js";
 import { createNavRouter } from "./routes/nav.js";
@@ -13,6 +12,7 @@ import { createDtcRouter } from "./routes/dtc.js";
 import { dtcStats } from "./dtcDb.js";
 import { isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
+import { sendModeratorMail, smtpPublicStatus } from "./smtpMail.js";
 import {
   checkTicketRateLimit,
   clientIp,
@@ -242,51 +242,34 @@ app.post("/api/tickets", async (req, res) => {
 
   markTicketAccepted(ip, wireId, payloadHash);
 
-  const smtp = {
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE,
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM,
-  };
   let emailSent = false;
   let emailWarning: string | undefined;
-  if (Object.values(smtp).some((value) => !value)) {
-    emailWarning = "SMTP не настроен на сервере — заявка сохранена в БД, письмо не отправлено.";
+  const mail = await sendModeratorMail({
+    to: MODERATOR_EMAIL,
+    subject: `[Volvo Wiring] Заявка #${ticket.id}${subjectCode ? ` · ${subjectCode}` : ""}${wireId ? ` · wire#${wireId}` : ""}`,
+    text: [
+      `Номер заявки: #${ticket.id}`,
+      `Автомобиль: ${b.model}, ${b.year}, ${b.engine}`,
+      `Зона: ${zone || "—"}`,
+      `Узел (subject): ${subjectCode || b.location_name}`,
+      `ID карточки/провода: ${wireId || "—"}`,
+      `Пин: ${b.pin_number} · цвет: ${b.wire_color}`,
+      `Откуда: ${b.source_block}:${b.source_pin ?? ""}`,
+      `Куда: ${b.destination_block}:${b.destination_pin ?? ""}`,
+      `Описание: ${b.description}`,
+      `Комментарий: ${b.comment?.trim() || "Не указан"}`,
+      "",
+      "Ссылка на карточку (откройте в браузере):",
+      cardUrl || "(не передана)",
+    ].join("\n"),
+  });
+  if (mail.ok) {
+    emailSent = true;
   } else {
-    try {
-      const transport = nodemailer.createTransport({
-        host: smtp.host,
-        port: Number(smtp.port),
-        secure: smtp.secure === "true",
-        auth: { user: smtp.user, pass: smtp.pass },
-      });
-      await transport.sendMail({
-        from: smtp.from,
-        to: MODERATOR_EMAIL,
-        subject: `[Volvo Wiring] Заявка #${ticket.id}${subjectCode ? ` · ${subjectCode}` : ""}${wireId ? ` · wire#${wireId}` : ""}`,
-        text: [
-          `Номер заявки: #${ticket.id}`,
-          `Автомобиль: ${b.model}, ${b.year}, ${b.engine}`,
-          `Зона: ${zone || "—"}`,
-          `Узел (subject): ${subjectCode || b.location_name}`,
-          `ID карточки/провода: ${wireId || "—"}`,
-          `Пин: ${b.pin_number} · цвет: ${b.wire_color}`,
-          `Откуда: ${b.source_block}:${b.source_pin ?? ""}`,
-          `Куда: ${b.destination_block}:${b.destination_pin ?? ""}`,
-          `Описание: ${b.description}`,
-          `Комментарий: ${b.comment?.trim() || "Не указан"}`,
-          "",
-          "Ссылка на карточку (откройте в браузере):",
-          cardUrl || "(не передана)",
-        ].join("\n"),
-      });
-      emailSent = true;
-    } catch (error) {
-      console.error(`Ticket #${ticket.id} email delivery failed`, error);
-      emailWarning = "Заявка сохранена, но письмо модератору не удалось отправить.";
-    }
+    console.error(`Ticket #${ticket.id} email delivery failed:`, mail.error);
+    emailWarning = mail.missing
+      ? "SMTP не настроен на сервере — заявка сохранена в БД, письмо не отправлено."
+      : `Заявка сохранена, но письмо модератору не удалось отправить. (${mail.error})`;
   }
   // Always 201 once ticket is stored — client must close modal (no spam via OK retry)
   res.status(201).json({
@@ -294,6 +277,7 @@ app.post("/api/tickets", async (req, res) => {
     ticketId: ticket.id,
     emailSent,
     warning: emailWarning,
+    smtp: smtpPublicStatus(),
   });
 });
 

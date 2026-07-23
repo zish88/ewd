@@ -79,8 +79,15 @@ fi
 
 mkdir -p "${APP_DIR}/manual" "${APP_DIR}/data/ewd"
 echo "==> docker run"
+# Prefer --env-file so SMTP_PASS is not mangled by shell expansion; -e overrides paths.
+ENV_FILE_ARGS=()
+if [ -f "${APP_DIR}/.env" ]; then
+  ENV_FILE_ARGS+=(--env-file "${APP_DIR}/.env")
+  echo "==> docker --env-file ${APP_DIR}/.env"
+fi
 docker run -d --name "$NAME" --restart unless-stopped \
   -p "${PORT}:3000" \
+  "${ENV_FILE_ARGS[@]}" \
   -e NODE_ENV=production \
   -e PORT=3000 \
   -e DATABASE_PATH=/app/data/wiring.sqlite \
@@ -89,15 +96,7 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
-  -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
-  -e ADMIN_SECRET="${ADMIN_SECRET:-}" \
   -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
-  -e SMTP_HOST="${SMTP_HOST:-}" \
-  -e SMTP_PORT="${SMTP_PORT:-}" \
-  -e SMTP_SECURE="${SMTP_SECURE:-}" \
-  -e SMTP_USER="${SMTP_USER:-}" \
-  -e SMTP_PASS="${SMTP_PASS:-}" \
-  -e SMTP_FROM="${SMTP_FROM:-}" \
   -v "${APP_DIR}/data:/app/data" \
   -v "${APP_DIR}/manual:/data/manual:ro" \
   "$IMAGE"

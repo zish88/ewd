@@ -15,8 +15,13 @@ git checkout HEAD -- data/wiring.sqlite data/dtc.sqlite
 ls -la data/wiring.sqlite data/dtc.sqlite
 python3 -c "import sqlite3;c=sqlite3.connect('data/wiring.sqlite');print('components',c.execute('select count(*) from components').fetchone()[0])"
 mkdir -p manual data/ewd
+ENV_FILE_ARGS=()
+if [ -f /opt/ewd-app/.env ]; then
+  ENV_FILE_ARGS+=(--env-file /opt/ewd-app/.env)
+fi
 docker run -d --name volvo-xc70-wiring --restart unless-stopped \
   -p 3000:3000 \
+  "${ENV_FILE_ARGS[@]}" \
   -e NODE_ENV=production -e PORT=3000 \
   -e DATABASE_PATH=/app/data/wiring.sqlite \
   -e DTC_DATABASE_PATH=/app/data/dtc.sqlite \
@@ -24,15 +29,7 @@ docker run -d --name volvo-xc70-wiring --restart unless-stopped \
   -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
-  -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
-  -e ADMIN_SECRET="${ADMIN_SECRET:-}" \
   -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
-  -e SMTP_HOST="${SMTP_HOST:-}" \
-  -e SMTP_PORT="${SMTP_PORT:-}" \
-  -e SMTP_SECURE="${SMTP_SECURE:-}" \
-  -e SMTP_USER="${SMTP_USER:-}" \
-  -e SMTP_PASS="${SMTP_PASS:-}" \
-  -e SMTP_FROM="${SMTP_FROM:-}" \
   -v /opt/ewd-app/data:/app/data \
   -v /opt/ewd-app/manual:/data/manual:ro \
   ewd-app:latest

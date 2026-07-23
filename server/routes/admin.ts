@@ -10,6 +10,7 @@ import {
   setAdminCookie,
 } from "../adminAuth.js";
 import { readSiteSettings, writeSiteSettings, type SiteSettings } from "../siteSettings.js";
+import { sendModeratorMail, smtpPublicStatus } from "../smtpMail.js";
 
 export function createAdminRouter(db: Database.Database) {
   const router = Router();
@@ -21,6 +22,29 @@ export function createAdminRouter(db: Database.Database) {
       admin: configured ? isAdminRequest(req) : true,
       // When password not set, everyone is treated as admin (local/dev).
     });
+  });
+
+  /** Safe SMTP probe (no password). Sends a short test mail to MODERATOR_EMAIL. */
+  router.get("/smtp-status", requireAdmin, (_req, res) => {
+    res.json(smtpPublicStatus());
+  });
+
+  router.post("/smtp-test", requireAdmin, async (_req, res) => {
+    const to = process.env.MODERATOR_EMAIL || smtpPublicStatus().from;
+    if (!to) {
+      res.status(400).json({ ok: false, error: "MODERATOR_EMAIL не задан." });
+      return;
+    }
+    const mail = await sendModeratorMail({
+      to,
+      subject: "[Volvo Wiring] SMTP test",
+      text: `Тест SMTP с VPS · ${new Date().toISOString()}\nСтатус: ${JSON.stringify(smtpPublicStatus())}`,
+    });
+    if (!mail.ok) {
+      res.status(502).json({ ok: false, error: mail.error, smtp: smtpPublicStatus() });
+      return;
+    }
+    res.json({ ok: true, to, smtp: smtpPublicStatus() });
   });
 
   router.get("/settings", requireAdmin, (_req, res) => {
