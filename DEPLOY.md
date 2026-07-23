@@ -71,18 +71,24 @@ docker restart volvo-xc70-wiring
 
 Индексы JSON подтянутся из git. MDF/EPC можно не копировать для старта.
 
-## 4. Пересобрать Docker без кэша
+## 4. Деплой одной строкой (рекомендуется для веб-консоли)
+
+На многих панелях нельзя вставить многострочные команды, а `docker-compose` 1.29 падает с `KeyError: 'ContainerConfig'`.
+Скрипт сам: git sync → восстановление SQLite → `docker build` → `docker run` (без compose).
+
+Вставьте **одну** строку:
 
 ```bash
-cd /opt/ewd-app
-docker rm -f volvo-xc70-wiring
-docker-compose build --no-cache
-docker-compose up -d
-docker ps
-docker logs --tail 50 volvo-xc70-wiring
+curl -fsSL https://raw.githubusercontent.com/zish88/ewd/master/scripts/vps-deploy.sh | bash
 ```
 
-В логах должны быть `DATABASE_PATH=/app/data/wiring.sqlite` и старт без SQLITE wipe.
+Если `curl` нет:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/zish88/ewd/master/scripts/vps-deploy.sh | bash
+```
+
+В конце должны быть `docker ps` с `volvo-xc70-wiring` и JSON от `/api/health` с `"ok":true`.
 
 ## 5. Проверка API
 
@@ -102,9 +108,9 @@ curl -s "http://127.0.0.1:3000/api/nav/components?zone=rear_doors" | head -c 400
 
 ## Конфликт имени контейнера
 
-Если `docker-compose up` пишет Conflict:
+Если `up` пишет Conflict:
 
 ```bash
 docker rm -f volvo-xc70-wiring
-docker-compose up -d
+docker compose up -d
 ```
