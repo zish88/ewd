@@ -67,18 +67,21 @@ docker restart volvo-xc70-wiring
 
 Список узлов = SQLite. Схемы/таблицы = архив ~287 MB.
 
-### A. Один раз: выложить архив в GitHub Release (с ПК в браузере)
+### A. Один раз: выложить части в GitHub Release (с ПК в браузере)
 
-Архив уже собран локально:  
-`C:\Users\eni19\volvo-xc70-wiring\dist-upload\ewd-runtime.tar.gz`
+Целый файл 287 MB GitHub в поле описания не принимает (лимит 25 MB).  
+Нужны **части по 20 MB** из папки:
+
+`C:\Users\eni19\volvo-xc70-wiring\dist-upload\parts\`  
+файлы: `ewd-runtime.tar.gz.00` … `ewd-runtime.tar.gz.14` (15 штук)
 
 1. Откройте https://github.com/zish88/ewd/releases/new  
-2. Tag: `ewd-runtime-v1`  
-3. Title: `EWD runtime assets`  
-4. Прикрепите файл `ewd-runtime.tar.gz`  
+2. Tag: `ewd-runtime-v1` · Title: `EWD runtime`  
+3. **Не** кидайте файлы в «Describe this release»  
+4. Прокрутите вниз до **Attach binaries** и прикрепите все 15 частей  
 5. Publish release  
 
-### B. На VPS (веб-консоль, короткие команды)
+### B. На VPS (веб-консоль)
 
 ```bash
 cd /opt/ewd-app
@@ -87,9 +90,9 @@ bash fetch-ewd.sh
 BUILD=1 bash deploy.sh
 ```
 
-`fetch-ewd.sh` скачает архив с GitHub на сервер, распакует SVG+PDF и перезапустит контейнер.
+Скрипт скачает все части, склеит, распакует SVG+PDF.
 
-В `health` смотрите: `"ewdSourceExists":true` и `"pdfExists":true`.
+В `health`: `"ewdSourceExists":true` и `"pdfExists":true`.
 
 ## 4. Деплой одной строкой (рекомендуется для веб-консоли)
 
