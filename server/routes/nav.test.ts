@@ -174,6 +174,87 @@ test("nav components zone filter hides engine connector", async () => {
   assert.ok(!codes.includes("74/301"));
 });
 
+test("nav components front_bumper does not list steering peer SCL", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const page = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 100, "Connector 74/411", "connector").lastInsertRowid,
+  );
+  const pam = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("4/86", "Блок", "", "Parking Assistance Module (PAM)")
+      .lastInsertRowid,
+  );
+  const scl = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("4/102", "Блок", "", "Steering Column Lock Module (SCL)")
+      .lastInsertRowid,
+  );
+  const conn = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("74/411", "Промежуточный разъем жгута", "", "Connector")
+      .lastInsertRowid,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "1",
+    "BN",
+    "Коричневый",
+    "",
+    "4/102:1 — Steering Column Lock Module (SCL)",
+    "4/86:1 — Parking Assistance Module (PAM)",
+    "4/102:1",
+    "4/86:1",
+    "",
+    "74/411",
+    "connector_pinout",
+    0,
+    0,
+    50,
+    scl,
+    pam,
+    null,
+    "Harness bumper, front",
+    "Dashboard harness",
+    null,
+    0,
+  );
+  // silence unused if tree-shaken — conn is the subject owner via subject_code
+  void conn;
+
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/components?zone=front_bumper");
+  assert.equal(res.status, 200);
+  const codes = res.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(codes.includes("74/411"), `expected owner connector, got ${codes.join(",")}`);
+  assert.ok(codes.includes("4/86"), `PAM detail belongs to bumper, got ${codes.join(",")}`);
+  assert.ok(!codes.includes("4/102"), `SCL must not appear in bumper list, got ${codes.join(",")}`);
+});
+
 test("nav wires 74/507 returns owner pins", async () => {
   const res = await request(fixture()).get("/api/nav/wires?code=74/507");
   assert.equal(res.status, 200);

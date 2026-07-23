@@ -62,7 +62,15 @@ type ActiveSvg = {
   showSeq?: number;
 };
 type ActivePdf = { bookId: number; page: number; search?: string };
-type NavGroup = { id: string; label: string; items: Array<{ code: string; label: string; type_ru: string }> };
+type NavItem = {
+  code: string;
+  label: string;
+  type_ru: string;
+  has_pinout?: boolean;
+  has_diagram?: boolean;
+  has_ewd?: boolean;
+};
+type NavGroup = { id: string; label: string; items: NavItem[] };
 type NavZone = { id: string; label: string; count: number };
 const DEFAULT_MODELS = ["XC70", "V70", "S80", "XC60", "S60", "V60"];
 type TransmissionOpt = { id: string; label: string };
@@ -912,6 +920,7 @@ function renderWireCard(
   setActiveSvg: (v: ActiveSvg | null) => void,
   setNotice: (v: string) => void,
   setEditingItem: (v: any) => void,
+  canEdit = false,
 ) {
   const itemId = item.id || `search-${index}`;
   const isThis = selectedPinState?.id === itemId;
@@ -1046,9 +1055,11 @@ function renderWireCard(
             Таблица
           </button>
         ) : null}
-        <button type="button" onClick={() => setEditingItem(item)} className="px-3 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-amber-700 text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
-          ✏️
-        </button>
+        {canEdit ? (
+          <button type="button" onClick={() => setEditingItem(item)} className="px-3 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-amber-700 text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
+            ✏️
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -1104,6 +1115,21 @@ function App() {
   const [zones, setZones] = useState<NavZone[]>([]);
   const [navGroups, setNavGroups] = useState<NavGroup[]>([]);
   const [selectedZone, setSelectedZone] = useState("all");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminConfigured, setAdminConfigured] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminNotice, setAdminNotice] = useState("");
+  const [adminForm, setAdminForm] = useState({
+    subject_code: "",
+    pin_number: "",
+    from_code: "",
+    to_code: "",
+    wire_color_raw: "",
+    harness_left: "",
+    component_code: "",
+    name_ru: "",
+  });
   const [selectedCode, setSelectedCode] = useState("");
   /** null = all colors; otherwise normalized wireColor from current node cards */
   const [wireColorFilter, setWireColorFilter] = useState<string | null>(null);
@@ -1268,6 +1294,19 @@ function App() {
       .then(data => setNavGroups(Array.isArray(data.groups) ? data.groups : []))
       .catch(() => setNavGroups([]));
   }, [selectedZone]);
+
+  useEffect(() => {
+    fetch("/api/admin/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        setAdminConfigured(Boolean(d.configured));
+        setIsAdmin(Boolean(d.admin));
+      })
+      .catch(() => {
+        setAdminConfigured(false);
+        setIsAdmin(false);
+      });
+  }, []);
 
   const clear = () => {
     setMode(null);
@@ -1453,6 +1492,15 @@ function App() {
               </button>
             ))}
           </div>
+          {isAdmin || adminConfigured ? (
+            <button
+              type="button"
+              className={`ml-auto text-[10px] px-2 py-1 rounded border ${isAdmin ? "border-emerald-600 text-emerald-700" : "border-[var(--border-color)] text-[var(--text-muted)]"}`}
+              onClick={() => setAdminOpen(true)}
+            >
+              {isAdmin ? "Админ" : "Вход"}
+            </button>
+          ) : null}
           <label className="flex items-center gap-1 text-[var(--muted)]">Модель
             <select
               data-testid="vehicle-model"
@@ -1627,6 +1675,9 @@ function App() {
                   ) : null,
                 )}
               </select>
+              <span className="text-[10px] text-[var(--text-muted)] leading-tight">
+                Пометки: [схема]=EWD SVG · [табл]=таблица контактов · [PDF]=страница мануала
+              </span>
             </label>
           </div>
         </section>
@@ -1773,11 +1824,11 @@ function App() {
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
-        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem))}
+        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, isAdmin))}
         {filteredTransitWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
         ) : null}
-        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem))}
+        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, isAdmin))}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
         ) : null}
@@ -1933,6 +1984,107 @@ function App() {
         </div>
       </div>
     )}
+    {adminOpen ? (
+      <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-4" onClick={() => setAdminOpen(false)}>
+        <div className="w-full max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-sm font-semibold text-[var(--text-main)]">Админ</h3>
+          {!isAdmin ? (
+            <form
+              className="space-y-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setAdminNotice("");
+                const r = await fetch("/api/admin/login", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ password: adminPassword }),
+                });
+                const d = await r.json();
+                if (!r.ok) {
+                  setAdminNotice(d.error || "Ошибка входа");
+                  return;
+                }
+                setIsAdmin(true);
+                setAdminPassword("");
+                setAdminNotice("Вход выполнен");
+              }}
+            >
+              <input
+                type="password"
+                className="w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-3 py-2 text-sm"
+                placeholder="Пароль ADMIN_PASSWORD"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+              />
+              <button type="submit" className="w-full bg-emerald-600 text-white text-sm py-2 rounded">Войти</button>
+            </form>
+          ) : (
+            <div className="space-y-3 text-xs">
+              <p className="text-[var(--text-muted)]">Можно добавлять разъёмы и провода в SQLite на сервере.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Код узла 4/86" value={adminForm.component_code} onChange={(e) => setAdminForm({ ...adminForm, component_code: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Название" value={adminForm.name_ru} onChange={(e) => setAdminForm({ ...adminForm, name_ru: e.target.value })} />
+              </div>
+              <button
+                type="button"
+                className="w-full border border-[var(--border-color)] rounded py-1.5"
+                onClick={async () => {
+                  const r = await fetch("/api/admin/components", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ component_code: adminForm.component_code, name_ru: adminForm.name_ru }),
+                  });
+                  const d = await r.json();
+                  setAdminNotice(r.ok ? `Узел ${d.code} сохранён` : d.error || "Ошибка");
+                }}
+              >
+                Сохранить узел
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="subject 74/411" value={adminForm.subject_code} onChange={(e) => setAdminForm({ ...adminForm, subject_code: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Пин" value={adminForm.pin_number} onChange={(e) => setAdminForm({ ...adminForm, pin_number: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Откуда 4/86" value={adminForm.from_code} onChange={(e) => setAdminForm({ ...adminForm, from_code: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Куда 3/129" value={adminForm.to_code} onChange={(e) => setAdminForm({ ...adminForm, to_code: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Цвет BN" value={adminForm.wire_color_raw} onChange={(e) => setAdminForm({ ...adminForm, wire_color_raw: e.target.value })} />
+                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Harness bumper, front" value={adminForm.harness_left} onChange={(e) => setAdminForm({ ...adminForm, harness_left: e.target.value })} />
+              </div>
+              <button
+                type="button"
+                className="w-full bg-emerald-600 text-white rounded py-1.5"
+                onClick={async () => {
+                  const r = await fetch("/api/admin/wires", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(adminForm),
+                  });
+                  const d = await r.json();
+                  setAdminNotice(r.ok ? `Провод #${d.id} добавлен` : d.error || "Ошибка");
+                  if (r.ok && selectedCode) void loadWires(selectedCode);
+                }}
+              >
+                Добавить провод
+              </button>
+              <button
+                type="button"
+                className="w-full text-[var(--text-muted)]"
+                onClick={async () => {
+                  await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+                  setIsAdmin(false);
+                  setAdminNotice("Выход");
+                }}
+              >
+                Выйти
+              </button>
+            </div>
+          )}
+          {adminNotice ? <p className="text-xs text-amber-700">{adminNotice}</p> : null}
+          <button type="button" className="text-xs text-[var(--text-muted)]" onClick={() => setAdminOpen(false)}>Закрыть</button>
+        </div>
+      </div>
+    ) : null}
   </main>;
 }
 function OverrideModal({value,vehicle,onClose,onSave}:{value:any;vehicle:any;onClose:()=>void;onSave:(value:any)=>void}) {

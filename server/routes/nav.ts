@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type Database from "better-sqlite3";
 import type { PageType } from "../db/schema.js";
 import { localizeEngineeringText } from "../termGlossary.js";
@@ -13,6 +15,39 @@ import {
   type ZoneId,
 } from "../harnessZones.js";
 import { componentTypeRu, wireColorRu } from "../volvoStandards.js";
+
+type NavListItem = {
+  code: string;
+  label: string;
+  type_ru: string;
+  has_pinout: boolean;
+  has_diagram: boolean;
+  has_ewd: boolean;
+};
+
+let ewdCodeSet: Set<string> | null = null;
+function loadEwdCodeSet(): Set<string> {
+  if (ewdCodeSet) return ewdCodeSet;
+  const dir = resolve(process.env.EWD_DATA_DIR ?? "data/ewd");
+  const path = join(dir, "device_index.json");
+  ewdCodeSet = new Set();
+  if (!existsSync(path)) return ewdCodeSet;
+  try {
+    const idx = JSON.parse(readFileSync(path, "utf-8")) as { by_code?: Record<string, { diagramUids?: string[] }> };
+    for (const [code, rec] of Object.entries(idx.by_code || {})) {
+      if ((rec.diagramUids || []).length > 0) ewdCodeSet.add(code);
+    }
+  } catch {
+    /* ignore */
+  }
+  return ewdCodeSet;
+}
+
+/** Endpoint belongs in the zone list only if its own detail classifies into that zone. */
+function endpointBelongsToZone(detail: string, zone: string): boolean {
+  if (!zone || zone === "all") return true;
+  return textBelongsToZone(detail, zone);
+}
 
 const NAV_SELECT = `
   SELECT
@@ -344,22 +379,33 @@ export function createNavRouter(db: Database.Database) {
       function_text: string;
     }>;
 
+    const zoneFilter = zone && zone !== "all";
     const idSet = new Set<number>();
     const subjectCodes = new Set<string>();
     for (const w of wireRows) {
       const zoneOk =
-        !zone ||
-        zone === "all" ||
+        !zoneFilter ||
         wireMatchesZone(w.harness_left, w.harness_right, zone) ||
         // Older DBs: no harness_* → require a positive zone signal from page/details
         ((!w.harness_left && !w.harness_right) &&
           (textBelongsToZone(w.system_name, zone) ||
             textBelongsToZone(`${w.from_detail} ${w.to_detail} ${w.function_text}`, zone)));
       if (!zoneOk) continue;
-      for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
-        if (id) idSet.add(id);
-      }
+
+      // Owner of the pinout row always stays in the zone list when the wire matches.
       if (w.subject_code) subjectCodes.add(w.subject_code);
+
+      if (!zoneFilter) {
+        for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
+          if (id) idSet.add(id);
+        }
+        continue;
+      }
+
+      // Do NOT dump every peer on a zone-matching wire (that leaked SCL into front_bumper).
+      // Only keep endpoints whose own detail text belongs to the selected zone.
+      if (w.from_component_id && endpointBelongsToZone(w.from_detail, zone)) idSet.add(w.from_component_id);
+      if (w.to_component_id && endpointBelongsToZone(w.to_detail, zone)) idSet.add(w.to_component_id);
     }
 
     const comps = db
@@ -385,10 +431,29 @@ export function createNavRouter(db: Database.Database) {
       }
     }
 
+    const pinoutCodes = new Set(
+      (
+        db
+          .prepare(
+            `SELECT DISTINCT TRIM(subject_code) AS code FROM wire_connections
+             WHERE TRIM(IFNULL(subject_code,'')) != ''`,
+          )
+          .all() as Array<{ code: string }>
+      ).map((r) => r.code),
+    );
+    const diagramCodes = new Set(
+      (
+        db.prepare(`SELECT DISTINCT component_code AS code FROM component_diagram_pages`).all() as Array<{
+          code: string;
+        }>
+      ).map((r) => r.code),
+    );
+    const ewdCodes = loadEwdCodeSet();
+
     const groups = {
-      modules: [] as Array<{ code: string; label: string; type_ru: string }>,
-      connectors: [] as Array<{ code: string; label: string; type_ru: string }>,
-      other: [] as Array<{ code: string; label: string; type_ru: string }>,
+      modules: [] as NavListItem[],
+      connectors: [] as NavListItem[],
+      other: [] as NavListItem[],
     };
 
     for (const c of [...byCode.values()].sort((a, b) =>
@@ -396,8 +461,25 @@ export function createNavRouter(db: Database.Database) {
     )) {
       const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
       const pn = c.part_number ? ` [${c.part_number}]` : "";
-      const label = desc ? `${c.component_code} — ${desc}${pn}` : `${c.component_code}${pn}`;
-      const item = { code: c.component_code, label, type_ru: c.component_type_ru || "" };
+      const has_pinout = pinoutCodes.has(c.component_code);
+      const has_diagram = diagramCodes.has(c.component_code);
+      const has_ewd = ewdCodes.has(c.component_code);
+      const marks: string[] = [];
+      if (has_ewd) marks.push("схема");
+      if (has_pinout) marks.push("табл");
+      if (!has_ewd && has_diagram) marks.push("PDF");
+      const mark = marks.length ? ` [${marks.join("·")}]` : "";
+      const label = desc
+        ? `${c.component_code} — ${desc}${pn}${mark}`
+        : `${c.component_code}${pn}${mark}`;
+      const item: NavListItem = {
+        code: c.component_code,
+        label,
+        type_ru: c.component_type_ru || "",
+        has_pinout,
+        has_diagram,
+        has_ewd,
+      };
       groups[componentGroup(c.component_code)].push(item);
     }
 

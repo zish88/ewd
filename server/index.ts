@@ -7,6 +7,8 @@ import { openDatabase } from "./db/schema.js";
 import { createLocationRouter, createOverrideRouter, createSearchRouter } from "./routes/search.js";
 import { createNavRouter } from "./routes/nav.js";
 import { createEwdRouter } from "./routes/ewd.js";
+import { createAdminRouter } from "./routes/admin.js";
+import { requireAdmin } from "./adminAuth.js";
 import { resolveFilters } from "./vehicleMatrix.js";
 import { decodeVolvoVin } from "./vinDecoder.js";
 
@@ -34,6 +36,7 @@ app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
+app.use("/api/admin", createAdminRouter(db));
 app.get("/api/health", (_req, res) => {
   const dbPath = resolve(process.env.DATABASE_PATH ?? "data/wiring.sqlite");
   const ewdData = resolve(process.env.EWD_DATA_DIR ?? "data/ewd");
@@ -113,7 +116,7 @@ app.post("/api/vin/decode", (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post("/api/tickets", async (req, res) => {
+app.post("/api/tickets", requireAdmin, async (req, res) => {
   const b = req.body as Record<string, string>;
   const required = ["model", "year", "engine", "location_name", "pin_number", "wire_color", "source_block", "destination_block", "description"];
   if (required.some((key) => !b[key]?.trim())) return res.status(400).json({ error: "Заполните обязательные поля заявки." });

@@ -74,6 +74,8 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
+  -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
+  -e ADMIN_SECRET="${ADMIN_SECRET:-}" \
   -v "${APP_DIR}/data:/app/data" \
   -v "${APP_DIR}/manual:/data/manual:ro" \
   "$IMAGE"
