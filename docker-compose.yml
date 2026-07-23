@@ -9,9 +9,9 @@ services:
       PORT: "3000"
       DATABASE_PATH: /app/data/wiring.sqlite
       EWD_DATA_DIR: /app/data/ewd
+      EWD_SOURCE_DIR: ${EWD_SOURCE_DIR:-/app/data/ewd/ewd_source/39363002/1/2}
       CLIENT_DIST: /app/client/dist
       MANUAL_DIR: ${MANUAL_DIR:-/data/manual}
-      EWD_SOURCE_DIR: ${EWD_SOURCE_DIR:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_SECURE: ${SMTP_SECURE:-}

@@ -63,6 +63,7 @@ else
   echo "==> skip build (image exists). To force: BUILD=1 bash deploy.sh"
 fi
 
+mkdir -p "${APP_DIR}/manual" "${APP_DIR}/data/ewd"
 echo "==> docker run"
 docker run -d --name "$NAME" --restart unless-stopped \
   -p "${PORT}:3000" \
@@ -70,8 +71,11 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e PORT=3000 \
   -e DATABASE_PATH=/app/data/wiring.sqlite \
   -e EWD_DATA_DIR=/app/data/ewd \
+  -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
+  -e MANUAL_DIR=/data/manual \
   -v "${APP_DIR}/data:/app/data" \
+  -v "${APP_DIR}/manual:/data/manual:ro" \
   "$IMAGE"
 
 sleep 3

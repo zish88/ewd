@@ -24,6 +24,11 @@ app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
 app.get("/api/health", (_req, res) => {
   const dbPath = resolve(process.env.DATABASE_PATH ?? "data/wiring.sqlite");
+  const ewdData = resolve(process.env.EWD_DATA_DIR ?? "data/ewd");
+  const ewdSource = resolve(
+    process.env.EWD_SOURCE_DIR ?? resolve(ewdData, "ewd_source", "39363002", "1", "2"),
+  );
+  const pdfPath = resolve(manualRoot, "Электросхемы XC70.pdf");
   let components = 0;
   let wires = 0;
   let pages = 0;
@@ -35,16 +40,29 @@ app.get("/api/health", (_req, res) => {
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
+  const ewdOk = existsSync(ewdSource);
+  const pdfOk = existsSync(pdfPath);
+  const hints: string[] = [];
+  if (components === 0 || wires === 0) {
+    hints.push("Empty SQLite. Restore data/wiring.sqlite from git (DEPLOY.md).");
+  }
+  if (!ewdOk) {
+    hints.push("SVG source missing. Upload data/ewd/ewd_source to the server (DEPLOY.md §3).");
+  }
+  if (!pdfOk) {
+    hints.push("PDF manual missing. Upload Электросхемы XC70.pdf into MANUAL_DIR (./manual).");
+  }
   res.json({
     ok: !error && components > 0 && wires > 0,
     dbPath,
     dbExists: existsSync(dbPath),
     counts: { components, wires, pages },
+    ewdSourceDir: ewdSource,
+    ewdSourceExists: ewdOk,
+    manualDir: manualRoot,
+    pdfExists: pdfOk,
     error,
-    hint:
-      components === 0 || wires === 0
-        ? "Empty SQLite on volume. Restore data/wiring.sqlite from git (see DEPLOY.md)."
-        : undefined,
+    hint: hints.length ? hints.join(" ") : undefined,
   });
 });
 
