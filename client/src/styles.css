@@ -1,18 +1,28 @@
 @import "tailwindcss";
 
-/* Volvo Premium Palettes — CSS variables + legacy aliases */
+/* Material Design 3–inspired tokens on existing theme system (no MUI) */
 :root,
 html[data-theme="caspian"] {
   --bg-main: #0f172a;
-  --bg-header: #090d16;
+  --bg-header: #0b1220;
   --bg-card: #1e293b;
+  --surface-container: #1a2436;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --border-color: #334155;
+  --outline-variant: #3d4f66;
   --accent: #34d399;
   --cta: #059669;
   --cta-hover: #10b981;
+  --on-cta: #ffffff;
   --input-bg: #1e293b;
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.28), 0 1px 3px 1px rgba(0, 0, 0, 0.12);
+  --elevation-2: 0 2px 6px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.18);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --app-bar-h: 56px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   /* legacy aliases */
   --app-bg: var(--bg-main);
   --panel-bg: var(--bg-header);
@@ -26,12 +36,15 @@ html[data-theme="charcoal"] {
   --bg-main: #1e2022;
   --bg-header: #161819;
   --bg-card: #26292b;
+  --surface-container: #222526;
   --text-main: #eceff1;
   --text-muted: #90a4ae;
   --border-color: #373c3f;
+  --outline-variant: #454a4e;
   --accent: #d6c3a8;
   --cta: #059669;
   --cta-hover: #10b981;
+  --on-cta: #ffffff;
   --input-bg: #26292b;
   --app-bg: var(--bg-main);
   --panel-bg: var(--bg-header);
@@ -45,12 +58,15 @@ html[data-theme="amber"] {
   --bg-main: #1c1917;
   --bg-header: #110e0c;
   --bg-card: #292524;
+  --surface-container: #231f1d;
   --text-main: #f5f5f4;
   --text-muted: #a8a29e;
   --border-color: #44403c;
+  --outline-variant: #57534e;
   --accent: #fbbf24;
   --cta: #059669;
   --cta-hover: #10b981;
+  --on-cta: #ffffff;
   --input-bg: #292524;
   --app-bg: var(--bg-main);
   --panel-bg: var(--bg-header);
@@ -60,32 +76,43 @@ html[data-theme="amber"] {
   --muted: var(--text-muted);
 }
 
+html {
+  font-family: "Segoe UI", "Candara", "Gill Sans", "Trebuchet MS", sans-serif;
+}
+
 .app-shell {
   background: var(--bg-main);
   color: var(--text-main);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
-.app-panel {
+.app-panel,
+.app-bar {
   background: var(--bg-header);
   border-color: var(--border-color);
   color: var(--text-main);
+  box-shadow: var(--elevation-1);
 }
 
 .app-card {
   background: var(--bg-card);
-  border-color: var(--border-color);
+  border-color: var(--outline-variant);
   color: var(--text-main);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
 }
 
 .app-input {
   background: var(--input-bg);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--outline-variant);
   color: var(--text-main);
+  border-radius: var(--radius-md);
 }
 
 .ui-card {
   background: var(--bg-card);
-  border-color: var(--border-color);
+  border-color: var(--outline-variant);
   color: var(--text-main);
 }
 
@@ -93,10 +120,69 @@ html[data-theme="amber"] {
   color: var(--text-muted);
 }
 
+.md-btn {
+  border-radius: 999px;
+  font-weight: 600;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  min-height: 36px;
+}
+
+.md-btn--filled {
+  background: var(--cta);
+  color: var(--on-cta);
+  box-shadow: var(--elevation-1);
+}
+
+.md-btn--filled:hover {
+  background: var(--cta-hover);
+}
+
+.md-btn--tonal {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--outline-variant);
+}
+
+.md-btn--text {
+  background: transparent;
+  color: var(--accent);
+}
+
+.md-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.md-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  color: var(--text-muted);
+}
+
+.md-chip--accent {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--outline-variant));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+}
+
+.md-info-banner {
+  background: var(--surface-container);
+  box-shadow: var(--elevation-1);
+}
+
 .theme-toggle {
   display: inline-flex;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
   overflow: hidden;
   background: var(--input-bg);
 }
@@ -129,21 +215,23 @@ html[data-theme="amber"] {
   select, input, textarea {
     @apply rounded px-3 py-2;
     background: var(--input-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--outline-variant);
     color: var(--text-main);
+    border-radius: var(--radius-md);
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline-offset: 1px;
   }
   button {
-    @apply rounded px-3 py-2 font-semibold;
-    background: var(--cta);
-    color: #fff;
+    @apply rounded px-3 py-1.5 font-medium;
   }
-  button:hover { background: var(--cta-hover); }
   h1 { @apply mt-4 text-3xl font-bold; color: var(--text-main); }
   h2 { @apply mb-3 text-lg font-bold; color: var(--text-main); }
   .panel {
     @apply rounded-lg border p-4 shadow-sm;
     background: var(--bg-card);
-    border-color: var(--border-color);
+    border-color: var(--outline-variant);
   }
   .panel form { @apply grid gap-2; }
   .tags { @apply mt-3 flex flex-wrap gap-2; }
@@ -152,14 +240,14 @@ html[data-theme="amber"] {
   .result {
     @apply mb-3 rounded border p-4 shadow-sm;
     background: var(--bg-card);
-    border-color: var(--border-color);
+    border-color: var(--outline-variant);
   }
   .result span { color: var(--accent); float: right; }
   .result p { @apply mt-2; color: var(--text-muted); }
   .route {
     @apply grid grid-cols-[10rem_1fr] overflow-hidden rounded border;
     background: var(--bg-card);
-    border-color: var(--border-color);
+    border-color: var(--outline-variant);
   }
   .insulation { @apply grid min-h-28 place-items-center p-3 text-xl font-black tracking-wider text-white; text-shadow: 0 1px 3px #000; }
   .route > div:last-child { @apply p-4; }
@@ -188,14 +276,12 @@ html[data-theme="amber"] {
   shape-rendering: geometricPrecision;
 }
 
-/* Line highlight disabled — keep class inert if leftover */
 .ewd-svg-root path.ewd-highlight,
 .ewd-svg-root polyline.ewd-highlight,
 .ewd-svg-root line.ewd-highlight {
   /* no paint overrides; tracing is marker-only */
 }
 
-/* Pin marker: wireColor border (striped dual) + dark halo for WH on white sheets */
 .ewd-svg-root g.pin-marker {
   pointer-events: none;
   opacity: 1 !important;
@@ -218,7 +304,6 @@ html[data-theme="amber"] {
   pointer-events: none;
 }
 
-/* Dynamic data on scheme chrome + result cards — always high contrast */
 .ewd-scheme-header .ewd-data,
 .ewd-scheme-status .ewd-data,
 [data-testid="result-card"] .ewd-data {
@@ -226,14 +311,12 @@ html[data-theme="amber"] {
   opacity: 1 !important;
 }
 
-/* Light cream/pastel badges — dark text wins over .ewd-data / theme --text-main */
 .ewd-light-badge,
 .ewd-light-badge * {
   color: #0f172a !important;
   opacity: 1 !important;
 }
 
-/* Wire color chips (card + pin-spec table) — never overridden by .ewd-data */
 .ewd-wire-badge {
   display: inline-block;
   opacity: 1 !important;
@@ -242,11 +325,9 @@ html[data-theme="amber"] {
 }
 
 [data-testid="result-card"] .ewd-wire-badge {
-  /* allow getColorStyle() inline color/background; do not force --text-main */
   color: unset;
 }
 
-/* Dynamic wire-color filter bar (chips from current node only) */
 .wire-color-filter {
   display: flex;
   flex-wrap: wrap;
@@ -254,8 +335,8 @@ html[data-theme="amber"] {
   align-items: center;
   padding: 0.35rem 0.4rem;
   margin-bottom: 0.25rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
   background: var(--input-bg);
 }
 
@@ -276,7 +357,7 @@ html[data-theme="amber"] {
 .wire-color-chip--all {
   background: var(--bg-card);
   color: var(--text-main);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--outline-variant);
   text-shadow: none;
 }
 
@@ -296,14 +377,13 @@ html[data-theme="amber"] {
   color: var(--text-main);
 }
 
-/* Compact manual diagram picker (replaces under-card scheme list) */
 .diagram-picker__btn {
   appearance: none;
   cursor: pointer;
   min-height: 32px;
   padding: 0.35rem 0.7rem;
   border-radius: 0.45rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--outline-variant);
   background: var(--bg-card);
   color: var(--text-main);
   font-size: 11px;
@@ -312,7 +392,7 @@ html[data-theme="amber"] {
 }
 
 .diagram-picker__btn:hover {
-  border-color: #10b981;
+  border-color: var(--cta-hover);
 }
 
 .diagram-picker__menu {
@@ -325,10 +405,10 @@ html[data-theme="amber"] {
   max-height: min(50vh, 22rem);
   overflow-y: auto;
   padding: 0.3rem;
-  border-radius: 0.6rem;
-  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
   background: var(--bg-card);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  box-shadow: var(--elevation-2);
 }
 
 .diagram-picker__item {
@@ -353,8 +433,8 @@ html[data-theme="amber"] {
 }
 
 .diagram-picker__item.is-active {
-  background: rgba(16, 185, 129, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.45);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .diagram-picker__title {
@@ -374,7 +454,6 @@ html[data-theme="amber"] {
   background: #ecfdf5;
 }
 
-/* Mobile tabs + FAB: hidden on desktop; activated only via max-width: 768px */
 .mobile-view-tabs {
   display: none;
 }
@@ -383,7 +462,6 @@ html[data-theme="amber"] {
   display: none;
 }
 
-/* Compact suggest-edit on cards (all breakpoints) */
 .suggest-edit-btn {
   flex: 0 0 auto;
   width: 2rem;
@@ -405,64 +483,72 @@ html[data-theme="amber"] {
   background: var(--input-bg);
 }
 
-/* Mobile filter collapse toggle — hidden on desktop */
 .mobile-filters-toggle {
   display: none;
 }
 
+.app-panel:not(.is-filters-collapsed) .mobile-filters-toggle__label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
-  .app-panel.sticky {
+  .app-bar {
+    position: sticky;
+    top: 0;
     z-index: 100;
+    padding-top: calc(0.35rem + var(--safe-top));
+  }
+
+  .app-bar__chrome {
+    min-height: var(--app-bar-h);
   }
 
   .mobile-filters-toggle {
-    display: flex;
-    width: 100%;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
     min-height: 40px;
-    margin: -0.25rem 0 0.35rem;
-    padding: 0.35rem 0.5rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color);
-    background: var(--bg-card);
-    color: var(--text-main);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .mobile-filters-toggle__chevron {
-    font-size: 10px;
-    opacity: 0.8;
+    padding: 0.4rem 0.9rem;
+    margin: 0;
+    width: auto;
   }
 
   .app-panel.is-filters-collapsed .app-panel__filters {
     display: none;
   }
 
-  .app-panel:not(.is-filters-collapsed) .mobile-filters-toggle__label {
-    color: var(--text-muted);
-    font-weight: 500;
+  /* Expanded filters: sheet-like panel under app bar */
+  .app-panel:not(.is-filters-collapsed) .app-panel__filters {
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
   }
 
   .mobile-view-tabs {
     display: flex;
     position: sticky;
-    top: 0;
-    z-index: 95;
+    top: var(--app-bar-h);
+    z-index: 90;
     gap: 0.35rem;
     padding: 0.35rem 0;
     margin-bottom: 0.35rem;
     background: var(--bg-main);
   }
 
+  /* Expanded filter sheet is inside sticky header — don't pin tabs over it */
+  .app-shell:has(.app-bar:not(.is-filters-collapsed)) .mobile-view-tabs {
+    position: relative;
+    top: auto;
+  }
+
   .mobile-view-tabs__btn {
     flex: 1;
     min-height: 44px;
     padding: 0.55rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    border: 1px solid var(--outline-variant);
     background: var(--bg-card);
     color: var(--text-main);
     font-size: 13px;
@@ -470,10 +556,10 @@ html[data-theme="amber"] {
   }
 
   .mobile-view-tabs__btn.is-active {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.12);
-    color: #047857;
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+    border-color: color-mix(in srgb, var(--accent) 60%, var(--outline-variant));
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+    color: var(--accent);
+    box-shadow: var(--elevation-1);
   }
 
   .mobile-view-tabs__btn:disabled {
@@ -489,14 +575,15 @@ html[data-theme="amber"] {
     height: 100%;
   }
 
+  /* Color chips stick under tabs, not competing with app-bar */
   .wire-color-filter {
     position: sticky;
     top: 0;
-    z-index: 90;
+    z-index: 5;
     background: var(--input-bg);
+    border-radius: var(--radius-md);
   }
 
-  /* Touch targets 44–48px */
   .app-panel select,
   .app-input,
   [data-testid="nav-zone"],
@@ -507,7 +594,8 @@ html[data-theme="amber"] {
   .wire-color-chip,
   .diagram-picker__btn,
   [data-testid="clear-results"],
-  .ewd-scheme-header button {
+  .ewd-scheme-header button,
+  .md-btn {
     min-height: 44px;
   }
 
@@ -522,12 +610,14 @@ html[data-theme="amber"] {
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
     font-size: 13px;
+    border-radius: 999px;
   }
 
   .diagram-picker__btn {
     min-height: 44px;
     padding: 0.65rem 0.85rem;
     font-size: 13px;
+    border-radius: 999px;
   }
 
   .diagram-picker__item {
@@ -536,11 +626,15 @@ html[data-theme="amber"] {
     font-size: 13px;
   }
 
+  [data-testid="result-card"] {
+    border-radius: var(--radius-lg);
+  }
+
   .svg-zoom-fab {
     display: flex;
     position: absolute;
     right: 0.75rem;
-    bottom: 0.75rem;
+    bottom: calc(0.75rem + var(--safe-bottom));
     z-index: 30;
     flex-direction: column;
     gap: 0.35rem;
@@ -549,13 +643,13 @@ html[data-theme="amber"] {
   .svg-zoom-fab__btn {
     min-width: 48px;
     min-height: 48px;
-    border-radius: 0.65rem;
-    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    border: 1px solid var(--outline-variant);
     background: var(--bg-card);
     color: var(--text-main);
     font-size: 1.25rem;
     font-weight: 700;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+    box-shadow: var(--elevation-2);
   }
 
   .svg-zoom-fab__btn--reset {
@@ -566,5 +660,20 @@ html[data-theme="amber"] {
 
   .svg-viewer {
     touch-action: none;
+  }
+
+  /* Hide duplicate vehicle chip row density on very small screens */
+  [data-testid="vehicle-chip"] {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .app-bar__chrome .mobile-filters-toggle {
+    display: none;
+  }
+
+  .app-panel.is-filters-collapsed .app-panel__filters {
+    display: flex;
   }
 }

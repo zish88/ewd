@@ -33,8 +33,9 @@ const ZONE_RULES: Array<{ id: ZoneId; re: RegExp }> = [
   { id: "trunk", re: /\btrunk\s*lid|tailgate|tail\s*gate|cargo|багажн|задн\w*\s*двер[ьи].*крыш|fifth\s*door/i },
   { id: "front_doors", re: /\bfront\s*door|передн\w*\s*двер/i },
   { id: "rear_doors", re: /\brear\s*door|задн\w*\s*двер/i },
-  { id: "engine", re: /\bengine\s*(compartment\s*)?harness|\bengine\b|compartment|мотор|капот|двигател|starter\s*motor/i },
-  { id: "dashboard", re: /\bdashboard|instrument|heater\s*harness|\bheater\b|cabin|infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед/i },
+  // Avoid bare "engine"/"compartment" — they false-positive body harness titles.
+  { id: "engine", re: /\bengine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн\w*\s*отсек|капот|двигател|starter\s*motor|форсун|inject(?:or|ion)?|ECM\b|alternator|generator/i },
+  { id: "dashboard", re: /\bdashboard|instrument(\s*panel)?|heater\s*harness|\bheater\b|cabin|infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед/i },
   { id: "floor", re: /\bfloor|tunnel|пол|туннел|rear\s*axle|axle\s*harness/i },
   { id: "roof", re: /\broof|крыш|windshield\s*module/i },
   { id: "seats", re: /\bseat|сиден/i },

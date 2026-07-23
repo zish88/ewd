@@ -15,7 +15,10 @@ ZONE_RULES = [
     ("trunk", re.compile(r"trunk\s*lid|tailgate|cargo", re.I)),
     ("front_doors", re.compile(r"front\s*door", re.I)),
     ("rear_doors", re.compile(r"rear\s*door", re.I)),
-    ("engine", re.compile(r"engine(\s*compartment)?(\s*harness)?|\bcompartment\b", re.I)),
+    ("engine", re.compile(
+        r"engine\s*(compartment\s*)?harness|engine\s*compartment|моторн|двигател|starter\s*motor|inject|ECM|alternator|generator",
+        re.I,
+    )),
     ("dashboard", re.compile(r"dashboard|instrument|heater|cabin|climate|infotainment", re.I)),
     ("floor", re.compile(r"floor|tunnel|axle", re.I)),
     ("roof", re.compile(r"\broof\b|windshield", re.I)),

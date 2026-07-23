@@ -1148,10 +1148,11 @@ function renderWireCard(
             {wireRu}{wireCode !== "—" ? ` (${wireCode})` : ""}
           </span>
         </div>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[var(--text-muted)] font-sans">
-          <span>Сечение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.wire_gauge ? `${item.wire_gauge} мм²` : "—"}</span></span>
-          <span>Напряжение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.voltage?.trim() || "—"}</span></span>
-        </div>
+        {item.wire_gauge ? (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[var(--text-muted)] font-sans">
+            <span>Сечение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.wire_gauge} мм²</span></span>
+          </div>
+        ) : null}
       </div>
       <div className="flex gap-2 mt-0.5">
         {hasEwdDiagram ? (
@@ -1257,6 +1258,16 @@ function App() {
   const [dtcResults, setDtcResults] = useState<DtcHit[]>([]);
   const [dtcLoading, setDtcLoading] = useState(false);
   const [dtcNotice, setDtcNotice] = useState("");
+  type NodeInfo = {
+    code: string;
+    name_ru: string;
+    part_number: string;
+    part_number_mate: string;
+    pin_count: { owner: number; transit: number; total: number };
+    wire_gauges: string[];
+    zoneEmptyFallback?: boolean;
+  };
+  const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
   const [ownerWires, setOwnerWires] = useState<Result[]>([]);
   const [transitWires, setTransitWires] = useState<Result[]>([]);
   const [ewdDiagrams, setEwdDiagrams] = useState<EwdDiagram[]>([]);
@@ -1290,7 +1301,9 @@ function App() {
     navBrowse: true,
     dtcSearch: true,
   });
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 768px)").matches : false,
+  );
   const [vehicleConfigured, setVehicleConfigured] = useState(
     () => Boolean(persisted0.model && persisted0.year),
   );
@@ -1563,9 +1576,23 @@ function App() {
     setSelectedPinState(null);
     setActivePdf(null);
     setActiveSvg(null);
+    setNodeInfo(null);
     setDtcResults([]);
     setDtcNotice("");
   };
+
+  function clearDtc() {
+    setDtcQuery("");
+    setDtcResults([]);
+    setDtcNotice("");
+    if (mode === "dtc") setMode(null);
+  }
+
+  function clearVin() {
+    setVinInput("");
+    setVinLocked(false);
+    setVinNotice("");
+  }
 
   async function searchDtc() {
     const q = dtcQuery.trim();
@@ -1710,9 +1737,10 @@ function App() {
     if (isMobileViewport()) setMobileView("scheme");
   }
 
-  async function loadWires(code: string, zone = selectedZone) {
+  async function loadWires(code: string, zone = selectedZone, opts?: { ignoreZone?: boolean }) {
     if (!code) return;
     if (!requireVehicleMin()) return;
+    const useZone = opts?.ignoreZone ? "all" : zone;
     setMode("search");
     setOwnerWires([]);
     setTransitWires([]);
@@ -1720,6 +1748,7 @@ function App() {
     setEwdObjectIds([]);
     setWireColorFilter(null);
     setSchemeContext(null);
+    setNodeInfo(null);
     setMobileView("cards");
     setActivePdf(null);
     setActiveSvg(null);
@@ -1728,44 +1757,80 @@ function App() {
     setNotice(`Загружаем ${code}…`);
     try {
       const params = new URLSearchParams({ code });
-      if (zone && zone !== "all") params.set("zone", zone);
+      if (useZone && useZone !== "all") params.set("zone", useZone);
       const ewdQs = new URLSearchParams({ code });
-      if (zone && zone !== "all") ewdQs.set("zone", zone);
+      if (useZone && useZone !== "all") ewdQs.set("zone", useZone);
       const [data, ewdData] = await Promise.all([
         fetch(`/api/nav/wires?${params}`).then((r) => r.json()),
         fetch(`/api/ewd/diagrams?${ewdQs}`).then((r) => r.json()).catch(() => ({ diagrams: [], objectIds: [] })),
       ]);
-      const ownerRaw = Array.isArray(data.owner_wires) ? data.owner_wires : [];
-      const transitRaw = Array.isArray(data.transit_wires) ? data.transit_wires : [];
+      let ownerRaw = Array.isArray(data.owner_wires) ? data.owner_wires : [];
+      let transitRaw = Array.isArray(data.transit_wires) ? data.transit_wires : [];
+      let zoneEmptyFallback = false;
+      let infoSource = data;
+      // Zone filter emptied results — offer / auto-check unscoped wires
+      if (!ownerRaw.length && !transitRaw.length && useZone && useZone !== "all" && !opts?.ignoreZone) {
+        const unscoped = await fetch(`/api/nav/wires?code=${encodeURIComponent(code)}`).then((r) => r.json());
+        const uOwner = Array.isArray(unscoped.owner_wires) ? unscoped.owner_wires : [];
+        const uTransit = Array.isArray(unscoped.transit_wires) ? unscoped.transit_wires : [];
+        if (uOwner.length || uTransit.length) {
+          zoneEmptyFallback = true;
+          infoSource = unscoped;
+        }
+      }
       const ewdDiags = Array.isArray(ewdData.diagrams) ? (ewdData.diagrams as EwdDiagram[]) : [];
       const objectIds = Array.isArray(ewdData.objectIds) ? (ewdData.objectIds as string[]) : [];
-      // Weighted pick for endpoints scope (code-only context until a card is chosen).
-      // Do not fall back to an arbitrary dense sheet when score is 0.
       const codeCtx = extractSchemeContext(null, code);
       const preferredDiagram = pickBestDiagram(ewdDiags, codeCtx).diagram;
       const epQs = new URLSearchParams({ code });
-      if (zone && zone !== "all") epQs.set("zone", zone);
+      if (useZone && useZone !== "all") epQs.set("zone", useZone);
       if (preferredDiagram?.diagramUid) epQs.set("diagramUid", preferredDiagram.diagramUid);
       const epData = await fetch(`/api/ewd/endpoints?${epQs}`)
         .then((r) => r.json())
         .catch(() => ({ endpoints: [] }));
       const endpoints = Array.isArray(epData.endpoints) ? (epData.endpoints as EwdEndpoint[]) : [];
-      // Empty scoped EWD → keep SQLite details (no cross-system overlay)
       setOwnerWires(mergeEwdEndpoints(ownerRaw, endpoints, code));
       setTransitWires(mergeEwdEndpoints(transitRaw, endpoints, code));
       setEwdDiagrams(ewdDiags);
       setEwdObjectIds(objectIds);
+      const pinCount = infoSource.pin_count || {
+        owner: ownerRaw.length,
+        transit: transitRaw.length,
+        total: ownerRaw.length + transitRaw.length,
+      };
+      setNodeInfo({
+        code,
+        name_ru: String(infoSource.name_ru || ""),
+        part_number: String(infoSource.part_number || ""),
+        part_number_mate: String(infoSource.part_number_mate || ""),
+        pin_count: {
+          owner: Number(pinCount.owner) || ownerRaw.length,
+          transit: Number(pinCount.transit) || transitRaw.length,
+          total: Number(pinCount.total) || ownerRaw.length + transitRaw.length,
+        },
+        wire_gauges: Array.isArray(infoSource.wire_gauges)
+          ? infoSource.wire_gauges.map(String)
+          : [],
+        zoneEmptyFallback,
+      });
       const n = ownerRaw.length + transitRaw.length;
-      setNotice(
-        n || ewdDiags.length
-          ? `${code}: ${ewdDiags.length} схем EWD · ${ownerRaw.length} своих контактов · ${transitRaw.length} транзитных`
-          : `Для ${code} ничего не найдено`,
-      );
+      if (zoneEmptyFallback) {
+        setNotice(
+          `Нет контактов в выбранной зоне для ${code}. Есть данные вне зоны — нажмите «Показать во всех зонах».`,
+        );
+      } else {
+        setNotice(
+          n || ewdDiags.length
+            ? `${code}: ${ewdDiags.length} схем EWD · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
+            : `Для ${code} ничего не найдено`,
+        );
+      }
     } catch {
       setOwnerWires([]);
       setTransitWires([]);
       setEwdDiagrams([]);
       setEwdObjectIds([]);
+      setNodeInfo(null);
       setNotice("Ошибка загрузки контактов");
     } finally {
       setLoading(false);
@@ -1795,25 +1860,32 @@ function App() {
   return <main className="app-shell h-screen overflow-hidden flex flex-col">
     <header
       ref={headerRef}
-      className={`app-panel sticky top-0 z-50 shrink-0 backdrop-blur border-b px-3 py-2 shadow-sm${filtersCollapsed ? " is-filters-collapsed" : ""}`}
+      className={`app-panel app-bar shrink-0 border-b px-3 py-2${filtersCollapsed ? " is-filters-collapsed" : ""}`}
     >
-      <button
-        type="button"
-        className="mobile-filters-toggle"
-        aria-expanded={!filtersCollapsed}
-        aria-label={filtersCollapsed ? "Показать фильтры" : "Скрыть фильтры"}
-        onClick={() => setFiltersCollapsed((v) => !v)}
-      >
-        <span className="mobile-filters-toggle__chevron" aria-hidden>{filtersCollapsed ? "▼" : "▲"}</span>
-        <span className="mobile-filters-toggle__label">
-          {filtersCollapsed
-            ? [selectedModel, selectedYear, selectedEngine].filter(Boolean).join(" · ") || "Фильтры"
-            : "Свернуть меню"}
-        </span>
-      </button>
-      <div className="app-panel__filters mx-auto max-w-7xl flex flex-col gap-2">
+      <div className="app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]">
+        <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0">Volvo EWD</span>
+        {selectedModel && selectedYear ? (
+          <span className="md-chip md-chip--accent truncate max-w-[55%] sm:max-w-none">
+            {[selectedModel, selectedYear, selectedEngine].filter(Boolean).join(" · ")}
+          </span>
+        ) : (
+          <span className="text-[11px] text-[var(--text-muted)] truncate">Выберите авто</span>
+        )}
+        <button
+          type="button"
+          className="mobile-filters-toggle md-btn md-btn--tonal ml-auto"
+          aria-expanded={!filtersCollapsed}
+          aria-label={filtersCollapsed ? "Показать фильтры" : "Скрыть фильтры"}
+          onClick={() => setFiltersCollapsed((v) => !v)}
+        >
+          <span className="mobile-filters-toggle__label">
+            {filtersCollapsed ? "Фильтры" : "Скрыть"}
+          </span>
+        </button>
+      </div>
+      <div className="app-panel__filters mx-auto max-w-7xl flex flex-col gap-2 mt-2">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="font-semibold text-[var(--accent)] mr-1 hidden sm:inline">Volvo EWD</span>
+          <span className="font-semibold text-[var(--accent)] mr-1 hidden">Volvo EWD</span>
           <div className="theme-toggle" role="group" aria-label="Тема">
             {THEMES.map((t) => (
               <button
@@ -1910,6 +1982,10 @@ function App() {
               className="app-input rounded px-1.5 py-1 font-mono w-[11.5rem] tracking-wider"
               maxLength={17}
               placeholder="17 символов"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              name="ewd-vin"
               value={vinInput}
               onChange={(e) => {
                 setVinInput(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "").slice(0, 17));
@@ -1923,32 +1999,31 @@ function App() {
           <button
             type="button"
             data-testid="vin-decode-btn"
-            className="text-[11px] px-2 py-1"
+            className="md-btn md-btn--tonal text-[11px] px-2 py-1"
             onClick={() => void applyVin()}
           >
             По VIN
           </button>
-            </>
-          ) : null}
-          {vinLocked && (
+          {(vinInput || vinLocked) ? (
             <button
               type="button"
-              data-testid="vin-unlock-btn"
-              className="text-[11px] px-2 py-1 bg-transparent text-[var(--muted)] border border-[var(--border)]"
-              onClick={() => {
-                setVinLocked(false);
-                setVinNotice("Селекторы разблокированы.");
-              }}
+              data-testid="vin-clear-btn"
+              className="md-btn md-btn--text text-[11px] px-2 py-1"
+              onClick={clearVin}
             >
-              Изменить
+              Сброс VIN
             </button>
-          )}
+          ) : null}
+            </>
+          ) : null}
+          {vinLocked ? (
+            <span className="md-chip" data-testid="vin-chip">из VIN</span>
+          ) : null}
           {selectedModel && selectedYear && (
-            <span className="text-[var(--accent)] text-[11px] ml-auto">
+            <span className="md-chip md-chip--accent ml-auto" data-testid="vehicle-chip">
               {selectedModel} · {selectedYear}
               {selectedEngine ? ` · ${selectedEngine}` : ""}
-              {selectedTransmission ? ` · ${selectedTransmission}` : " · Все КПП"}
-              {vinLocked ? " · VIN" : ""}
+              {selectedTransmission ? ` · ${selectedTransmission}` : ""}
             </span>
           )}
         </div>
@@ -1971,6 +2046,7 @@ function App() {
                   setOwnerWires([]);
                   setTransitWires([]);
                   setEwdDiagrams([]);
+                  setNodeInfo(null);
                   setMode(null);
                   setActivePdf(null);
                   setActiveSvg(null);
@@ -2029,11 +2105,20 @@ function App() {
             <button
               type="button"
               data-testid="dtc-search-btn"
-              className="text-[11px] px-2.5 py-1.5"
+              className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
               onClick={() => void searchDtc()}
               disabled={dtcLoading}
             >
               {dtcLoading ? "…" : "Найти"}
+            </button>
+            <button
+              type="button"
+              data-testid="dtc-clear-btn"
+              className="md-btn md-btn--text text-[11px] px-2.5 py-1.5"
+              onClick={clearDtc}
+              disabled={!dtcQuery && !dtcResults.length && mode !== "dtc"}
+            >
+              Сброс
             </button>
           </div>
           {dtcNotice ? (
@@ -2048,7 +2133,7 @@ function App() {
       <section data-testid="dtc-results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
         <div className="mb-1 flex justify-between shrink-0 text-xs">
           <p className="text-[var(--text-muted)]">{dtcLoading ? "Ищем…" : dtcNotice}</p>
-          <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={clear}>Очистить</button>
+          <button type="button" className="md-btn md-btn--text text-[var(--text-muted)]" onClick={clearDtc}>Очистить</button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-4" data-mobile-scroll>
           {dtcResults.map((row) => (
@@ -2129,6 +2214,48 @@ function App() {
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
+      {nodeInfo ? (
+        <aside data-testid="node-info-banner" className="md-info-banner app-card border rounded-xl px-3 py-2.5 space-y-1.5 shrink-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="font-mono font-semibold text-[var(--accent)] text-sm">{nodeInfo.code}</span>
+            {nodeInfo.name_ru ? (
+              <span className="text-xs text-[var(--text-main)]">{nodeInfo.name_ru}</span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
+            {nodeInfo.part_number ? (
+              <span>Корпус: <span className="font-mono text-[var(--text-main)]">{nodeInfo.part_number}</span></span>
+            ) : null}
+            {nodeInfo.part_number_mate ? (
+              <span>Ответная часть: <span className="font-mono text-[var(--text-main)]">{nodeInfo.part_number_mate}</span></span>
+            ) : null}
+            <span>
+              Контакты: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.owner}</span>
+              {nodeInfo.pin_count.transit ? (
+                <> · транзит: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.transit}</span></>
+              ) : null}
+            </span>
+            {nodeInfo.wire_gauges.length ? (
+              <span>
+                Сечения:{" "}
+                <span className="font-mono text-[var(--text-main)]">
+                  {nodeInfo.wire_gauges.map((g) => `${g} мм²`).join(", ")}
+                </span>
+              </span>
+            ) : null}
+          </div>
+          {nodeInfo.zoneEmptyFallback ? (
+            <button
+              type="button"
+              data-testid="show-all-zones-btn"
+              className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 mt-1"
+              onClick={() => void loadWires(nodeInfo.code, selectedZone, { ignoreZone: true })}
+            >
+              Показать во всех зонах
+            </button>
+          ) : null}
+        </aside>
+      ) : null}
       <div data-testid="wires-block" className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">

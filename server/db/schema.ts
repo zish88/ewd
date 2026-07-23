@@ -44,6 +44,7 @@ const CORE_DDL = `
     description_en TEXT NOT NULL DEFAULT '',
     name_ru TEXT NOT NULL DEFAULT '',
     part_number TEXT NOT NULL DEFAULT '',
+    part_number_mate TEXT NOT NULL DEFAULT '',
     home_zone TEXT NOT NULL DEFAULT ''
   );
 
@@ -239,6 +240,7 @@ function ensureNavColumns(db: Database.Database) {
     const cnames = new Set(compCols.map((c) => c.name));
     addColumnIfMissing(db, "components", "name_ru", `name_ru TEXT NOT NULL DEFAULT ''`, cnames);
     addColumnIfMissing(db, "components", "part_number", `part_number TEXT NOT NULL DEFAULT ''`, cnames);
+    addColumnIfMissing(db, "components", "part_number_mate", `part_number_mate TEXT NOT NULL DEFAULT ''`, cnames);
     addColumnIfMissing(db, "components", "home_zone", `home_zone TEXT NOT NULL DEFAULT ''`, cnames);
   }
 }

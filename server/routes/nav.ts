@@ -376,9 +376,15 @@ export function createNavRouter(db: Database.Database) {
                 IFNULL(p.system_name,'') AS system_name,
                 IFNULL(w.from_detail,'') AS from_detail,
                 IFNULL(w.to_detail,'') AS to_detail,
-                IFNULL(w.function_text,'') AS function_text
+                IFNULL(w.function_text,'') AS function_text,
+                IFNULL(cf.component_code,'') AS from_code,
+                IFNULL(ct.component_code,'') AS to_code,
+                IFNULL(cv.component_code,'') AS via_code
          FROM wire_connections w
-         JOIN pages p ON p.id = w.page_id`,
+         JOIN pages p ON p.id = w.page_id
+         LEFT JOIN components cf ON cf.id = w.from_component_id
+         LEFT JOIN components ct ON ct.id = w.to_component_id
+         LEFT JOIN components cv ON cv.id = w.via_component_id`,
       )
       .all() as Array<{
       from_component_id: number | null;
@@ -391,41 +397,16 @@ export function createNavRouter(db: Database.Database) {
       from_detail: string;
       to_detail: string;
       function_text: string;
+      from_code: string;
+      to_code: string;
+      via_code: string;
     }>;
-
-    const zoneFilter = zone && zone !== "all";
-    const idSet = new Set<number>();
-    const subjectCodes = new Set<string>();
-    for (const w of wireRows) {
-      const zoneOk =
-        !zoneFilter ||
-        wireMatchesZone(w.harness_left, w.harness_right, zone) ||
-        // Older DBs: no harness_* → require a positive zone signal from page/details
-        ((!w.harness_left && !w.harness_right) &&
-          (textBelongsToZone(w.system_name, zone) ||
-            textBelongsToZone(`${w.from_detail} ${w.to_detail} ${w.function_text}`, zone)));
-      if (!zoneOk) continue;
-
-      // Owner of the pinout row always stays in the zone list when the wire matches.
-      if (w.subject_code) subjectCodes.add(w.subject_code);
-
-      if (!zoneFilter) {
-        for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
-          if (id) idSet.add(id);
-        }
-        continue;
-      }
-
-      // Do NOT dump every peer on a zone-matching wire (that leaked SCL into front_bumper).
-      // Only keep endpoints whose own detail text belongs to the selected zone.
-      if (w.from_component_id && endpointBelongsToZone(w.from_detail, zone)) idSet.add(w.from_component_id);
-      if (w.to_component_id && endpointBelongsToZone(w.to_detail, zone)) idSet.add(w.to_component_id);
-    }
 
     const comps = db
       .prepare(
         `SELECT id, component_code, component_type_ru, description_en, description_ru,
                 IFNULL(name_ru,'') AS name_ru, IFNULL(part_number,'') AS part_number,
+                IFNULL(part_number_mate,'') AS part_number_mate,
                 IFNULL(home_zone,'') AS home_zone
          FROM components ORDER BY component_code`,
       )
@@ -437,8 +418,59 @@ export function createNavRouter(db: Database.Database) {
       description_ru: string;
       name_ru: string;
       part_number: string;
+      part_number_mate: string;
       home_zone: string;
     }>;
+    const homeByCode = new Map(
+      comps.map((c) => [
+        c.component_code,
+        c.home_zone && ZONE_LABELS[c.home_zone as ZoneId] ? c.home_zone : "",
+      ]),
+    );
+
+    const zoneFilter = zone && zone !== "all";
+    const idSet = new Set<number>();
+    const subjectCodes = new Set<string>();
+    /** Codes that have ≥1 zone-matching wire (owner or endpoint) — symmetry with /wires. */
+    const codesWithZoneWires = new Set<string>();
+    for (const w of wireRows) {
+      const zoneOk =
+        !zoneFilter ||
+        wireMatchesZone(w.harness_left, w.harness_right, zone) ||
+        ((!w.harness_left && !w.harness_right) &&
+          (textBelongsToZone(w.system_name, zone) ||
+            textBelongsToZone(`${w.from_detail} ${w.to_detail} ${w.function_text}`, zone)));
+      if (!zoneOk) continue;
+
+      if (w.subject_code) {
+        const subjHome = homeByCode.get(w.subject_code) || "";
+        // Subject enters zone list only when native to zone (or unknown home).
+        if (!zoneFilter || !subjHome || subjHome === zone) {
+          subjectCodes.add(w.subject_code);
+          codesWithZoneWires.add(w.subject_code);
+        }
+      }
+
+      if (!zoneFilter) {
+        for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
+          if (id) idSet.add(id);
+        }
+        for (const code of [w.from_code, w.to_code, w.via_code, w.subject_code]) {
+          if (code) codesWithZoneWires.add(code);
+        }
+        continue;
+      }
+
+      // Do NOT dump every peer on a zone-matching wire (that leaked SCL into front_bumper).
+      if (w.from_component_id && endpointBelongsToZone(w.from_detail, zone)) {
+        idSet.add(w.from_component_id);
+        if (w.from_code) codesWithZoneWires.add(w.from_code);
+      }
+      if (w.to_component_id && endpointBelongsToZone(w.to_detail, zone)) {
+        idSet.add(w.to_component_id);
+        if (w.to_code) codesWithZoneWires.add(w.to_code);
+      }
+    }
 
     const byCode = new Map<string, (typeof comps)[0]>();
     for (const c of comps) {
@@ -448,13 +480,14 @@ export function createNavRouter(db: Database.Database) {
         }
         continue;
       }
-      // Zone list = home_zone natives + subject owners on zone wires + peers with matching detail
-      // (never pull a component whose home_zone is a different known zone).
-      const home = c.home_zone && ZONE_LABELS[c.home_zone as ZoneId] ? c.home_zone : "";
+      const home = homeByCode.get(c.component_code) || "";
       if (home && home !== zone) continue;
-      if (home === zone || subjectCodes.has(c.component_code) || idSet.has(c.id)) {
-        byCode.set(c.component_code, c);
-      }
+      // Symmetry: never list a code that has zero wires under this zone filter.
+      // Pure home_zone without zone wires → omit (was the empty-contacts root cause).
+      const listed =
+        (subjectCodes.has(c.component_code) || idSet.has(c.id)) &&
+        codesWithZoneWires.has(c.component_code);
+      if (listed) byCode.set(c.component_code, c);
     }
 
     const pinoutCodes = new Set(
@@ -574,16 +607,32 @@ export function createNavRouter(db: Database.Database) {
     const partRows = db
       .prepare(
         `SELECT component_code, IFNULL(part_number,'') AS part_number,
-                IFNULL(name_ru,'') AS name_ru
+                IFNULL(part_number_mate,'') AS part_number_mate,
+                IFNULL(name_ru,'') AS name_ru,
+                IFNULL(home_zone,'') AS home_zone
          FROM components`,
       )
-      .all() as Array<{ component_code: string; part_number: string; name_ru: string }>;
+      .all() as Array<{
+      component_code: string;
+      part_number: string;
+      part_number_mate: string;
+      name_ru: string;
+      home_zone: string;
+    }>;
     const partByCode = new Map(
       partRows.filter((r) => r.part_number).map((r) => [r.component_code, r.part_number]),
+    );
+    const mateByCode = new Map(
+      partRows.filter((r) => r.part_number_mate).map((r) => [r.component_code, r.part_number_mate]),
     );
     const nameByCode = new Map(
       partRows.filter((r) => r.name_ru).map((r) => [r.component_code, r.name_ru]),
     );
+    const selectedComp = partRows.find((r) => r.component_code === code);
+    const homeZoneOfCode =
+      selectedComp?.home_zone && ZONE_LABELS[selectedComp.home_zone as ZoneId]
+        ? selectedComp.home_zone
+        : "";
 
     let diagrams: Array<{ book_id: number; page_number: number; system_name: string; title: string }> = [];
     try {
@@ -653,10 +702,12 @@ export function createNavRouter(db: Database.Database) {
 
         if (role === "owner") {
           // Empty harness: soft-keep owner pins unless text conflicts with selected zone.
+          // Also soft-keep when component home_zone matches the selected zone (empty harness natives).
           if (noHarness) {
             if (textConflictsWithZone(pageBlob, zone) || textConflictsWithZone(detailBlob, zone)) {
               return false;
             }
+            if (homeZoneOfCode && homeZoneOfCode === zone) return true;
           } else if (!harnessOk) {
             return false;
           }
@@ -729,13 +780,30 @@ export function createNavRouter(db: Database.Database) {
       );
 
     const selected_part_number = partByCode.get(code) || "";
+    const selected_part_mate = mateByCode.get(code) || "";
     const results = [...owner_wires, ...transit_wires];
+    const gauges = [
+      ...new Set(
+        results
+          .map((r) => String(r.wire_gauge || "").trim())
+          .filter(Boolean),
+      ),
+    ].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
     res.json({
       code,
       zone: zone || "all",
       system: systemHint || null,
       count: results.length,
       part_number: selected_part_number,
+      part_number_mate: selected_part_mate,
+      name_ru: nameByCode.get(code) || "",
+      home_zone: homeZoneOfCode || "",
+      pin_count: {
+        owner: owner_wires.length,
+        transit: transit_wires.length,
+        total: results.length,
+      },
+      wire_gauges: gauges,
       diagrams,
       owner_wires,
       transit_wires,

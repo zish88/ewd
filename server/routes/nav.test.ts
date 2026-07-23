@@ -174,6 +174,45 @@ test("nav components zone filter hides engine connector", async () => {
   assert.ok(!codes.includes("74/301"));
 });
 
+test("nav components in zone list have wires under same zone", async () => {
+  const app = fixture();
+  const list = await request(app).get("/api/nav/components?zone=front_doors");
+  assert.equal(list.status, 200);
+  const codes = list.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(codes.length >= 1);
+  for (const code of codes) {
+    const wires = await request(app).get(
+      `/api/nav/wires?code=${encodeURIComponent(code)}&zone=front_doors`,
+    );
+    assert.equal(wires.status, 200);
+    const n = (wires.body.owner_wires?.length || 0) + (wires.body.transit_wires?.length || 0);
+    assert.ok(n >= 1, `${code} listed in front_doors but wires empty`);
+  }
+});
+
+test("nav components omit home_zone native without zone wires", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  db.prepare(
+    "INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)",
+  ).run(enId, 1, "Connector 74/9", "connector");
+  db.prepare(
+    "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+  ).run("74/9", "Разъем", "Orphan door native", "front_doors");
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/components?zone=front_doors");
+  assert.equal(res.status, 200);
+  const codes = res.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(!codes.includes("74/9"), "home_zone-only without wires must not list");
+});
+
 test("nav components prefer home_zone natives and hide foreign home_zone", async () => {
   const db = openDatabase(":memory:");
   const enId = Number(
