@@ -39,15 +39,29 @@ git checkout -f -B master origin/master
 
 ## 2. Восстановить SQLite (если список узлов пустой)
 
-С ПК залить файл `data/wiring.sqlite` в `/opt/ewd-app/data/wiring.sqlite` (перезаписать).
+Зоны в UI всегда видны (хардкод меток). Пустой «Компонент / разъём» = **пустая или старая БД** на диске `/opt/ewd-app/data/`.
 
-Проверка:
+Восстановить БД из Git (на сервере):
 
 ```bash
-ls -la /opt/ewd-app/data/wiring.sqlite
+cd /opt/ewd-app
+git fetch origin
+git checkout -f master
+git reset --hard origin/master
+git checkout HEAD -- data/wiring.sqlite
+ls -la data/wiring.sqlite
+docker restart volvo-xc70-wiring
+curl -s http://127.0.0.1:3000/api/health
 ```
 
-Ожидание: размер около **600 KB+**.
+В `health` должно быть примерно: `"components":746,"wires":4775,"pages":368` и `"ok":true`.
+
+Если `git checkout HEAD -- data/wiring.sqlite` не помог — залить файл с ПК  
+`C:\Users\eni19\volvo-xc70-wiring\data\wiring.sqlite` → `/opt/ewd-app/data/wiring.sqlite` через File Manager, затем:
+
+```bash
+docker restart volvo-xc70-wiring
+```
 
 ## 3. Залить SVG-источник (для схем)
 

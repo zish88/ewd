@@ -22,7 +22,31 @@ app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/api/health", (_req, res) => {
+  const dbPath = resolve(process.env.DATABASE_PATH ?? "data/wiring.sqlite");
+  let components = 0;
+  let wires = 0;
+  let pages = 0;
+  let error: string | undefined;
+  try {
+    components = Number((db.prepare("SELECT COUNT(*) AS n FROM components").get() as { n: number }).n);
+    wires = Number((db.prepare("SELECT COUNT(*) AS n FROM wire_connections").get() as { n: number }).n);
+    pages = Number((db.prepare("SELECT COUNT(*) AS n FROM pages").get() as { n: number }).n);
+  } catch (e) {
+    error = e instanceof Error ? e.message : String(e);
+  }
+  res.json({
+    ok: !error && components > 0 && wires > 0,
+    dbPath,
+    dbExists: existsSync(dbPath),
+    counts: { components, wires, pages },
+    error,
+    hint:
+      components === 0 || wires === 0
+        ? "Empty SQLite on volume. Restore data/wiring.sqlite from git (see DEPLOY.md)."
+        : undefined,
+  });
+});
 
 app.get("/api/filters", (req, res) => {
   const model = String(req.query.model ?? "");
