@@ -1,6 +1,7 @@
 /**
  * Weighted SVG page picker for EWD diagrams.
- * Scores by co-presence of circuit codes on a sheet — never hardcodes node literals.
+ * Prefer net ownership (pin/wire/peer UIDs on sheet) when provided by the server;
+ * fall back to co-presence of circuit codes — never hardcodes node literals.
  */
 
 export type SchemeCardLike = {
@@ -22,6 +23,10 @@ export type SchemeDiagramLike = {
   designFolder?: string;
   systemName?: string;
   pathCount?: number;
+  /** Optional net-ownership hints from /api/ewd/pick-diagram or pin_wire_index */
+  wireHits?: number;
+  pinHits?: number;
+  onSheetUidCount?: number;
 };
 
 export type SchemeContext = {
@@ -218,7 +223,17 @@ function anyOnPage(page: Set<string>, codes: string[]): boolean {
  * 50  — functional module present; target junction absent (transit)
  * 0   — junction-only / no active module from context (blacklist)
  */
+/** Bonus when server reports wire/pin UIDs present on this sheet (VIDA net ownership). */
+const SCORE_NET_WIRE = 200;
+const SCORE_NET_PIN = 150;
+
 export function scoreDiagramForContext(diagram: SchemeDiagramLike, ctx: SchemeContext): number {
+  const wireHits = Number(diagram.wireHits) || 0;
+  const pinHits = Number(diagram.pinHits) || 0;
+  const onSheet = Number(diagram.onSheetUidCount) || wireHits + pinHits;
+  if (wireHits > 0) return SCORE_NET_WIRE + Math.min(wireHits, 9);
+  if (pinHits > 0 || onSheet > 0) return SCORE_NET_PIN + Math.min(onSheet, 9);
+
   const page = diagramCodeSet(diagram);
   if (!page.size) return 0;
 
@@ -240,6 +255,8 @@ export function scoreDiagramForContext(diagram: SchemeDiagramLike, ctx: SchemeCo
 function compareRanked<T extends SchemeDiagramLike>(a: RankedDiagram<T>, b: RankedDiagram<T>): number {
   return (
     b.score - a.score ||
+    (Number(b.diagram.wireHits) || 0) - (Number(a.diagram.wireHits) || 0) ||
+    (Number(b.diagram.onSheetUidCount) || 0) - (Number(a.diagram.onSheetUidCount) || 0) ||
     b.hits - a.hits ||
     (b.diagram.pathCount || 0) - (a.diagram.pathCount || 0) ||
     String(a.diagram.diagramUid).localeCompare(String(b.diagram.diagramUid))
@@ -272,4 +289,29 @@ export function pickBestDiagram<T extends SchemeDiagramLike>(
   }
   // No score>0 match — do not promote junction-only / unrelated dense sheets.
   return { diagram: null, score: 0, ranked };
+}
+
+/**
+ * Candidate sheets to probe for a pin marker.
+ * Includes score-0 pages that still draw `selectedCode` (junction pinouts) —
+ * those are blacklisted by pickBestDiagram but often have the cavity digits.
+ */
+export function diagramsForPinProbe<T extends SchemeDiagramLike>(
+  diagrams: T[],
+  ctx: SchemeContext,
+  limit = 18,
+): RankedDiagram<T>[] {
+  const ranked = rankDiagramsForContext(diagrams, ctx);
+  const selected = normalizeSchemeCode(ctx.selectedCode);
+  const withCode = ranked.filter((r) => diagramHasCode(r.diagram, selected));
+  // Prefer scored circuit pages, then selected-code-only sheets (lower pathCount first).
+  const scored = withCode.filter((r) => r.score > 0);
+  const codeOnly = withCode
+    .filter((r) => r.score <= 0)
+    .sort(
+      (a, b) =>
+        (a.diagram.pathCount || 0) - (b.diagram.pathCount || 0) ||
+        String(a.diagram.diagramUid).localeCompare(String(b.diagram.diagramUid)),
+    );
+  return [...scored, ...codeOnly].slice(0, Math.max(1, limit));
 }

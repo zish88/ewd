@@ -126,6 +126,14 @@ if (!Array.isArray(result.pinModuleCandidates) || !result.pinModuleCandidates.in
   fail(`module pin candidates must include 2 and 21, got ${JSON.stringify(result.pinModuleCandidates)}`);
 }
 
+// Pin probe must include junction-only sheets (score 0) after scored pages
+const probe = SR.diagramsForPinProbe([pageB, pageC, pageA], ctx, 10);
+const probeUids = probe.map((r) => r.diagram.diagramUid);
+if (probeUids[0] !== "uid-full") fail(`pin probe should start with full-path page, got ${probeUids[0]}`);
+if (!probeUids.includes("uid-junction")) {
+  fail(`pin probe must include junction-only sheet for cavity search, got ${JSON.stringify(probeUids)}`);
+}
+
 try {
   unlinkSync(bundlePath);
 } catch {

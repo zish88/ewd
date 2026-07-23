@@ -12,6 +12,7 @@ import {
 } from "./wireColorFilter.js";
 import {
   diagramHasCode,
+  diagramsForPinProbe,
   extractSchemeContext,
   peerCodeFromSchemeCard,
   pickBestDiagram,
@@ -71,6 +72,8 @@ type ActiveSvg = {
   /** Netlist pins from highlight match (optional, improves opposite-end scoring) */
   pinFrom?: string;
   pinTo?: string;
+  /** Vehicle option tokens for Capital optionExpression filter */
+  optionTokens?: string[];
   /** Increments on every «Показать на схеме» — forces marker re-inject + recenter (never toggle-off). */
   showSeq?: number;
 };
@@ -495,6 +498,7 @@ function SvgDiagramViewer({
   zone = "",
   pinFrom = "",
   pinTo = "",
+  optionTokens = [],
   showSeq = 0,
   onPinMiss,
 }: ActiveSvg & { onPinMiss?: (reason: string) => void }) {
@@ -525,6 +529,8 @@ function SvgDiagramViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resolveUids, setResolveUids] = useState<string[]>([]);
+  const [wireUids, setWireUids] = useState<string[]>([]);
+  const [pinUids, setPinUids] = useState<string[]>([]);
   const [netPins, setNetPins] = useState<{ pinFrom?: string; pinTo?: string }>({});
 
   const applyPanZoomDom = () => {
@@ -600,6 +606,8 @@ function SvgDiagramViewer({
     setError(null);
     setSvgMarkup("");
     setResolveUids([]);
+    setWireUids([]);
+    setPinUids([]);
     scaleRef.current = 1;
     translateRef.current = { x: 40, y: 40 };
     baseSizeRef.current = null;
@@ -634,6 +642,8 @@ function SvgDiagramViewer({
     setHighlightReady(false);
     if (!pin && !pinCandidates.length && !wireColor && !peerCode) {
       setResolveUids([]);
+      setWireUids([]);
+      setPinUids([]);
       setNetPins({});
       setHighlightReady(true);
       return;
@@ -644,6 +654,7 @@ function SvgDiagramViewer({
     if (wireColor) params.set("color", wireColor);
     if (peerCode) params.set("peer", peerCode);
     if (zone && zone !== "all") params.set("zone", zone);
+    if (optionTokens.length) params.set("optionTokens", optionTokens.join(","));
     fetch(`/api/ewd/highlight?${params}`)
       .then((r) => r.json())
       .then((data) => {
@@ -656,6 +667,7 @@ function SvgDiagramViewer({
               pinTo?: string;
               fromUid?: string;
               toUid?: string;
+              wireUid?: string;
             }>)
           : [];
         const peerN = normalizeCodeLabel(peerCode);
@@ -679,13 +691,20 @@ function SvgDiagramViewer({
           ? ([preferred.fromUid, preferred.toUid].filter(Boolean) as string[])
           : [];
         const apiUids = Array.isArray(data.uids) ? (data.uids as string[]) : [];
+        const apiWireUids = Array.isArray(data.wireUids) ? (data.wireUids as string[]) : [];
+        const apiPinUids = Array.isArray(data.pinUids) ? (data.pinUids as string[]) : [];
+        if (preferred?.wireUid) apiWireUids.unshift(preferred.wireUid);
         // Prefer exact net endpoints; fall back to objectIds on this sheet
         const uidPool = fromMatched.length
           ? fromMatched
-          : apiUids.length
-            ? apiUids.slice(0, 8)
-            : (objectIds || []).slice(0, 8);
+          : apiPinUids.length
+            ? apiPinUids.slice(0, 8)
+            : apiUids.length
+              ? apiUids.slice(0, 8)
+              : (objectIds || []).slice(0, 8);
         setResolveUids(uidPool);
+        setWireUids([...new Set(apiWireUids.filter(Boolean))].slice(0, 16));
+        setPinUids([...new Set([...apiPinUids, ...fromMatched].filter(Boolean))].slice(0, 16));
         setNetPins({
           pinFrom: String(preferred?.pinFrom || pinFrom || "").trim() || undefined,
           pinTo: String(preferred?.pinTo || pinTo || "").trim() || undefined,
@@ -695,6 +714,8 @@ function SvgDiagramViewer({
       .catch(() => {
         if (alive) {
           setResolveUids((objectIds || []).slice(0, 8));
+          setWireUids([]);
+          setPinUids([]);
           setNetPins({});
           setHighlightReady(true);
         }
@@ -702,7 +723,7 @@ function SvgDiagramViewer({
     return () => {
       alive = false;
     };
-  }, [diagramUid, searchCode, pin, pinCandidates, wireColor, peerCode, zone, pinFrom, pinTo, objectIds]);
+  }, [diagramUid, searchCode, pin, pinCandidates, wireColor, peerCode, zone, pinFrom, pinTo, objectIds, optionTokens]);
 
   // Apply SVG markup once per string — never via render dangerouslySetInnerHTML
   // (React re-renders would wipe injected .pin-marker otherwise = false "toggle")
@@ -773,7 +794,7 @@ function SvgDiagramViewer({
           .filter(Boolean),
       ),
     ];
-    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${candidates.join("/")}|${wireColor}|${peerCode}|${showSeq}|${resolveUids.join(",")}`;
+    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${candidates.join("/")}|${wireColor}|${peerCode}|${showSeq}|${resolveUids.join(",")}|${wireUids.join(",")}`;
 
     const result = highlightTarget(root, svg, {
       connectorCode: searchCode,
@@ -782,6 +803,8 @@ function SvgDiagramViewer({
       wireColor,
       systemUid: resolveUids[0],
       resolveUids,
+      wireUids,
+      pinUids,
       diagramUid,
       peerCode,
     });
@@ -792,6 +815,8 @@ function SvgDiagramViewer({
         wireColor,
         systemUid: resolveUids[0],
         resolveUids,
+        wireUids,
+        pinUids,
         diagramUid,
         peerCode,
       });
@@ -817,6 +842,8 @@ function SvgDiagramViewer({
     searchCode,
     diagramUid,
     resolveUids,
+    wireUids,
+    pinUids,
     pin,
     pinCandidates,
     wireColor,
@@ -1245,6 +1272,23 @@ function App() {
     engines: [],
     transmissions: [],
   });
+  const [optionTokens, setOptionTokens] = useState<string[]>([]);
+  type EwdSystemRow = {
+    systemUid: string;
+    name: string;
+    folders?: string;
+    zone?: string | null;
+    diagramUids?: string[];
+    diagramCount?: number;
+  };
+  const [ewdSystems, setEwdSystems] = useState<EwdSystemRow[]>([]);
+  const [systemsOpen, setSystemsOpen] = useState(false);
+  const [traceInfo, setTraceInfo] = useState<{
+    uid: string;
+    signalFile?: string | null;
+    siblingCount: number;
+    diagrams: Array<{ diagramUid: string; systemName?: string }>;
+  } | null>(null);
   const [mode, setMode] = useState<"search" | "dtc" | null>(null);
   type DtcHit = {
     code: string;
@@ -1281,6 +1325,10 @@ function App() {
   const showSeqRef = useRef(0);
   /** Diagram UIDs already tried after pin-miss for the current card focus (prevents loops). */
   const pinMissTriedRef = useRef<Set<string>>(new Set());
+  /** Connectivity-viable sheets for this pin (from /api/ewd/pick-diagram) — retry only inside this list. */
+  const pinViableUidsRef = useRef<string[]>([]);
+  /** Auto pin-miss retries left (card open only; manual picker = 0). */
+  const pinMissBudgetRef = useRef(0);
   const [zoom, setZoom] = useState(80);
   const [selectedPinState, setSelectedPinState] = useState<{
     id: string | number;
@@ -1445,6 +1493,9 @@ function App() {
           engines: nextEngines,
           transmissions: nextTrans,
         });
+        if (Array.isArray(data.optionTokens)) {
+          setOptionTokens(data.optionTokens.map(String).filter(Boolean));
+        }
         // Keep restored/user picks; never clear from stale parent closures
         setSelectedYear((current: string) => {
           if (!current) return "";
@@ -1665,11 +1716,12 @@ function App() {
     }
   }
 
-  function openEwdDiagram(
+  async function openEwdDiagram(
     searchCode: string,
     preferredUid?: string,
     wire?: WireFocus,
     card?: Result,
+    opts?: { fromPinMissRetry?: boolean; manualPick?: boolean },
   ) {
     const code = normalizeCodeLabel(searchCode || selectedCode);
     if (!ewdDiagrams.length) {
@@ -1681,24 +1733,6 @@ function App() {
       : schemeContext || extractSchemeContext(null, code);
     if (card) setSchemeContext(ctx);
 
-    // Explicit list UID = manual override; otherwise top-ranked (highest score)
-    let preferred =
-      (preferredUid && ewdDiagrams.find((d) => d.diagramUid === preferredUid)) || null;
-    if (!preferred) {
-      const picked = pickBestDiagram(ewdDiagrams, ctx);
-      preferred = picked.diagram;
-      if (!preferred) {
-        const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
-        // Prefer any sheet that actually draws the selected code; avoid random dense junk.
-        preferred =
-          ranked.find((r) => diagramHasCode(r.diagram, code))?.diagram ||
-          (!wire?.pin ? ranked[0]?.diagram || ewdDiagrams[0] || null : null);
-      }
-    }
-    if (!preferred) {
-      setNotice("Графическая схема EWD для этого узла не найдена.");
-      return;
-    }
     const resolved = card
       ? resolveHighlightPin(card, code, wire?.pin || "")
       : null;
@@ -1716,8 +1750,76 @@ function App() {
           .filter(Boolean),
       ),
     ];
-    // Fresh card click resets pin-miss retry set; retries pass preferredUid only.
-    if (!preferredUid) pinMissTriedRef.current = new Set();
+    const hasPinFocus = pinCandidates.length > 0 || !!wire?.pin;
+
+    // Fresh card click resets pin-miss state; retries / manual keep their own budget.
+    if (!preferredUid && !opts?.fromPinMissRetry) {
+      pinMissTriedRef.current = new Set();
+      pinViableUidsRef.current = [];
+      pinMissBudgetRef.current = hasPinFocus ? 2 : 0;
+    }
+    if (opts?.manualPick) {
+      pinMissBudgetRef.current = 0;
+      pinViableUidsRef.current = [];
+    }
+
+    // Explicit list UID = manual / pin-miss retry; otherwise pick by pin viability then score.
+    let preferred =
+      (preferredUid && ewdDiagrams.find((d) => d.diagramUid === preferredUid)) || null;
+
+    if (!preferred && hasPinFocus && !opts?.manualPick) {
+      setNotice("Подбираем схему, где есть этот контакт…");
+      const probe = diagramsForPinProbe(ewdDiagrams, ctx, 18).filter(
+        (r) => !pinMissTriedRef.current.has(r.diagram.diagramUid),
+      );
+      try {
+        const qs = new URLSearchParams({ code });
+        if (pinCandidates.length) qs.set("pins", pinCandidates.join(","));
+        if (wire?.wireColor) qs.set("color", wire.wireColor);
+        const peer = wire?.peerCode || resolved?.peerCode || ctx.peerCode || "";
+        if (peer) qs.set("peer", peer);
+        if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
+        if (optionTokens.length) qs.set("optionTokens", optionTokens.join(","));
+        if (probe.length) {
+          qs.set("diagramUids", probe.map((r) => r.diagram.diagramUid).join(","));
+        }
+        const pickRes = await fetch(`/api/ewd/pick-diagram?${qs}`).then((r) => r.json());
+        // Server ranks by matched net + UIDs present on that SVG sheet — trust that order.
+        const viable = Array.isArray(pickRes.viable)
+          ? (pickRes.viable as string[]).filter(Boolean)
+          : [];
+        pinViableUidsRef.current = viable;
+        const pickUid = String(pickRes.diagramUid || "");
+        preferred =
+          (pickUid && ewdDiagrams.find((d) => d.diagramUid === pickUid)) ||
+          (viable[0] && ewdDiagrams.find((d) => d.diagramUid === viable[0])) ||
+          null;
+        if (preferred && Number(pickRes.matchedCount) > 0) {
+          // Prefer server-chosen pin when it found a stronger cavity match.
+          const serverPin = String(pickRes.pin || "").trim();
+          if (serverPin && !pinCandidates.includes(serverPin)) {
+            pinCandidates.unshift(serverPin);
+          }
+        }
+      } catch {
+        /* fall through to score-based pick */
+      }
+    }
+
+    if (!preferred) {
+      const picked = pickBestDiagram(ewdDiagrams, ctx);
+      preferred = picked.diagram;
+      if (!preferred) {
+        const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
+        preferred =
+          ranked.find((r) => diagramHasCode(r.diagram, code))?.diagram ||
+          (!hasPinFocus ? ranked[0]?.diagram || ewdDiagrams[0] || null : null);
+      }
+    }
+    if (!preferred) {
+      setNotice("Графическая схема EWD для этого узла не найдена.");
+      return;
+    }
     setActivePdf(null);
     // Always-on marker: bump showSeq on every click so repeat clicks re-inject + recenter
     showSeqRef.current += 1;
@@ -1732,8 +1834,33 @@ function App() {
       wireColor: wire?.wireColor,
       peerCode: wire?.peerCode || resolved?.peerCode || ctx.peerCode || undefined,
       zone: selectedZone && selectedZone !== "all" ? selectedZone : undefined,
+      optionTokens,
       showSeq: showSeqRef.current,
     });
+    // Signal tracer: resolve GlobalSignals siblings for this pin
+    const pinForTrace = pinCandidates[0] || wire?.pin || "";
+    if (pinForTrace) {
+      const tqs = new URLSearchParams({ code, pin: pinForTrace });
+      if (optionTokens.length) tqs.set("optionTokens", optionTokens.join(","));
+      fetch(`/api/ewd/trace?${tqs}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data?.uid) {
+            setTraceInfo(null);
+            return;
+          }
+          setTraceInfo({
+            uid: String(data.uid),
+            signalFile: data.signalFile || null,
+            siblingCount: Number(data.siblingCount) || 0,
+            diagrams: Array.isArray(data.diagrams) ? data.diagrams : [],
+          });
+        })
+        .catch(() => setTraceInfo(null));
+    } else {
+      setTraceInfo(null);
+    }
+    setNotice("");
     if (isMobileViewport()) setMobileView("scheme");
   }
 
@@ -1746,6 +1873,9 @@ function App() {
     setTransitWires([]);
     setEwdDiagrams([]);
     setEwdObjectIds([]);
+    setEwdSystems([]);
+    setTraceInfo(null);
+    setSystemsOpen(false);
     setWireColorFilter(null);
     setSchemeContext(null);
     setNodeInfo(null);
@@ -1760,10 +1890,14 @@ function App() {
       if (useZone && useZone !== "all") params.set("zone", useZone);
       const ewdQs = new URLSearchParams({ code });
       if (useZone && useZone !== "all") ewdQs.set("zone", useZone);
-      const [data, ewdData] = await Promise.all([
+      const sysQs = new URLSearchParams({ code });
+      if (useZone && useZone !== "all") sysQs.set("zone", useZone);
+      const [data, ewdData, sysData] = await Promise.all([
         fetch(`/api/nav/wires?${params}`).then((r) => r.json()),
         fetch(`/api/ewd/diagrams?${ewdQs}`).then((r) => r.json()).catch(() => ({ diagrams: [], objectIds: [] })),
+        fetch(`/api/ewd/systems?${sysQs}`).then((r) => r.json()).catch(() => ({ systems: [] })),
       ]);
+      setEwdSystems(Array.isArray(sysData.systems) ? (sysData.systems as EwdSystemRow[]) : []);
       let ownerRaw = Array.isArray(data.owner_wires) ? data.owner_wires : [];
       let transitRaw = Array.isArray(data.transit_wires) ? data.transit_wires : [];
       let zoneEmptyFallback = false;
@@ -1785,6 +1919,7 @@ function App() {
       const epQs = new URLSearchParams({ code });
       if (useZone && useZone !== "all") epQs.set("zone", useZone);
       if (preferredDiagram?.diagramUid) epQs.set("diagramUid", preferredDiagram.diagramUid);
+      if (optionTokens.length) epQs.set("optionTokens", optionTokens.join(","));
       const epData = await fetch(`/api/ewd/endpoints?${epQs}`)
         .then((r) => r.json())
         .catch(() => ({ endpoints: [] }));
@@ -2261,6 +2396,53 @@ function App() {
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
             Спецификация контактов и цепей
           </h2>
+          {ewdSystems.length > 0 ? (
+            <div className="diagram-picker relative">
+              <button
+                type="button"
+                data-testid="systems-tree-btn"
+                className="diagram-picker__btn"
+                aria-expanded={systemsOpen}
+                onClick={() => setSystemsOpen((v) => !v)}
+              >
+                Системы ({ewdSystems.length})
+              </button>
+              {systemsOpen ? (
+                <div
+                  data-testid="systems-tree-menu"
+                  className="diagram-picker__menu"
+                  role="listbox"
+                  aria-label="Системы EWD (LogicDesign)"
+                >
+                  {ewdSystems.slice(0, 40).map((s) => (
+                    <button
+                      key={s.systemUid}
+                      type="button"
+                      role="option"
+                      data-testid="systems-tree-item"
+                      className="diagram-picker__item"
+                      onClick={() => {
+                        const uid = (s.diagramUids || [])[0];
+                        setSystemsOpen(false);
+                        if (uid) {
+                          void openEwdDiagram(selectedCode, uid, undefined, undefined, {
+                            manualPick: true,
+                          });
+                        } else {
+                          setNotice(`Система «${s.name}» без доступных листов SVG.`);
+                        }
+                      }}
+                    >
+                      <span className="diagram-picker__item-title">{s.name || s.systemUid}</span>
+                      <span className="diagram-picker__item-meta">
+                        {s.zone || "—"} · листов {s.diagramCount ?? (s.diagramUids || []).length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {ewdDiagrams.length > 0 ? (
             <div ref={diagramPickerRef} className="diagram-picker relative">
               <button
@@ -2294,7 +2476,20 @@ function App() {
                         className={`diagram-picker__item${isOpen ? " is-active" : ""}`}
                         onClick={() => {
                           setDiagramPickerOpen(false);
-                          openEwdDiagram(selectedCode, d.diagramUid);
+                          void openEwdDiagram(
+                            selectedCode,
+                            d.diagramUid,
+                            {
+                              pin: activeSvg?.pin || selectedPinState?.pin,
+                              pinCandidates: activeSvg?.pinCandidates,
+                              pinFrom: activeSvg?.pinFrom,
+                              pinTo: activeSvg?.pinTo,
+                              wireColor: activeSvg?.wireColor || selectedPinState?.color,
+                              peerCode: activeSvg?.peerCode,
+                            },
+                            undefined,
+                            { manualPick: true },
+                          );
                         }}
                       >
                         <span className="diagram-picker__title">{label || d.diagramUid}</span>
@@ -2372,10 +2567,41 @@ function App() {
             mobileView === "cards" ? " is-mobile-hidden" : ""
           }`}
         >
-          <div className="ewd-scheme-header bg-[var(--input-bg)] px-3 py-1.5 border-b border-[var(--border-color)] flex justify-between items-center text-xs shrink-0">
-            <div className="flex items-center gap-3">
+          <div className="ewd-scheme-header bg-[var(--input-bg)] px-3 py-1.5 border-b border-[var(--border-color)] flex justify-between items-center text-xs shrink-0 gap-2">
+            <div className="flex items-center gap-3 min-w-0">
               <span data-testid="svg-diagram-label" className="ewd-data font-semibold font-mono truncate max-w-[280px]">{activeSvg.searchCode}</span>
               <span className="ewd-data font-mono truncate max-w-[200px]">{activeSvg.diagramUid.slice(0, 18)}…</span>
+              {traceInfo && traceInfo.siblingCount > 0 ? (
+                <details data-testid="signal-tracer" className="relative">
+                  <summary className="cursor-pointer text-[var(--accent)] whitespace-nowrap">
+                    Signal tracer ({traceInfo.siblingCount})
+                  </summary>
+                  <div className="absolute left-0 top-full z-20 mt-1 w-72 max-h-56 overflow-auto rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-2 shadow-lg">
+                    <p className="text-[10px] text-[var(--text-muted)] mb-1 font-mono truncate">
+                      {traceInfo.signalFile || traceInfo.uid}
+                    </p>
+                    {(traceInfo.diagrams || []).slice(0, 12).map((d) => (
+                      <button
+                        key={d.diagramUid}
+                        type="button"
+                        className="block w-full text-left text-[11px] px-1.5 py-1 rounded hover:bg-[var(--input-bg)]"
+                        onClick={() =>
+                          void openEwdDiagram(activeSvg.searchCode, d.diagramUid, {
+                            pin: activeSvg.pin,
+                            pinCandidates: activeSvg.pinCandidates,
+                            wireColor: activeSvg.wireColor,
+                            peerCode: activeSvg.peerCode,
+                            pinFrom: activeSvg.pinFrom,
+                            pinTo: activeSvg.pinTo,
+                          }, undefined, { manualPick: true })
+                        }
+                      >
+                        {d.systemName || d.diagramUid.slice(0, 22)}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </div>
             <button
               type="button"
@@ -2415,35 +2641,44 @@ function App() {
               wireColor={activeSvg.wireColor}
               peerCode={activeSvg.peerCode}
               zone={activeSvg.zone}
+              optionTokens={activeSvg.optionTokens || optionTokens}
               showSeq={activeSvg.showSeq}
               onPinMiss={(reason) => {
                 pinMissTriedRef.current.add(activeSvg.diagramUid);
-                const ranked = rankDiagramsForContext(
-                  ewdDiagrams,
-                  schemeContext || extractSchemeContext(null, activeSvg.searchCode),
-                );
-                const next = ranked.find(
-                  (r) =>
-                    !pinMissTriedRef.current.has(r.diagram.diagramUid) &&
-                    diagramHasCode(r.diagram, activeSvg.searchCode),
-                )?.diagram;
-                if (next) {
+                // Never flip through 20+ sheets — only connectivity-viable UIDs, small budget.
+                if (pinMissBudgetRef.current <= 0) {
                   setNotice(
-                    `Контакт не найден на этой схеме — пробуем другую с узлом ${activeSvg.searchCode}…`,
+                    `Контакт не найден на этой схеме (${reason}). Выберите схему вручную или откройте «Таблица».`,
                   );
-                  openEwdDiagram(activeSvg.searchCode, next.diagramUid, {
+                  return;
+                }
+                const viable = pinViableUidsRef.current.filter(
+                  (uid) => !pinMissTriedRef.current.has(uid),
+                );
+                const nextUid = viable[0];
+                if (!nextUid) {
+                  pinMissBudgetRef.current = 0;
+                  setNotice(
+                    `Контакт не найден на подходящих схемах (${reason}). Выберите схему вручную или откройте «Таблица».`,
+                  );
+                  return;
+                }
+                pinMissBudgetRef.current -= 1;
+                setNotice("Контакт не найден на этой схеме — пробуем следующий подходящий лист…");
+                void openEwdDiagram(
+                  activeSvg.searchCode,
+                  nextUid,
+                  {
                     pin: activeSvg.pin,
                     pinCandidates: activeSvg.pinCandidates,
                     pinFrom: activeSvg.pinFrom,
                     pinTo: activeSvg.pinTo,
                     wireColor: activeSvg.wireColor,
                     peerCode: activeSvg.peerCode,
-                  });
-                } else {
-                  setNotice(
-                    `Контакт не найден на доступных схемах (${reason}). Выберите схему вручную или откройте «Таблица».`,
-                  );
-                }
+                  },
+                  undefined,
+                  { fromPinMissRetry: true },
+                );
               }}
             />
           </div>

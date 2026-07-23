@@ -1,6 +1,7 @@
 /**
- * Dynamic EWD marker-anchor — payload-driven pin placement.
- * Line/path highlighting is disabled; only a fixed screen-size pin marker is shown.
+ * Dynamic EWD highlight — VIDA-style wire UID paint + pin marker.
+ * Conductor strokes are painted only for groups whose <desc> contains wireUids
+ * from /api/ewd/highlight (wire.sourceObjectUID). Pin marker uses pin/resolve UIDs.
  * No hardcoded connector/pin/model literals; all values come from the card payload.
  */
 
@@ -19,6 +20,10 @@ export type HighlightTargetPayload = {
   systemUid?: string;
   /** Connectivity / device UIDs from /api/ewd/highlight — preferred geometry anchors. */
   resolveUids?: string[] | null;
+  /** Wire conductor UIDs (wire.sourceObjectUID) — paint CAFConductor strokes. */
+  wireUids?: string[] | null;
+  /** Pin terminal UIDs — marker scopes (also merged into resolveUids when provided). */
+  pinUids?: string[] | null;
   diagramUid?: string;
   /** Peer connector (Откуда/Куда) — used only when primary connector is absent on this SVG. */
   peerCode?: string | null;
@@ -999,6 +1004,40 @@ function clearHighlights(root: Element, svg: SVGSVGElement): void {
   svg.querySelectorAll("g.pin-marker, g.ewd-ping-marker").forEach((el) => el.remove());
 }
 
+/** Paint path/line/polyline strokes inside groups that match exact wire UIDs. */
+function paintWireUidPaths(
+  root: Element,
+  svg: SVGSVGElement,
+  wireUids: string[],
+  wireColor: string,
+): Element[] {
+  const scopes = findUidScopes(root, svg, wireUids).filter((g) =>
+    /CAFConductor/i.test(readDesc(g)),
+  );
+  const pool = scopes.length ? scopes : findUidScopes(root, svg, wireUids);
+  const painted: Element[] = [];
+  const borders = wireBorderColors(wireColor || "GN");
+  const stroke = borders[0] || "#10b981";
+  for (const g of pool) {
+    const paths = g.querySelectorAll("path, line, polyline, polygon");
+    for (const el of paths) {
+      if (isServiceGraphic(el, svg)) continue;
+      const len = strokeLength(el);
+      if (len > 0 && len < 2) continue;
+      el.classList.add("ewd-highlight");
+      const s = (el as SVGElement).style;
+      s.setProperty("stroke", stroke, "important");
+      s.setProperty("stroke-width", "2.4", "important");
+      s.setProperty("stroke-opacity", "0.95", "important");
+      s.setProperty("fill", "none", "important");
+      s.setProperty("vector-effect", "non-scaling-stroke", "important");
+      painted.push(el);
+      if (painted.length >= 80) return painted;
+    }
+  }
+  return painted;
+}
+
 /**
  * Keep pin markers at a fixed on-screen diameter (~23px) regardless of SVG zoom/viewBox.
  */
@@ -1162,9 +1201,27 @@ export function highlightTarget(
   ];
   const wireColor = normalizeWireColorKey(payload.wireColor ?? "");
   const systemUid = String(payload.systemUid || "").trim();
+  const wireUids = [
+    ...new Set(
+      (Array.isArray(payload.wireUids) ? payload.wireUids : [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const pinUids = [
+    ...new Set(
+      (Array.isArray(payload.pinUids) ? payload.pinUids : [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
   const resolveUids = [
     ...new Set(
-      (Array.isArray(payload.resolveUids) ? payload.resolveUids : systemUid ? [systemUid] : [])
+      [
+        ...(Array.isArray(payload.resolveUids) ? payload.resolveUids : []),
+        ...pinUids,
+        ...(systemUid ? [systemUid] : []),
+      ]
         .map((u) => String(u ?? "").trim())
         .filter(Boolean),
     ),
@@ -1185,6 +1242,7 @@ export function highlightTarget(
   let connectorScoped = false;
   let errorMsg: string | undefined;
   let guaranteedMarker = false;
+  let lineHighlight = false;
 
   const forceInject = (at: Pt, mode: AnchorMode): boolean => {
     markerAt = at;
@@ -1211,6 +1269,21 @@ export function highlightTarget(
       /* ignore */
     }
 
+    // VIDA-style conductor paint: exact wire.sourceObjectUID → CAFConductor paths
+    if (wireUids.length) {
+      try {
+        painted = paintWireUidPaths(root, svg, wireUids, wireColor);
+        lineHighlight = painted.length > 0;
+        if (lineHighlight) {
+          hostGroup = painted[0]?.closest("g") || null;
+          stage = "pin-color";
+          reason = `wire-uid paint paths=${painted.length} wires=${wireUids.length}`;
+        }
+      } catch (e) {
+        errorMsg = e instanceof Error ? e.message : String(e);
+      }
+    }
+
     const resolved = resolveMarkerAnchor(
       root,
       svg,
@@ -1233,7 +1306,9 @@ export function highlightTarget(
       hostGroup = resolved.hostGroup;
       scopeCount = resolved.scopeCount;
       connectorScoped = resolved.connectorScoped;
-      reason = `Marker-anchor mode=${resolved.mode} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} scopes=${scopeCount} uids=${resolveUids.length}`;
+      reason =
+        (lineHighlight ? `${reason} | ` : "") +
+        `Marker-anchor mode=${resolved.mode} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} scopes=${scopeCount} uids=${resolveUids.length} wires=${wireUids.length}`;
 
       const softModes: AnchorMode[] = ["pin-frame", "peer-frame", "viewbox-center"];
       if (strictPin && softModes.includes(resolved.mode)) {
@@ -1298,21 +1373,26 @@ export function highlightTarget(
     stage = guaranteedMarker ? "marker-only" : "none";
   }
 
+  if (lineHighlight && guaranteedMarker) stage = "pin-color";
+  else if (guaranteedMarker && !lineHighlight) stage = "marker-only";
+  else if (lineHighlight) stage = "pin-color";
+
   console.log("[EWD Dynamic Trace]", {
     targetPin: payload.pinNumber,
     targetColor: payload.wireColor,
     connectorCode: payload.connectorCode,
     peerCode: peerCode || undefined,
-    matchedSegmentsCount: 0,
+    matchedSegmentsCount: painted.length,
     stage,
     reason,
     anchorMode,
     scopeCount,
     connectorScoped,
     guaranteedMarker,
-    lineHighlight: false,
-    colorGate: "marker-border",
-    painted: false,
+    lineHighlight,
+    colorGate: lineHighlight ? "wire-uid" : "marker-border",
+    painted: painted.length > 0,
+    wireUids: wireUids.length,
     error: errorMsg,
     diagramUid: diagramUid || undefined,
     systemUid: systemUid || undefined,
@@ -1330,7 +1410,7 @@ export function highlightTarget(
       pinNumber,
       wireColor,
       peerCode: peerCode || undefined,
-      matchedSegmentsCount: 0,
+      matchedSegmentsCount: painted.length,
       stage,
       reason,
       anchors: anchors.length,
@@ -1338,9 +1418,10 @@ export function highlightTarget(
       scopeCount,
       connectorScoped,
       guaranteedMarker,
-      lineHighlight: false,
-      colorGate: "marker-border",
-      painted: false,
+      lineHighlight,
+      colorGate: lineHighlight ? "wire-uid" : "marker-border",
+      painted: painted.length > 0,
+      wireUids: wireUids.length,
       error: errorMsg,
     },
   };

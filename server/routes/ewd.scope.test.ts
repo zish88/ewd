@@ -39,3 +39,25 @@ test("ewd endpoints with diagramUid do not return all systems for multi-system c
   assert.ok(Array.isArray(res.body.systemUids));
   assert.ok(res.body.systemUids.length <= 2);
 });
+
+test("ewd pick-diagram returns ranked viable sheets for code+pin", async () => {
+  const diagrams = await request(app()).get("/api/ewd/diagrams?code=74%2F507");
+  assert.equal(diagrams.status, 200);
+  const uids = (diagrams.body.diagrams || [])
+    .map((d: { diagramUid?: string }) => d.diagramUid)
+    .filter(Boolean)
+    .slice(0, 12);
+  if (uids.length < 2) return;
+  const res = await request(app()).get(
+    `/api/ewd/pick-diagram?code=74%2F507&pins=21&diagramUids=${uids.map(encodeURIComponent).join(",")}`,
+  );
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray(res.body.ranked));
+  assert.ok(Array.isArray(res.body.viable));
+  // If any sheet has connectivity for the pin, pick must be among viable
+  if (res.body.viable.length) {
+    assert.ok(res.body.diagramUid);
+    assert.ok(res.body.viable.includes(res.body.diagramUid));
+    assert.ok(Number(res.body.matchedCount) > 0);
+  }
+});
