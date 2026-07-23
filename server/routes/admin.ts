@@ -9,6 +9,7 @@ import {
   requireAdmin,
   setAdminCookie,
 } from "../adminAuth.js";
+import { readSiteSettings, writeSiteSettings, type SiteSettings } from "../siteSettings.js";
 
 export function createAdminRouter(db: Database.Database) {
   const router = Router();
@@ -20,6 +21,20 @@ export function createAdminRouter(db: Database.Database) {
       admin: configured ? isAdminRequest(req) : true,
       // When password not set, everyone is treated as admin (local/dev).
     });
+  });
+
+  router.get("/settings", requireAdmin, (_req, res) => {
+    res.json(readSiteSettings());
+  });
+
+  router.put("/settings", requireAdmin, (req, res) => {
+    const body = req.body as Partial<SiteSettings>;
+    const cur = readSiteSettings();
+    const next = writeSiteSettings({
+      siteOpen: body.siteOpen ?? cur.siteOpen,
+      features: { ...cur.features, ...(body.features || {}) },
+    });
+    res.json(next);
   });
 
   router.post("/login", (req, res) => {

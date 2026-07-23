@@ -383,9 +383,67 @@ html[data-theme="amber"] {
   display: none;
 }
 
+/* Compact suggest-edit on cards (all breakpoints) */
+.suggest-edit-btn {
+  flex: 0 0 auto;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem !important;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: #b45309;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.suggest-edit-btn:hover {
+  background: var(--input-bg);
+}
+
+/* Mobile filter collapse toggle — hidden on desktop */
+.mobile-filters-toggle {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .app-panel.sticky {
     z-index: 100;
+  }
+
+  .mobile-filters-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    margin: -0.25rem 0 0.35rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .mobile-filters-toggle__chevron {
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  .app-panel.is-filters-collapsed .app-panel__filters {
+    display: none;
+  }
+
+  .app-panel:not(.is-filters-collapsed) .mobile-filters-toggle__label {
+    color: var(--text-muted);
+    font-weight: 500;
   }
 
   .mobile-view-tabs {

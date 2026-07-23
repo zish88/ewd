@@ -8,7 +8,8 @@ import { createLocationRouter, createOverrideRouter, createSearchRouter } from "
 import { createNavRouter } from "./routes/nav.js";
 import { createEwdRouter } from "./routes/ewd.js";
 import { createAdminRouter } from "./routes/admin.js";
-import { requireAdmin } from "./adminAuth.js";
+import { isAdminRequest } from "./adminAuth.js";
+import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
 import { resolveFilters } from "./vehicleMatrix.js";
 import { decodeVolvoVin } from "./vinDecoder.js";
 
@@ -17,6 +18,7 @@ const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
 const manualRoot = resolve(process.env.MANUAL_DIR ?? "E:\\manual");
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
+const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelo@gmail.com";
 
 function resolveManualFile(filename: string): string | null {
   const primary = resolve(manualRoot, filename);
@@ -31,12 +33,58 @@ function resolveManualFile(filename: string): string | null {
 }
 
 app.use(express.json());
+
+app.get("/api/site-status", (_req, res) => {
+  res.json(publicSiteStatus());
+});
+
+app.use("/api/admin", createAdminRouter(db));
+
+/** Block public API when site is closed (admins still pass). */
+app.use("/api", (req, res, next) => {
+  const path = req.path || "";
+  if (
+    path === "/health" ||
+    path === "/site-status" ||
+    path.startsWith("/admin")
+  ) {
+    next();
+    return;
+  }
+  const settings = readSiteSettings();
+  if (!settings.siteOpen && !isAdminRequest(req)) {
+    res.status(503).json({ error: "Сайт временно закрыт администратором.", siteOpen: false });
+    return;
+  }
+  // Feature flags (soft): specific endpoints
+  if (!settings.features.vinSearch && path.startsWith("/vin")) {
+    res.status(403).json({ error: "Поиск по VIN отключён." });
+    return;
+  }
+  if (!settings.features.navBrowse && path.startsWith("/nav")) {
+    res.status(403).json({ error: "Навигация по узлам отключена." });
+    return;
+  }
+  if (!settings.features.ewdDiagrams && path.startsWith("/ewd")) {
+    res.status(403).json({ error: "Схемы EWD отключены." });
+    return;
+  }
+  if (!settings.features.pdfTables && (path.startsWith("/pdf") || path === "/manual")) {
+    res.status(403).json({ error: "Таблицы PDF отключены." });
+    return;
+  }
+  if (!settings.features.suggestions && path === "/tickets" && req.method === "POST") {
+    res.status(403).json({ error: "Предложения правок отключены." });
+    return;
+  }
+  next();
+});
+
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
-app.use("/api/admin", createAdminRouter(db));
 app.get("/api/health", (_req, res) => {
   const dbPath = resolve(process.env.DATABASE_PATH ?? "data/wiring.sqlite");
   const ewdData = resolve(process.env.EWD_DATA_DIR ?? "data/ewd");
@@ -116,10 +164,23 @@ app.post("/api/vin/decode", (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-app.post("/api/tickets", requireAdmin, async (req, res) => {
+app.post("/api/tickets", async (req, res) => {
   const b = req.body as Record<string, string>;
   const required = ["model", "year", "engine", "location_name", "pin_number", "wire_color", "source_block", "destination_block", "description"];
   if (required.some((key) => !b[key]?.trim())) return res.status(400).json({ error: "Заполните обязательные поля заявки." });
+  const cardUrl = String(b.card_url || "").trim();
+  const wireId = String(b.wire_id || b.card_id || "").trim();
+  const subjectCode = String(b.subject_code || "").trim();
+  const zone = String(b.zone || "").trim();
+  const meta = [
+    wireId ? `wire_id=${wireId}` : "",
+    subjectCode ? `subject=${subjectCode}` : "",
+    zone ? `zone=${zone}` : "",
+    cardUrl ? `url=${cardUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+  const commentWithMeta = [b.comment?.trim() || "", meta ? `[CARD] ${meta}` : ""].filter(Boolean).join("\n");
   const ticket = db
     .prepare(
       `INSERT INTO pending_tickets(model,year,engine,location_name,pin_number,wire_color,source_block,source_pin,destination_block,destination_pin,description,comment)
@@ -137,7 +198,7 @@ app.post("/api/tickets", requireAdmin, async (req, res) => {
       b.destination_block,
       b.destination_pin ?? "",
       b.description,
-      b.comment ?? null,
+      commentWithMeta || null,
     ) as { id: number };
   const smtp = {
     host: process.env.SMTP_HOST,
@@ -162,9 +223,23 @@ app.post("/api/tickets", requireAdmin, async (req, res) => {
     });
     await transport.sendMail({
       from: smtp.from,
-      to: "elzidevelo@gmail.com",
-      subject: `[Volvo Wiring] Новая заявка #${ticket.id}`,
-      text: `Номер: #${ticket.id}\nАвтомобиль: ${b.model}, ${b.year}, ${b.engine}\nЛокация/пин: ${b.location_name} / ${b.pin_number}\n${b.source_block}:${b.source_pin ?? ""} -> ${b.destination_block}:${b.destination_pin ?? ""}\nФункция: ${b.description}\n\n📝 КОММЕНТАРИЙ ПОЛЬЗОВАТЕЛЯ: ${b.comment?.trim() || "Не указан"}`,
+      to: MODERATOR_EMAIL,
+      subject: `[Volvo Wiring] Заявка #${ticket.id}${subjectCode ? ` · ${subjectCode}` : ""}${wireId ? ` · wire#${wireId}` : ""}`,
+      text: [
+        `Номер заявки: #${ticket.id}`,
+        `Автомобиль: ${b.model}, ${b.year}, ${b.engine}`,
+        `Зона: ${zone || "—"}`,
+        `Узел (subject): ${subjectCode || b.location_name}`,
+        `ID карточки/провода: ${wireId || "—"}`,
+        `Пин: ${b.pin_number} · цвет: ${b.wire_color}`,
+        `Откуда: ${b.source_block}:${b.source_pin ?? ""}`,
+        `Куда: ${b.destination_block}:${b.destination_pin ?? ""}`,
+        `Описание: ${b.description}`,
+        `Комментарий: ${b.comment?.trim() || "Не указан"}`,
+        "",
+        "Ссылка на карточку (откройте в браузере):",
+        cardUrl || "(не передана)",
+      ].join("\n"),
     });
   } catch (error) {
     console.error(`Ticket #${ticket.id} email delivery failed`, error);

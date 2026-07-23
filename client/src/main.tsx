@@ -18,6 +18,7 @@ import {
   type SchemeContext,
 } from "./ewdSchemeResolver.js";
 import "./styles.css";
+import { AdminPage } from "./AdminPage.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -920,7 +921,9 @@ function renderWireCard(
   setActiveSvg: (v: ActiveSvg | null) => void,
   setNotice: (v: string) => void,
   setEditingItem: (v: any) => void,
-  canEdit = false,
+  suggestionsEnabled = true,
+  pdfTablesEnabled = true,
+  cardContext?: { zone: string; code: string; model: string; year: string; engine: string },
 ) {
   const itemId = item.id || `search-${index}`;
   const isThis = selectedPinState?.id === itemId;
@@ -1050,19 +1053,57 @@ function renderWireCard(
             Показать на схеме
           </button>
         ) : null}
-        {pinoutPage > 0 ? (
+        {pinoutPage > 0 && pdfTablesEnabled ? (
           <button type="button" data-testid="show-pinout" onClick={openPinout} className={`${hasEwdDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
             Таблица
           </button>
         ) : null}
-        {canEdit ? (
-          <button type="button" onClick={() => setEditingItem(item)} className="px-3 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-amber-700 text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
-            ✏️
+        {suggestionsEnabled ? (
+          <button
+            type="button"
+            data-testid="suggest-edit"
+            title="Предложить исправление"
+            aria-label="Предложить исправление"
+            onClick={() =>
+              setEditingItem({
+                ...item,
+                _card_ctx: cardContext,
+                _card_url: buildCardDeepLink({
+                  zone: cardContext?.zone || "all",
+                  code: cardContext?.code || String(item.subject_code || selectedCode || ""),
+                  wireId: item.id,
+                  model: cardContext?.model || "",
+                  year: cardContext?.year || "",
+                  engine: cardContext?.engine || "",
+                }),
+              })
+            }
+            className="suggest-edit-btn"
+          >
+            ✎
           </button>
         ) : null}
       </div>
     </div>
   );
+}
+
+function buildCardDeepLink(opts: {
+  zone: string;
+  code: string;
+  wireId?: string | number;
+  model: string;
+  year: string;
+  engine: string;
+}): string {
+  const u = new URL(typeof window !== "undefined" ? window.location.origin + "/" : "http://localhost/");
+  if (opts.model) u.searchParams.set("model", opts.model);
+  if (opts.year) u.searchParams.set("year", opts.year);
+  if (opts.engine) u.searchParams.set("engine", opts.engine);
+  if (opts.zone && opts.zone !== "all") u.searchParams.set("zone", opts.zone);
+  if (opts.code) u.searchParams.set("code", opts.code);
+  if (opts.wireId != null && opts.wireId !== "") u.searchParams.set("wireId", String(opts.wireId));
+  return u.toString();
 }
 
 const THEMES = [
@@ -1116,20 +1157,18 @@ function App() {
   const [navGroups, setNavGroups] = useState<NavGroup[]>([]);
   const [selectedZone, setSelectedZone] = useState("all");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminConfigured, setAdminConfigured] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminNotice, setAdminNotice] = useState("");
-  const [adminForm, setAdminForm] = useState({
-    subject_code: "",
-    pin_number: "",
-    from_code: "",
-    to_code: "",
-    wire_color_raw: "",
-    harness_left: "",
-    component_code: "",
-    name_ru: "",
+  const [siteOpen, setSiteOpen] = useState(true);
+  const [features, setFeatures] = useState({
+    suggestions: true,
+    ewdDiagrams: true,
+    pdfTables: true,
+    vinSearch: true,
+    navBrowse: true,
   });
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [vehicleConfigured, setVehicleConfigured] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const deepWireIdRef = useRef<string>("");
   const [selectedCode, setSelectedCode] = useState("");
   /** null = all colors; otherwise normalized wireColor from current node cards */
   const [wireColorFilter, setWireColorFilter] = useState<string | null>(null);
@@ -1298,15 +1337,71 @@ function App() {
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include" })
       .then((r) => r.json())
+      .then((d) => setIsAdmin(Boolean(d.admin)))
+      .catch(() => setIsAdmin(false));
+    fetch("/api/site-status")
+      .then((r) => r.json())
       .then((d) => {
-        setAdminConfigured(Boolean(d.configured));
-        setIsAdmin(Boolean(d.admin));
+        setSiteOpen(d.siteOpen !== false);
+        if (d.features) setFeatures((f) => ({ ...f, ...d.features }));
       })
-      .catch(() => {
-        setAdminConfigured(false);
-        setIsAdmin(false);
-      });
+      .catch(() => undefined);
   }, []);
+
+  // Deep link: ?model=&year=&engine=&zone=&code=&wireId=
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const model = q.get("model") || "";
+    const year = q.get("year") || "";
+    const engine = q.get("engine") || "";
+    const zone = q.get("zone") || "";
+    const code = q.get("code") || "";
+    const wireId = q.get("wireId") || "";
+    if (model) setSelectedModel(model);
+    if (year) setSelectedYear(year);
+    if (engine) setSelectedEngine(engine);
+    if (zone) setSelectedZone(zone);
+    if (code) setSelectedCode(code);
+    if (wireId) deepWireIdRef.current = wireId;
+    if (model && year && engine) setVehicleConfigured(true);
+  }, []);
+
+  useEffect(() => {
+    if (selectedModel && selectedYear && selectedEngine) setVehicleConfigured(true);
+  }, [selectedModel, selectedYear, selectedEngine]);
+
+  useEffect(() => {
+    if (selectedCode && selectedModel && selectedYear) void loadWires(selectedCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync list when code/vehicle/zone change
+  }, [selectedCode, selectedModel, selectedYear, selectedZone]);
+
+  useEffect(() => {
+    const wid = deepWireIdRef.current;
+    if (!wid) return;
+    const all = [...ownerWires, ...transitWires];
+    const hit = all.find((w) => String(w.id) === wid);
+    if (!hit) return;
+    deepWireIdRef.current = "";
+    setSelectedPinState({
+      id: hit.id || wid,
+      code: selectedCode,
+      color: String(hit.wire_color || ""),
+      pin: String(hit.pin_number || ""),
+    });
+  }, [ownerWires, transitWires, selectedCode]);
+
+  // Mobile-only: collapse sticky filters after vehicle is set and user scrolls cards
+  useEffect(() => {
+    if (!vehicleConfigured) return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const el = document.querySelector<HTMLElement>("[data-mobile-scroll]");
+    if (!el) return;
+    const onScroll = () => {
+      if (mq.matches && el.scrollTop > 16) setFiltersCollapsed(true);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [vehicleConfigured, selectedCode, mode]);
 
   const clear = () => {
     setMode(null);
@@ -1474,9 +1569,46 @@ function App() {
     }
   }
 
+  if (!siteOpen && !isAdmin) {
+    return (
+      <main className="min-h-screen grid place-items-center bg-[var(--bg-main)] text-[var(--text-main)] px-6">
+        <div className="max-w-md text-center space-y-3">
+          <h1 className="text-xl font-semibold text-[var(--accent)]">Volvo EWD</h1>
+          <p className="text-sm text-[var(--text-muted)]">Сайт временно закрыт администратором. Зайдите позже.</p>
+          <a href="/admin" className="text-xs underline text-[var(--text-muted)]">Вход для администратора</a>
+        </div>
+      </main>
+    );
+  }
+
+  const cardCtx = {
+    zone: selectedZone,
+    code: selectedCode,
+    model: selectedModel,
+    year: selectedYear,
+    engine: selectedEngine,
+  };
+
   return <main className="app-shell h-screen overflow-hidden flex flex-col">
-    <header className="app-panel sticky top-0 z-50 shrink-0 backdrop-blur border-b px-3 py-2 shadow-sm">
-      <div className="mx-auto max-w-7xl flex flex-col gap-2">
+    <header
+      ref={headerRef}
+      className={`app-panel sticky top-0 z-50 shrink-0 backdrop-blur border-b px-3 py-2 shadow-sm${filtersCollapsed ? " is-filters-collapsed" : ""}`}
+    >
+      <button
+        type="button"
+        className="mobile-filters-toggle"
+        aria-expanded={!filtersCollapsed}
+        aria-label={filtersCollapsed ? "Показать фильтры" : "Скрыть фильтры"}
+        onClick={() => setFiltersCollapsed((v) => !v)}
+      >
+        <span className="mobile-filters-toggle__chevron" aria-hidden>{filtersCollapsed ? "▼" : "▲"}</span>
+        <span className="mobile-filters-toggle__label">
+          {filtersCollapsed
+            ? [selectedModel, selectedYear, selectedEngine].filter(Boolean).join(" · ") || "Фильтры"
+            : "Свернуть меню"}
+        </span>
+      </button>
+      <div className="app-panel__filters mx-auto max-w-7xl flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="font-semibold text-[var(--accent)] mr-1 hidden sm:inline">Volvo EWD</span>
           <div className="theme-toggle" role="group" aria-label="Тема">
@@ -1492,15 +1624,6 @@ function App() {
               </button>
             ))}
           </div>
-          {isAdmin || adminConfigured ? (
-            <button
-              type="button"
-              className={`ml-auto text-[10px] px-2 py-1 rounded border ${isAdmin ? "border-emerald-600 text-emerald-700" : "border-[var(--border-color)] text-[var(--text-muted)]"}`}
-              onClick={() => setAdminOpen(true)}
-            >
-              {isAdmin ? "Админ" : "Вход"}
-            </button>
-          ) : null}
           <label className="flex items-center gap-1 text-[var(--muted)]">Модель
             <select
               data-testid="vehicle-model"
@@ -1575,6 +1698,8 @@ function App() {
               ))}
             </select>
           </label>
+          {features.vinSearch ? (
+            <>
           <label className="flex items-center gap-1 text-[var(--muted)]">
             VIN
             <input
@@ -1600,6 +1725,8 @@ function App() {
           >
             По VIN
           </button>
+            </>
+          ) : null}
           {vinLocked && (
             <button
               type="button"
@@ -1625,6 +1752,7 @@ function App() {
         {vinNotice ? (
           <p data-testid="vin-notice" className="text-[11px] text-[var(--muted)] -mt-1">{vinNotice}</p>
         ) : null}
+        {features.navBrowse ? (
         <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Навигация по узлам</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1661,7 +1789,6 @@ function App() {
                 onChange={(e) => {
                   const code = e.target.value;
                   setSelectedCode(code);
-                  if (code) void loadWires(code);
                 }}
               >
                 <option value="">Выберите узел…</option>
@@ -1681,6 +1808,7 @@ function App() {
             </label>
           </div>
         </section>
+        ) : null}
       </div>
     </header>
     <div className="flex-1 min-h-0 overflow-hidden">
@@ -1726,6 +1854,7 @@ function App() {
       <div className={`flex-1 min-h-0 grid gap-3 ${rightOpen ? "grid-cols-1 lg:grid-cols-12" : ""}`}>
       <div
         data-testid="cards-column"
+        data-mobile-scroll
         className={`mobile-pane mobile-pane--cards ${rightOpen ? "lg:col-span-5" : "max-w-3xl mx-auto w-full"} space-y-3 overflow-y-auto min-h-0 pr-1${
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
@@ -1824,11 +1953,11 @@ function App() {
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
-        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, isAdmin))}
+        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, features.suggestions, features.pdfTables, cardCtx))}
         {filteredTransitWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
         ) : null}
-        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, isAdmin))}
+        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, features.suggestions, features.pdfTables, cardCtx))}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
         ) : null}
@@ -1940,161 +2069,131 @@ function App() {
       <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-sm px-4 text-center">Выберите авто, зону и узел в выпадающем списке — контакты появятся здесь.</div>
     )}
     </div>
-    {editing && <OverrideModal value={editing} vehicle={vehicle} onClose={()=>setEditing(null)} onSave={async value=>{const response=await fetch("/api/tickets",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...value,...vehicle})}); const data=await response.json(); if (!response.ok) { alert(`${data.error} Номер заявки: #${data.ticketId ?? "не присвоен"}`); return; } alert(`🚀 Заявка успешно отправлена! Ей присвоен номер тикета #${data.ticketId}. Модератор проверит её в ближайшее время.`);setEditing(null);}}/>}
     {editingItem && (
-      <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4 text-left">
-          <h3 className="text-lg font-semibold text-amber-700 flex items-center gap-2">✏️ Корректировка схемы (стр. {editingItem.page_number || editingItem.sourcePage})</h3>
-          <p className="text-xs text-[var(--text-muted)] font-mono bg-[var(--input-bg)] p-2 rounded border border-[var(--border-color)]">Исходная строка: {editingItem.raw_line}</p>
-
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const payload = {
-              bookId: editingItem.bookId || editingItem.book_id,
-              pageNumber: editingItem.page_number || editingItem.sourcePage,
-              originalPin: editingItem.pin_number || editingItem.pin,
-              pin_number: formData.get('pin'),
-              wire_color: formData.get('color'),
-              source_code: formData.get('src'),
-              destination_code: formData.get('dst'),
-              function_text: formData.get('func'),
-            };
-
-            await fetch('/api/search/override', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-
-            setEditingItem(null);
-            window.location.reload();
-          }} className="space-y-3 text-sm text-[var(--text-main)]">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">Реальный Пин:</label><input name="pin" defaultValue={editingItem.pin_number || editingItem.pin} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 focus:border-emerald-500 outline-none font-mono"/></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">Истинный Цвет:</label><input name="color" defaultValue={editingItem.wire_color || editingItem.color} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 focus:border-emerald-500 outline-none font-mono"/></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">Откуда (Код блока):</label><input name="src" defaultValue={editingItem.source_code || editingItem.source} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 focus:border-emerald-500 outline-none font-mono"/></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">Куда (Код назначения):</label><input name="dst" defaultValue={editingItem.destination_code || editingItem.destination} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 focus:border-emerald-500 outline-none font-mono"/></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">Понятное описание цепи:</label><textarea name="func" defaultValue={editingItem.function_text || editingItem.function} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 focus:border-emerald-500 outline-none h-20"/></div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
-              <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 bg-[var(--bg-main)] hover:opacity-90 rounded-xl text-xs font-medium transition-colors text-[var(--text-main)] border border-[var(--border-color)]">Отмена</button>
-              <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-[#1c1917] rounded-xl text-xs font-semibold transition-colors">Сохранить истинный путь</button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <SuggestEditModal
+        item={editingItem}
+        vehicle={vehicle}
+        zone={selectedZone}
+        code={selectedCode}
+        onClose={() => setEditingItem(null)}
+      />
     )}
-    {adminOpen ? (
-      <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-4" onClick={() => setAdminOpen(false)}>
-        <div className="w-full max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 shadow-xl" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-sm font-semibold text-[var(--text-main)]">Админ</h3>
-          {!isAdmin ? (
-            <form
-              className="space-y-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setAdminNotice("");
-                const r = await fetch("/api/admin/login", {
-                  method: "POST",
-                  credentials: "include",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ password: adminPassword }),
-                });
-                const d = await r.json();
-                if (!r.ok) {
-                  setAdminNotice(d.error || "Ошибка входа");
-                  return;
-                }
-                setIsAdmin(true);
-                setAdminPassword("");
-                setAdminNotice("Вход выполнен");
-              }}
-            >
-              <input
-                type="password"
-                className="w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-3 py-2 text-sm"
-                placeholder="Пароль ADMIN_PASSWORD"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-              />
-              <button type="submit" className="w-full bg-emerald-600 text-white text-sm py-2 rounded">Войти</button>
-            </form>
-          ) : (
-            <div className="space-y-3 text-xs">
-              <p className="text-[var(--text-muted)]">Можно добавлять разъёмы и провода в SQLite на сервере.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Код узла 4/86" value={adminForm.component_code} onChange={(e) => setAdminForm({ ...adminForm, component_code: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Название" value={adminForm.name_ru} onChange={(e) => setAdminForm({ ...adminForm, name_ru: e.target.value })} />
-              </div>
-              <button
-                type="button"
-                className="w-full border border-[var(--border-color)] rounded py-1.5"
-                onClick={async () => {
-                  const r = await fetch("/api/admin/components", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ component_code: adminForm.component_code, name_ru: adminForm.name_ru }),
-                  });
-                  const d = await r.json();
-                  setAdminNotice(r.ok ? `Узел ${d.code} сохранён` : d.error || "Ошибка");
-                }}
-              >
-                Сохранить узел
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="subject 74/411" value={adminForm.subject_code} onChange={(e) => setAdminForm({ ...adminForm, subject_code: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Пин" value={adminForm.pin_number} onChange={(e) => setAdminForm({ ...adminForm, pin_number: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Откуда 4/86" value={adminForm.from_code} onChange={(e) => setAdminForm({ ...adminForm, from_code: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Куда 3/129" value={adminForm.to_code} onChange={(e) => setAdminForm({ ...adminForm, to_code: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Цвет BN" value={adminForm.wire_color_raw} onChange={(e) => setAdminForm({ ...adminForm, wire_color_raw: e.target.value })} />
-                <input className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5" placeholder="Harness bumper, front" value={adminForm.harness_left} onChange={(e) => setAdminForm({ ...adminForm, harness_left: e.target.value })} />
-              </div>
-              <button
-                type="button"
-                className="w-full bg-emerald-600 text-white rounded py-1.5"
-                onClick={async () => {
-                  const r = await fetch("/api/admin/wires", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(adminForm),
-                  });
-                  const d = await r.json();
-                  setAdminNotice(r.ok ? `Провод #${d.id} добавлен` : d.error || "Ошибка");
-                  if (r.ok && selectedCode) void loadWires(selectedCode);
-                }}
-              >
-                Добавить провод
-              </button>
-              <button
-                type="button"
-                className="w-full text-[var(--text-muted)]"
-                onClick={async () => {
-                  await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-                  setIsAdmin(false);
-                  setAdminNotice("Выход");
-                }}
-              >
-                Выйти
-              </button>
-            </div>
-          )}
-          {adminNotice ? <p className="text-xs text-amber-700">{adminNotice}</p> : null}
-          <button type="button" className="text-xs text-[var(--text-muted)]" onClick={() => setAdminOpen(false)}>Закрыть</button>
-        </div>
-      </div>
-    ) : null}
   </main>;
 }
-function OverrideModal({value,vehicle,onClose,onSave}:{value:any;vehicle:any;onClose:()=>void;onSave:(value:any)=>void}) {
-  const [form,setForm]=useState(value); const set=(key:string,value:string)=>setForm({...form,[key]:value});
-  return <div className="fixed inset-0 grid place-items-center bg-black/70 p-4"><form className="panel w-full max-w-lg" onSubmit={e=>{e.preventDefault();onSave(form);}}><h2>Ручная правка провода</h2>
-    <input type="number" min="1" step="1" value={form.pin_number||""} onChange={e=>set("pin_number",e.target.value.replace(/\D/g,""))} placeholder="Пин №" required/>
-    <select value={form.wire_color} onChange={e=>set("wire_color",e.target.value)}>{Object.keys(colors).map(c=><option key={c} value={c}>{c} — цвет Volvo</option>)}</select>
-    <input value={form.source_block||""} onChange={e=>set("source_block",e.target.value)} placeholder="Откуда: блок" required/><input value={form.source_pin||""} onChange={e=>set("source_pin",e.target.value)} placeholder="Откуда: пин"/>
-    <input value={form.destination_block||""} onChange={e=>set("destination_block",e.target.value)} placeholder="Куда: блок" required/><input value={form.destination_pin||""} onChange={e=>set("destination_pin",e.target.value)} placeholder="Куда: пин"/>
-    <input value={form.description||""} onChange={e=>set("description",e.target.value)} placeholder="За что отвечает" required/><textarea value={form.comment||""} onChange={e=>set("comment",e.target.value)} placeholder="Комментарий к заявке (необязательно)"/><p className="text-sm text-amber-200">⚠️ Заявка будет отправлена на модерацию администратору elzidevelo@gmail.com и получит уникальный номер тикета.</p><div className="flex gap-2"><button>Отправить заявку</button><button type="button" onClick={onClose}>Отмена</button></div>
-  </form></div>;
+
+function SuggestEditModal({
+  item,
+  vehicle,
+  zone,
+  code,
+  onClose,
+}: {
+  item: any;
+  vehicle: { model: string; year: string; engine: string; transmission: string };
+  zone: string;
+  code: string;
+  onClose: () => void;
+}) {
+  const wireId = item.id != null ? String(item.id) : "";
+  const subject = String(item.subject_code || code || "").trim();
+  const cardUrl =
+    item._card_url ||
+    buildCardDeepLink({
+      zone,
+      code: subject || code,
+      wireId,
+      model: vehicle.model,
+      year: vehicle.year,
+      engine: vehicle.engine,
+    });
+  const fromLabel = String(item.from_detail || item.from_node || "").trim();
+  const toLabel = String(item.to_detail || item.to_node || "").trim();
+  const [pin, setPin] = useState(String(item.pin_number || ""));
+  const [color, setColor] = useState(String(item.wire_color || ""));
+  const [src, setSrc] = useState(fromLabel);
+  const [dst, setDst] = useState(toLabel);
+  const [description, setDescription] = useState(String(item.function_text || item.card_title || ""));
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 max-w-md w-full shadow-xl space-y-3 text-left max-h-[90vh] overflow-y-auto">
+        <h3 className="text-base font-semibold text-amber-700">Предложить исправление</h3>
+        <div className="text-[11px] font-mono bg-[var(--input-bg)] border border-[var(--border-color)] rounded p-2 space-y-1 text-[var(--text-muted)] break-all">
+          <div>Карточка ID: <strong className="text-[var(--text-main)]">{wireId || "—"}</strong></div>
+          <div>Узел: <strong className="text-[var(--text-main)]">{subject || "—"}</strong> · зона: {zone || "all"}</div>
+          <div>Ссылка: <a className="text-emerald-700 underline" href={cardUrl} target="_blank" rel="noreferrer">{cardUrl}</a></div>
+        </div>
+        <form
+          className="space-y-2 text-sm"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            try {
+              const response = await fetch("/api/tickets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  ...vehicle,
+                  location_name: subject || code || "unknown",
+                  pin_number: pin,
+                  wire_color: color || "—",
+                  source_block: src || "—",
+                  destination_block: dst || "—",
+                  description: description || "Предложение правки",
+                  comment,
+                  wire_id: wireId,
+                  subject_code: subject,
+                  zone,
+                  card_url: cardUrl,
+                }),
+              });
+              const data = await response.json();
+              if (!response.ok) {
+                alert(`${data.error || "Ошибка"} · тикет #${data.ticketId ?? "—"}`);
+                return;
+              }
+              alert(`Заявка #${data.ticketId} отправлена на elzidevelo@gmail.com`);
+              onClose();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="block text-xs text-[var(--text-muted)]">Пин
+            <input className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono" value={pin} onChange={(e) => setPin(e.target.value)} required />
+          </label>
+          <label className="block text-xs text-[var(--text-muted)]">Цвет
+            <input className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono" value={color} onChange={(e) => setColor(e.target.value)} />
+          </label>
+          <label className="block text-xs text-[var(--text-muted)]">Откуда
+            <input className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono" value={src} onChange={(e) => setSrc(e.target.value)} required />
+          </label>
+          <label className="block text-xs text-[var(--text-muted)]">Куда
+            <input className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono" value={dst} onChange={(e) => setDst(e.target.value)} required />
+          </label>
+          <label className="block text-xs text-[var(--text-muted)]">Что не так / как должно быть
+            <textarea className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 h-20" value={description} onChange={(e) => setDescription(e.target.value)} required />
+          </label>
+          <label className="block text-xs text-[var(--text-muted)]">Комментарий
+            <textarea className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 h-16" value={comment} onChange={(e) => setComment(e.target.value)} />
+          </label>
+          <p className="text-[11px] text-[var(--text-muted)]">Уйдёт модератору elzidevelo@gmail.com вместе со ссылкой на эту карточку.</p>
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs border border-[var(--border-color)]">Отмена</button>
+            <button type="submit" disabled={busy} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-[#1c1917] rounded-xl text-xs font-semibold disabled:opacity-50">Отправить</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
-createRoot(document.getElementById("root")!).render(<App/>);
+
+function Root() {
+  const path = typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") || "/" : "/";
+  if (path === "/admin") return <AdminPage />;
+  return <App />;
+}
+
+createRoot(document.getElementById("root")!).render(<Root />);
