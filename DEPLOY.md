@@ -19,9 +19,23 @@ SSH может давать timeout — используйте **веб-конс
 ```bash
 cd /opt/ewd-app
 git fetch origin
-git checkout master
-git pull origin master
 ```
+
+Если `git checkout master` пишет  
+`Your local changes ... would be overwritten` (часто файл `run.sh`) — сбросить локальные правки и взять код с GitHub:
+
+```bash
+git checkout -f master
+git reset --hard origin/master
+```
+
+Если ветки `master` ещё нет локально:
+
+```bash
+git checkout -f -B master origin/master
+```
+
+Это удаляет только локальные отличия на сервере; нужен именно код из репозитория.
 
 ## 2. Восстановить SQLite (если список узлов пустой)
 
