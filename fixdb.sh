@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# Short typed fix: restore SQLite and restart app (no rebuild).
+#!/bin/bash
+# Restore SQLite + start existing image (no rebuild).
 set -euo pipefail
 cd /opt/ewd-app
 docker rm -f volvo-xc70-wiring 2>/dev/null || true

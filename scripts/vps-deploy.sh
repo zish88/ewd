@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
-# One-shot VPS deploy without docker-compose (avoids ContainerConfig bug).
-# Type on hosting console (3 lines):
+#!/bin/bash
+# Type on hosting console:
 #   cd /opt/ewd-app
 #   git pull
 #   bash deploy.sh
@@ -10,6 +9,8 @@ APP_DIR="${APP_DIR:-/opt/ewd-app}"
 IMAGE="${IMAGE:-ewd-app:latest}"
 NAME="${NAME:-volvo-xc70-wiring}"
 PORT="${PORT:-3000}"
+# Set BUILD=1 to force docker build --no-cache
+BUILD="${BUILD:-0}"
 
 echo "==> APP_DIR=$APP_DIR"
 cd "$APP_DIR"
@@ -45,12 +46,22 @@ PY
 )
 echo "==> components in sqlite: $COMPONENTS"
 if [ "$COMPONENTS" -lt 1 ]; then
-  echo "ERROR: sqlite restored but components=0. Check git object for data/wiring.sqlite"
+  echo "ERROR: sqlite restored but components=0"
   exit 1
 fi
 
-echo "==> docker build --no-cache (may take several minutes)"
-docker build --no-cache -t "$IMAGE" .
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  BUILD=1
+fi
+
+if [ "$BUILD" = "1" ]; then
+  echo "==> freeing docker disk before build"
+  docker system prune -af || true
+  echo "==> docker build --no-cache"
+  docker build --no-cache -t "$IMAGE" .
+else
+  echo "==> skip build (image exists). To force: BUILD=1 bash deploy.sh"
+fi
 
 echo "==> docker run"
 docker run -d --name "$NAME" --restart unless-stopped \
