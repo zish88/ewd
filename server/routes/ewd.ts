@@ -40,6 +40,7 @@ type ConnectivityIndex = {
   data_dir?: string;
   codeToConnectivityFiles?: Record<string, string[]>;
   codeToSystemFiles?: Record<string, Record<string, string[]>>;
+  summaries?: Array<{ source?: string; deviceCodeCount?: number; deviceCodes?: string[] }>;
 };
 
 type EwdEndpoint = {
@@ -71,6 +72,8 @@ const EWD_DATA = resolve(process.env.EWD_DATA_DIR || process.env.EWD_DIR || join
 let deviceIndex: DeviceIndex | null = null;
 let svgIndex: SvgDescIndex | null = null;
 let connectivityIndex: ConnectivityIndex | null = null;
+/** connectivity*.zip → distinct device code count (for ranking multi-device files first) */
+let fileDeviceCodeCount: Map<string, number> | null = null;
 
 function loadJson<T>(name: string): T | null {
   const path = join(EWD_DATA, name);
@@ -82,6 +85,31 @@ function ensureIndexes() {
   if (!deviceIndex) deviceIndex = loadJson<DeviceIndex>("device_index.json");
   if (!svgIndex) svgIndex = loadJson<SvgDescIndex>("svg_desc_index.json");
   if (!connectivityIndex) connectivityIndex = loadJson<ConnectivityIndex>("connectivity_index.json");
+  if (!fileDeviceCodeCount && connectivityIndex?.summaries?.length) {
+    fileDeviceCodeCount = new Map();
+    for (const s of connectivityIndex.summaries) {
+      const src = String(s.source || "").trim();
+      if (src) fileDeviceCodeCount.set(src, Number(s.deviceCodeCount) || 0);
+    }
+  }
+}
+
+function rankConnectivityFiles(files: string[]): string[] {
+  const counts = fileDeviceCodeCount;
+  if (!counts?.size) return files;
+  return [...files].sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));
+}
+
+function isTautologyEndpoint(ep: EwdEndpoint): boolean {
+  const a = normalizeCode(ep.from);
+  const b = normalizeCode(ep.to);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // Same pin both ends (cavity pass-through)
+  const pf = String(ep.pinFrom || "").trim();
+  const pt = String(ep.pinTo || "").trim();
+  if (a === b && pf && pt && pf === pt) return true;
+  return false;
 }
 
 function dataDir(): string {
@@ -215,7 +243,7 @@ function parseConnectivityXml(xml: string): EwdEndpoint[] {
     const to = b
       ? formatEndpoint(b, uniq[1] || "")
       : shortDesc || (attr(open, "isport") === "true" ? `порт ${wireName}` : uniq[1] || "—");
-    push({
+    const ep: EwdEndpoint = {
       from,
       to,
       color,
@@ -226,7 +254,9 @@ function parseConnectivityXml(xml: string): EwdEndpoint[] {
       toUid: b?.sourceObjectUID || "",
       fromDesignUid: a?.sourceDesignUID || "",
       toDesignUid: b?.sourceDesignUID || "",
-    });
+    };
+    if (isTautologyEndpoint(ep)) continue;
+    push(ep);
   }
   return endpoints;
 }
@@ -338,7 +368,8 @@ function filesForCode(
       else return [];
     }
   }
-  return out;
+  // Prefer multi-device netlists over single-device cavity files
+  return rankConnectivityFiles(out);
 }
 
 function endpointOnAllowedSystem(ep: EwdEndpoint, code: string, systemUids: Set<string>): boolean {

@@ -199,6 +199,7 @@ function rowToNavCard(
   pageMetaBySource?: Map<number, { page_type: string; system_name: string }>,
   allowedDiagramPages?: Set<number>,
   fallbackDiagramPage?: number,
+  nameByCode?: Map<string, string>,
 ) {
   const from_node = row.from_code || "—";
   const to_node = row.to_code || "—";
@@ -225,11 +226,15 @@ function rowToNavCard(
   const harness_left = String(row.harness_left || "").trim();
   const harness_right = String(row.harness_right || "").trim();
   const sel = selectedCode.trim();
+  const subjectName = (subject && nameByCode?.get(subject)) || "";
   let card_title = "";
   if (matchRole === "transit" && sel && subject && subject !== sel) {
-    card_title = `${sel} · через ${subject}${pin !== "—" ? `, контакт ${pin}` : ""}`;
+    const viaLabel = subjectName ? `${subject} — ${subjectName}` : subject;
+    card_title = `${sel} · через ${viaLabel}${pin !== "—" ? `, контакт ${pin}` : ""}`;
   } else if (matchRole === "owner" && subject) {
-    card_title = `Разъем ${subject}${pin !== "—" ? `, контакт ${pin}` : ""}`;
+    card_title = subjectName
+      ? `${subject} — ${subjectName}${pin !== "—" ? `, контакт ${pin}` : ""}`
+      : `Разъем ${subject}${pin !== "—" ? `, контакт ${pin}` : ""}`;
   }
   const part_number =
     (sel && partByCode.get(sel)) ||
@@ -568,12 +573,17 @@ export function createNavRouter(db: Database.Database) {
 
     const partRows = db
       .prepare(
-        `SELECT component_code, IFNULL(part_number,'') AS part_number
-         FROM components
-         WHERE TRIM(IFNULL(part_number,'')) != ''`,
+        `SELECT component_code, IFNULL(part_number,'') AS part_number,
+                IFNULL(name_ru,'') AS name_ru
+         FROM components`,
       )
-      .all() as Array<{ component_code: string; part_number: string }>;
-    const partByCode = new Map(partRows.map((r) => [r.component_code, r.part_number]));
+      .all() as Array<{ component_code: string; part_number: string; name_ru: string }>;
+    const partByCode = new Map(
+      partRows.filter((r) => r.part_number).map((r) => [r.component_code, r.part_number]),
+    );
+    const nameByCode = new Map(
+      partRows.filter((r) => r.name_ru).map((r) => [r.component_code, r.name_ru]),
+    );
 
     let diagrams: Array<{ book_id: number; page_number: number; system_name: string; title: string }> = [];
     try {
@@ -692,12 +702,30 @@ export function createNavRouter(db: Database.Database) {
     let owner_wires = ownerRows
       .filter((r) => inZoneContext(r, "owner"))
       .map((r) =>
-        rowToNavCard(r, code, "owner", partByCode, pageMetaBySource, allowedDiagramPages, fallbackDiagramPage),
+        rowToNavCard(
+          r,
+          code,
+          "owner",
+          partByCode,
+          pageMetaBySource,
+          allowedDiagramPages,
+          fallbackDiagramPage,
+          nameByCode,
+        ),
       );
     let transit_wires = transitRows
       .filter((r) => inZoneContext(r, "transit"))
       .map((r) =>
-        rowToNavCard(r, code, "transit", partByCode, pageMetaBySource, allowedDiagramPages, fallbackDiagramPage),
+        rowToNavCard(
+          r,
+          code,
+          "transit",
+          partByCode,
+          pageMetaBySource,
+          allowedDiagramPages,
+          fallbackDiagramPage,
+          nameByCode,
+        ),
       );
 
     const selected_part_number = partByCode.get(code) || "";

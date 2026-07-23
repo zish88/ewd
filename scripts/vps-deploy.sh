@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # Type on hosting console:
 #   cd /opt/ewd-app
 #   git pull
@@ -14,6 +14,15 @@ BUILD="${BUILD:-0}"
 
 echo "==> APP_DIR=$APP_DIR"
 cd "$APP_DIR"
+
+# Load host secrets for docker -e (SMTP, admin). Do not commit .env.
+if [ -f "${APP_DIR}/.env" ]; then
+  echo "==> loading ${APP_DIR}/.env"
+  set -a
+  # shellcheck disable=SC1091
+  . "${APP_DIR}/.env"
+  set +a
+fi
 
 echo "==> stop old containers first (unlock sqlite)"
 docker rm -f "$NAME" 2>/dev/null || true
@@ -76,6 +85,13 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e MANUAL_DIR=/data/manual \
   -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
   -e ADMIN_SECRET="${ADMIN_SECRET:-}" \
+  -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelo@gmail.com}" \
+  -e SMTP_HOST="${SMTP_HOST:-}" \
+  -e SMTP_PORT="${SMTP_PORT:-}" \
+  -e SMTP_SECURE="${SMTP_SECURE:-}" \
+  -e SMTP_USER="${SMTP_USER:-}" \
+  -e SMTP_PASS="${SMTP_PASS:-}" \
+  -e SMTP_FROM="${SMTP_FROM:-}" \
   -v "${APP_DIR}/data:/app/data" \
   -v "${APP_DIR}/manual:/data/manual:ro" \
   "$IMAGE"

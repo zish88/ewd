@@ -151,13 +151,24 @@ curl -s "http://127.0.0.1:3000/api/nav/components?zone=rear_doors" | head -c 400
 
 Адрес: `http://SERVER:3000/admin`
 
-В `.env` / окружении контейнера:
+В `/opt/ewd-app/.env` (подхватывается `deploy.sh` / `fixdb.sh` и пробрасывается в контейнер):
 
 ```bash
 ADMIN_PASSWORD=ваш_секретный_пароль
 ADMIN_SECRET=случайная_длинная_строка
 MODERATOR_EMAIL=elzidevelo@gmail.com
+
+# Почта заявок (Gmail App Password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=elzidevelo@gmail.com
+SMTP_PASS=xxxx-xxxx-xxxx-xxxx
+SMTP_FROM=elzidevelo@gmail.com
 ```
+
+После правок `.env` перезапустите контейнер: `BUILD=1 bash deploy.sh` или `bash fixdb.sh`.  
+Проверка: отправить ✎ → в ответе `emailSent: true`, письмо на `MODERATOR_EMAIL`.
 
 На `/admin` после входа:
 - открыть / закрыть весь сайт;

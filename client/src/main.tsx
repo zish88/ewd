@@ -19,7 +19,7 @@ import {
 } from "./ewdSchemeResolver.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
-import { loadPersistedFilters, savePersistedFilters } from "./filterPersist.js";
+import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -380,13 +380,34 @@ function normalizeCodeLabel(s: string): string {
   return m ? `${m[1]}/${m[2]}` : String(s || "").trim();
 }
 
+function detailLooksRich(s: string): boolean {
+  const t = String(s || "").trim();
+  if (!t || t === "—") return false;
+  // "8/6:1 — Injection…" or long descriptive text — keep over cavity tautology
+  return t.includes("—") || t.includes(" - ") || t.length > 18;
+}
+
+function endpointIsTautology(ep: EwdEndpoint, codeN: string): boolean {
+  const a = normalizeCodeLabel(ep.from);
+  const b = normalizeCodeLabel(ep.to);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // Same connector cavity both ends
+  if (codeN && a.startsWith(codeN) && b.startsWith(codeN)) return true;
+  return false;
+}
+
 function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: string): Result[] {
   if (!endpoints.length) return wires;
   const codeN = normalizeCodeLabel(code);
+  const usable = endpoints.filter((ep) => !endpointIsTautology(ep, codeN));
+  if (!usable.length) return wires;
   return wires.map((w) => {
     const pin = String(w.pin_number || "").trim();
     const color = String(w.wire_color || "").toUpperCase().replace(/\//g, "-").trim();
-    const match = endpoints.find((ep) => {
+    const sqliteRich =
+      detailLooksRich(String(w.from_detail || "")) && detailLooksRich(String(w.to_detail || ""));
+    const match = usable.find((ep) => {
       const epColor = String(ep.color || "").toUpperCase().replace(/\//g, "-");
       const colorOk = !color || color === "—" || !epColor || epColor === color;
       const pinOk =
@@ -403,6 +424,8 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
       return colorOk && pinOk && (involves || !codeN);
     });
     if (!match) return w;
+    // Never overwrite good pinout details with weaker EWD
+    if (sqliteRich) return w;
     return { ...w, from_detail: match.from, to_detail: match.to };
   });
 }
@@ -987,7 +1010,14 @@ function renderWireCard(
   const toLabel =
     (item.to_detail && String(item.to_detail).trim()) ||
     (item.to_node && item.to_node !== "—" ? `${item.to_node}${item.to_type_ru ? ` — ${item.to_type_ru}` : ""}` : "—");
-  const score = typeof item.integrity_score === "number" ? item.integrity_score : (typeof item.score === "number" ? item.score : null);
+  const score = (() => {
+    const integ = typeof item.integrity_score === "number" ? item.integrity_score : null;
+    const calc = typeof item.score === "number" ? item.score : null;
+    if (integ != null && integ > 0) return integ;
+    if (calc != null) return calc;
+    if (integ === 0 && calc != null) return calc;
+    return integ ?? calc;
+  })();
   return (
     <div
       key={itemId}
@@ -1127,10 +1157,14 @@ function migrateThemeId(raw: string | null): ThemeId {
 }
 
 function App() {
-  const [selectedModel, setSelectedModel] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
-  const [selectedEngine, setSelectedEngine] = useState("");
-  const [selectedTransmission, setSelectedTransmission] = useState("");
+  const persisted0: PersistedFilters =
+    typeof window !== "undefined"
+      ? loadPersistedFilters()
+      : { model: "", year: "", engine: "", transmission: "", zone: "all", code: "" };
+  const [selectedModel, setSelectedModel] = useState(() => persisted0.model || "");
+  const [selectedYear, setSelectedYear] = useState(() => persisted0.year || "");
+  const [selectedEngine, setSelectedEngine] = useState(() => persisted0.engine || "");
+  const [selectedTransmission, setSelectedTransmission] = useState(() => persisted0.transmission || "");
   const [vinInput, setVinInput] = useState("");
   const [vinLocked, setVinLocked] = useState(false);
   const [vinNotice, setVinNotice] = useState("");
@@ -1161,7 +1195,7 @@ function App() {
   } | null>(null);
   const [zones, setZones] = useState<NavZone[]>([]);
   const [navGroups, setNavGroups] = useState<NavGroup[]>([]);
-  const [selectedZone, setSelectedZone] = useState("all");
+  const [selectedZone, setSelectedZone] = useState(() => persisted0.zone || "all");
   const [isAdmin, setIsAdmin] = useState(false);
   const [siteOpen, setSiteOpen] = useState(true);
   const [features, setFeatures] = useState({
@@ -1172,11 +1206,16 @@ function App() {
     navBrowse: true,
   });
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  const [vehicleConfigured, setVehicleConfigured] = useState(false);
+  const [vehicleConfigured, setVehicleConfigured] = useState(
+    () => Boolean(persisted0.model && persisted0.year),
+  );
   const headerRef = useRef<HTMLElement | null>(null);
   const deepWireIdRef = useRef<string>("");
-  const filtersHydratedRef = useRef(false);
-  const [selectedCode, setSelectedCode] = useState("");
+  const filtersHydratedRef = useRef(Boolean(persisted0.model || persisted0.year || persisted0.engine));
+  const [filtersHydrated, setFiltersHydrated] = useState(() =>
+    Boolean(persisted0.model || persisted0.year || persisted0.engine || persisted0.zone || persisted0.code),
+  );
+  const [selectedCode, setSelectedCode] = useState(() => persisted0.code || "");
   /** null = all colors; otherwise normalized wireColor from current node cards */
   const [wireColorFilter, setWireColorFilter] = useState<string | null>(null);
   /** Last card circuit context for weighted diagram ranking */
@@ -1288,12 +1327,14 @@ function App() {
 
   // Cascading filters: model → years → engines → transmissions (EWD option matrix)
   useEffect(() => {
+    if (!filtersHydrated) return;
     const qs = new URLSearchParams();
     if (selectedModel) qs.set("model", selectedModel);
     if (selectedYear) qs.set("year", selectedYear);
     if (selectedEngine) qs.set("engine", selectedEngine);
     if (selectedTransmission) qs.set("transmission", selectedTransmission);
-    fetch(`/api/filters?${qs}`)
+    const ac = new AbortController();
+    fetch(`/api/filters?${qs}`, { signal: ac.signal })
       .then((r) => r.json())
       .then((data) => {
         const nextYears: string[] = Array.isArray(data.years) ? data.years : [];
@@ -1306,28 +1347,28 @@ function App() {
           engines: nextEngines,
           transmissions: nextTrans,
         });
-        // Soft cascade: keep user picks; only clear when parent context emptied upstream
-        setSelectedYear((current) => {
+        // Keep restored/user picks; never clear from stale parent closures
+        setSelectedYear((current: string) => {
           if (!current) return "";
           if (!nextYears.length || nextYears.includes(current)) return current;
-          return current; // keep rare year outside matrix
+          return current;
         });
-        setSelectedEngine((current) => {
+        setSelectedEngine((current: string) => {
           if (!current) return "";
-          if (!selectedYear) return "";
           if (!nextEngines.length || nextEngines.includes(current)) return current;
           return current;
         });
-        setSelectedTransmission((current) => {
+        setSelectedTransmission((current: string) => {
           if (!current) return ""; // «Все КПП»
-          if (!selectedEngine) return "";
           return current;
         });
       })
-      .catch(() => {
+      .catch((err: { name?: string }) => {
+        if (err?.name === "AbortError") return;
         /* keep previous */
       });
-  }, [selectedModel, selectedYear, selectedEngine]);
+    return () => ac.abort();
+  }, [filtersHydrated, selectedModel, selectedYear, selectedEngine, selectedTransmission]);
 
   useEffect(() => {
     fetch("/api/nav/zones").then(r => r.json()).then(data => setZones(Array.isArray(data.zones) ? data.zones : [])).catch(() => setZones([]));
@@ -1355,7 +1396,8 @@ function App() {
       .catch(() => undefined);
   }, []);
 
-  // Restore filters: URL query > localStorage (survives F5)
+  // Restore filters: URL query > localStorage (survives F5). Lazy-init already applied state;
+  // this pass re-applies URL priority and deep wireId.
   useEffect(() => {
     const saved = loadPersistedFilters();
     const q = new URLSearchParams(window.location.search);
@@ -1369,6 +1411,7 @@ function App() {
     if (wireId) deepWireIdRef.current = wireId;
     if (saved.model && saved.year) setVehicleConfigured(true);
     filtersHydratedRef.current = true;
+    setFiltersHydrated(true);
   }, []);
 
   useEffect(() => {

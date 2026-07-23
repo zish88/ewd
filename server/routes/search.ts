@@ -227,9 +227,6 @@ export function calculateDataScore(card: {
   pin_number?: unknown;
   integrity_score?: unknown;
 }): number {
-  if (typeof card.integrity_score === "number" && Number.isFinite(card.integrity_score)) {
-    return Math.max(0, Math.min(100, Math.round(card.integrity_score)));
-  }
   const required = [
     card.from_node,
     card.to_node,
@@ -237,7 +234,12 @@ export function calculateDataScore(card: {
     card.pin_number,
   ];
   const filled = required.filter((v) => isFilledField(v)).length;
-  return Math.round((filled / required.length) * 100);
+  const computed = Math.round((filled / required.length) * 100);
+  // Stored 0 means "never scored" on older DBs — recompute from fields
+  if (typeof card.integrity_score === "number" && Number.isFinite(card.integrity_score) && card.integrity_score > 0) {
+    return Math.max(0, Math.min(100, Math.round(card.integrity_score)));
+  }
+  return computed;
 }
 
 function extractSubjectCode(systemName: string): string {
