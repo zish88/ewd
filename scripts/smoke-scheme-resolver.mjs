@@ -69,6 +69,15 @@ const pickedDense = SR.pickBestDiagram([pageB, pageC], ctx);
 const codeOnly = SR.extractSchemeContext(null, "74/200");
 const pickedCodeOnly = SR.pickBestDiagram([pageB, pageA], codeOnly);
 
+// Systemic pin remap: junction card pin ≠ module cavity on selected sheet
+const cardPin21 = {
+  from_detail: "3/126C1:2 — Driver Door Module (DDM) LHD",
+  to_detail: "3/127C1:2 — Passenger Door Module (PDM)",
+  pin_number: "21",
+};
+const pinOnModule = SR.resolveHighlightPin(cardPin21, "3/126", "21");
+const pinOnJunction = SR.resolveHighlightPin(cardPin21, "74/507", "21");
+
 const result = {
   scoreA,
   scoreB,
@@ -80,6 +89,9 @@ const result = {
   denseScore: pickedDense.score,
   codeOnlyUid: pickedCodeOnly.diagram?.diagramUid ?? null,
   codeOnlyScore: pickedCodeOnly.score,
+  pinOnModule: pinOnModule.pin,
+  pinOnJunction: pinOnJunction.pin,
+  pinModuleCandidates: pinOnModule.pinCandidates,
 };
 
 console.log(JSON.stringify(result, null, 2));
@@ -104,6 +116,15 @@ if (result.codeOnlyUid !== null) {
   fail(`code-only junction context must not promote a sheet, got ${result.codeOnlyUid}`);
 }
 if (result.codeOnlyScore !== 0) fail(`code-only score must be 0, got ${result.codeOnlyScore}`);
+if (result.pinOnModule !== "2") {
+  fail(`selected module 3/126 must resolve cavity 2 from details, got ${result.pinOnModule}`);
+}
+if (result.pinOnJunction !== "21") {
+  fail(`selected junction must keep card pin 21, got ${result.pinOnJunction}`);
+}
+if (!Array.isArray(result.pinModuleCandidates) || !result.pinModuleCandidates.includes("2") || !result.pinModuleCandidates.includes("21")) {
+  fail(`module pin candidates must include 2 and 21, got ${JSON.stringify(result.pinModuleCandidates)}`);
+}
 
 try {
   unlinkSync(bundlePath);

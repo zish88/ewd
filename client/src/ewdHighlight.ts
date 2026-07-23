@@ -13,8 +13,12 @@ export type HighlightTargetPayload = {
   /** From selected card / SQLite only — never a hardcoded connector literal. Empty → "". */
   connectorCode?: string | null;
   pinNumber?: string | null;
+  /** Alternate pin digits to try (module cavity vs junction cavity). */
+  pinCandidates?: string[] | null;
   wireColor?: string | null;
   systemUid?: string;
+  /** Connectivity / device UIDs from /api/ewd/highlight — preferred geometry anchors. */
+  resolveUids?: string[] | null;
   diagramUid?: string;
   /** Peer connector (Откуда/Куда) — used only when primary connector is absent on this SVG. */
   peerCode?: string | null;
@@ -333,15 +337,60 @@ function pinOwnedByConnector(
   return distOurs <= distForeign * 1.05;
 }
 
+function rankScopeCandidates(candidates: Element[]): Element[] {
+  if (candidates.length <= 1) return candidates;
+  const ranked = [...candidates].sort((a, b) => {
+    const aa = elementArea(a);
+    const ab = elementArea(b);
+    const pa = countPinTerminalsIn(a);
+    const pb = countPinTerminalsIn(b);
+    const ca = countConductorGroupsIn(a);
+    const cb = countConductorGroupsIn(b);
+    return aa - ab || ca - cb || pb - pa;
+  });
+  const best = ranked[0];
+  const bestArea = elementArea(best);
+  return ranked.filter((el) => elementArea(el) <= bestArea * 3);
+}
+
+/**
+ * Groups whose <desc> contains any connectivity/device UID from highlight API.
+ * Used as primary geometry when label OCR misses the cavity digit.
+ */
+function findUidScopes(root: Element, svg: SVGSVGElement, uids: string[]): Element[] {
+  const wanted = [...new Set(uids.map((u) => String(u || "").trim()).filter(Boolean))];
+  if (!wanted.length) return [];
+  const candidates: Element[] = [];
+  const seen = new Set<Element>();
+  for (const g of root.querySelectorAll("g")) {
+    if (isServiceGraphic(g, svg) || seen.has(g)) continue;
+    const desc = readDesc(g);
+    if (!desc || !wanted.some((u) => desc.includes(u))) continue;
+    seen.add(g);
+    candidates.push(g);
+  }
+  // Prefer pin-list / compact conductor fragments over huge parent sheets
+  candidates.sort((a, b) => {
+    const da = readDesc(a);
+    const db = readDesc(b);
+    const pa = /CAFPinList/i.test(da) ? 0 : /CAFConductor/i.test(da) ? 1 : 2;
+    const pb = /CAFPinList/i.test(db) ? 0 : /CAFConductor/i.test(db) ? 1 : 2;
+    return pa - pb || elementArea(a) - elementArea(b);
+  });
+  return candidates.slice(0, 24);
+}
+
 /**
  * Vector groups belonging strictly to connectorCode.
- * When connectorCode is set, systemUid MUST NOT widen scopes (prevents foreign module pins).
+ * When connectorCode is set, systemUid alone must not invent foreign scopes —
+ * but resolveUids (connectivity match) may add tight pin-list groups.
  */
 function findConnectorScopes(
   root: Element,
   svg: SVGSVGElement,
   connectorCode: string,
   systemUid: string,
+  resolveUids: string[] = [],
 ): Element[] {
   const codeN = normalizeCodeLabel(connectorCode).toUpperCase();
   const candidates: Element[] = [];
@@ -362,7 +411,6 @@ function findConnectorScopes(
       add(pickConnectorScopeGroup(node, svg));
     }
   } else if (systemUid) {
-    // Soft fallback only when no connector code — never mix with connector scopes
     for (const g of root.querySelectorAll("g")) {
       const desc = readDesc(g);
       if (!desc.includes(systemUid) || isServiceGraphic(g, svg)) continue;
@@ -370,23 +418,12 @@ function findConnectorScopes(
     }
   }
 
-  if (candidates.length <= 1) return candidates;
+  // Connectivity UIDs: add pin-list/conductor scopes even when label scopes exist
+  for (const g of findUidScopes(root, svg, resolveUids.length ? resolveUids : systemUid ? [systemUid] : [])) {
+    add(g);
+  }
 
-  // Prefer compact scopes (smallest area among those with pins)
-  const ranked = [...candidates].sort((a, b) => {
-    const aa = elementArea(a);
-    const ab = elementArea(b);
-    const pa = countPinTerminalsIn(a);
-    const pb = countPinTerminalsIn(b);
-    const ca = countConductorGroupsIn(a);
-    const cb = countConductorGroupsIn(b);
-    return aa - ab || ca - cb || pb - pa;
-  });
-
-  const best = ranked[0];
-  const bestArea = elementArea(best);
-  // Keep only scopes not vastly larger than the tightest housing — no pin-count escape hatch
-  return ranked.filter((el) => elementArea(el) <= bestArea * 3);
+  return rankScopeCandidates(candidates);
 }
 
 /**
@@ -402,13 +439,15 @@ function resolvePinDigitAnchorsInScopes(
   const pinStr = String(pinNumber || "").trim();
   if (!pinStr || !isPinTerminalLabel(pinStr) || !scopes.length) return [];
   const codeN = normalizeCodeLabel(connectorCode).toUpperCase();
+  const pinNorm = pinStr.replace(/^0+/, "") || pinStr;
 
   const anchors: PinAnchor[] = [];
   for (const scope of scopes) {
     for (const node of scope.querySelectorAll("text, tspan")) {
       if (isServiceGraphic(node, svg)) continue;
       const t = String(node.textContent || "").trim();
-      if (t !== pinStr && t !== pinStr.toUpperCase()) continue;
+      const tNorm = t.replace(/^0+/, "") || t;
+      if (t !== pinStr && t !== pinStr.toUpperCase() && tNorm !== pinNorm) continue;
       if (!isPinTerminalLabel(t)) continue;
       if (isConductorCalloutLabel(node)) continue;
       const at = textCenter(node);
@@ -832,8 +871,8 @@ function resolveInsideScopes(
 
 /**
  * Connector-Aware Pin Anchor Math:
- * [connectorCode] → scope group → pinNumber inside that group only.
- * With pinNumber set: only pin-terminal / wire-entry (never frame / viewBox).
+ * [connectorCode | resolveUids] → scope → try pinCandidates (module cavity, then junction).
+ * With pin set: only pin-terminal / wire-entry (never frame / viewBox).
  * Peer fallback if primary connector absent. Never grab foreign same-number pins.
  */
 function resolveMarkerAnchor(
@@ -844,46 +883,81 @@ function resolveMarkerAnchor(
   systemUid: string,
   peerCode: string,
   wireColor = "",
+  pinCandidates: string[] = [],
+  resolveUids: string[] = [],
 ): ResolveMeta | null {
   const box = viewBoxBox(svg);
   const maxDim = Math.max(box.w, box.h, 1000);
-  const strictPin = !!pinNumber;
+  const pins = [
+    ...new Set(
+      [pinNumber, ...pinCandidates]
+        .map((p) => String(p || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const strictPin = pins.length > 0;
 
-  // Scoped search: localize connectorCode first; pin digits only inside that housing.
-  const primaryScopes = findConnectorScopes(root, svg, connectorCode, systemUid);
-  const primary = resolveInsideScopes(
-    root,
-    svg,
-    pinNumber,
+  const tryPinsInScopes = (
+    scopes: Element[],
+    codeForOwnership: string,
+    modePin: AnchorMode,
+    modeWire: AnchorMode,
+    modeFrame: AnchorMode,
+  ): ResolveMeta | null => {
+    for (const candidate of pins.length ? pins : [""]) {
+      const hit = resolveInsideScopes(
+        root,
+        svg,
+        candidate,
+        scopes,
+        maxDim,
+        modePin,
+        modeWire,
+        modeFrame,
+        wireColor,
+        strictPin,
+        codeForOwnership,
+      );
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  // 1) UID scopes first — connectivity already named the terminal group on this sheet
+  const uidScopes = findUidScopes(root, svg, resolveUids);
+  if (uidScopes.length) {
+    const viaUid = tryPinsInScopes(
+      uidScopes,
+      connectorCode,
+      "pin-terminal",
+      "wire-entry",
+      "pin-frame",
+    );
+    if (viaUid) return viaUid;
+  }
+
+  // 2) Label scopes for selected connector (+ UID merge inside findConnectorScopes)
+  const primaryScopes = findConnectorScopes(root, svg, connectorCode, systemUid, resolveUids);
+  const primary = tryPinsInScopes(
     primaryScopes,
-    maxDim,
+    connectorCode,
     "pin-terminal",
     "wire-entry",
     "pin-frame",
-    wireColor,
-    strictPin,
-    connectorCode,
   );
   if (primary) return primary;
 
   const peerN = normalizeCodeLabel(peerCode);
   if (peerN && peerN.toUpperCase() !== normalizeCodeLabel(connectorCode).toUpperCase()) {
-    const peerScopes = findConnectorScopes(root, svg, peerN, "");
-    const peer = resolveInsideScopes(
-      root,
-      svg,
-      pinNumber,
+    const peerScopes = findConnectorScopes(root, svg, peerN, "", resolveUids);
+    const peer = tryPinsInScopes(
       peerScopes,
-      maxDim,
+      peerN,
       "peer-terminal",
       "peer-terminal",
       "peer-frame",
-      wireColor,
-      strictPin,
-      peerN,
     );
     if (peer) return peer;
-    // Soft mode only: peer frame without matching pin number
     if (!strictPin) {
       const peerFrame = resolvePinFrameInScopes(root, svg, peerScopes, null, maxDim);
       if (peerFrame) {
@@ -1079,12 +1153,26 @@ export function highlightTarget(
   // Safe empty: missing connector/pin/color → "" / undefined — never invent a connector number.
   const connectorCode = normalizeCodeLabel(payload.connectorCode ?? "");
   const pinNumber = String(payload.pinNumber ?? "").trim();
+  const pinCandidates = [
+    ...new Set(
+      [pinNumber, ...(Array.isArray(payload.pinCandidates) ? payload.pinCandidates : [])]
+        .map((p) => String(p ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
   const wireColor = normalizeWireColorKey(payload.wireColor ?? "");
   const systemUid = String(payload.systemUid || "").trim();
+  const resolveUids = [
+    ...new Set(
+      (Array.isArray(payload.resolveUids) ? payload.resolveUids : systemUid ? [systemUid] : [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
   const diagramUid = String(payload.diagramUid || "").trim();
   const peerCode = normalizeCodeLabel(payload.peerCode ?? "");
-  const markerLabel = pinNumber || connectorCode || "?";
-  const strictPin = !!pinNumber;
+  const markerLabel = pinCandidates[0] || pinNumber || connectorCode || "?";
+  const strictPin = pinCandidates.length > 0;
 
   let painted: Element[] = [];
   let hostGroup: Element | null = null;
@@ -1131,10 +1219,12 @@ export function highlightTarget(
       systemUid,
       peerCode,
       wireColor,
+      pinCandidates,
+      resolveUids,
     );
 
     if (!resolved) {
-      reason = `pin-miss pin=${pinNumber || "—"} code=${connectorCode || "—"} — no terminal on this SVG`;
+      reason = `pin-miss pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} — no terminal on this SVG`;
       stage = "none";
       anchorMode = "viewbox-center";
       connectorScoped = false;
@@ -1143,7 +1233,7 @@ export function highlightTarget(
       hostGroup = resolved.hostGroup;
       scopeCount = resolved.scopeCount;
       connectorScoped = resolved.connectorScoped;
-      reason = `Marker-anchor mode=${resolved.mode} pin=${pinNumber || "—"} code=${connectorCode || "—"} scopes=${scopeCount}`;
+      reason = `Marker-anchor mode=${resolved.mode} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} scopes=${scopeCount} uids=${resolveUids.length}`;
 
       const softModes: AnchorMode[] = ["pin-frame", "peer-frame", "viewbox-center"];
       if (strictPin && softModes.includes(resolved.mode)) {
@@ -1185,6 +1275,8 @@ export function highlightTarget(
           systemUid,
           peerCode,
           wireColor,
+          pinCandidates,
+          resolveUids,
         );
         if (resolved && forceInject(resolved.at, resolved.mode)) {
           anchors = resolved.anchors;
@@ -1265,8 +1357,10 @@ export function applyStrictWireHighlight(
   return highlightTarget(root, svg, {
     connectorCode: focus.searchCode || "",
     pinNumber: focus.pin || "",
+    pinCandidates: [focus.pinFrom, focus.pinTo, focus.pin].filter(Boolean) as string[],
     wireColor: focus.wireColor || "",
     systemUid: focus.resolveUids?.[0],
+    resolveUids: focus.resolveUids,
     peerCode: focus.peerCode || "",
   });
 }

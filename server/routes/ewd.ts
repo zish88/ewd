@@ -103,13 +103,12 @@ function rankConnectivityFiles(files: string[]): string[] {
 function isTautologyEndpoint(ep: EwdEndpoint): boolean {
   const a = normalizeCode(ep.from);
   const b = normalizeCode(ep.to);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  // Same pin both ends (cavity pass-through)
+  if (!a || !b || a !== b) return false;
   const pf = String(ep.pinFrom || "").trim();
   const pt = String(ep.pinTo || "").trim();
-  if (a === b && pf && pt && pf === pt) return true;
-  return false;
+  // Same code + same (or missing) pin = cavity echo. Different pins on same code can be valid.
+  if (!pf && !pt) return true;
+  return Boolean(pf && pt && pf === pt);
 }
 
 function dataDir(): string {

@@ -6,6 +6,7 @@ type Features = {
   pdfTables: boolean;
   vinSearch: boolean;
   navBrowse: boolean;
+  dtcSearch: boolean;
 };
 
 type Settings = {
@@ -20,6 +21,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   pdfTables: "Таблицы PDF / «Таблица»",
   vinSearch: "Поиск по VIN",
   navBrowse: "Навигация по зонам и узлам",
+  dtcSearch: "Поиск DTC / OBD кодов",
 };
 
 export function AdminPage() {

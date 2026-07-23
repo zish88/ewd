@@ -9,6 +9,8 @@ import { createLocationRouter, createOverrideRouter, createSearchRouter } from "
 import { createNavRouter } from "./routes/nav.js";
 import { createEwdRouter } from "./routes/ewd.js";
 import { createAdminRouter } from "./routes/admin.js";
+import { createDtcRouter } from "./routes/dtc.js";
+import { dtcStats } from "./dtcDb.js";
 import { isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
 import {
@@ -26,7 +28,7 @@ const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
 const manualRoot = resolve(process.env.MANUAL_DIR ?? "E:\\manual");
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
-const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelo@gmail.com";
+const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelop@gmail.com";
 
 function resolveManualFile(filename: string): string | null {
   const primary = resolve(manualRoot, filename);
@@ -85,12 +87,17 @@ app.use("/api", (req, res, next) => {
     res.status(403).json({ error: "Предложения правок отключены." });
     return;
   }
+  if (!settings.features.dtcSearch && path.startsWith("/dtc")) {
+    res.status(403).json({ error: "Поиск DTC отключён." });
+    return;
+  }
   next();
 });
 
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
+app.use("/api/dtc", createDtcRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
 app.get("/api/health", (_req, res) => {
@@ -123,11 +130,16 @@ app.get("/api/health", (_req, res) => {
   if (!pdfOk) {
     hints.push("PDF manual missing. Upload Электросхемы XC70.pdf into MANUAL_DIR (./manual).");
   }
+  const dtc = dtcStats();
+  if (!dtc.available) {
+    hints.push("DTC dictionary missing. Restore data/dtc.sqlite from git.");
+  }
   res.json({
     ok: !error && components > 0 && wires > 0,
     dbPath,
     dbExists: existsSync(dbPath),
     counts: { components, wires, pages },
+    dtc,
     ewdSourceDir: ewdSource,
     ewdSourceExists: ewdOk,
     manualDir: manualRoot,

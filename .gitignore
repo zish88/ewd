@@ -42,6 +42,8 @@ data/vida_schema_probe.json
 
 # Allow the production SQLite DB in git (small, required for VPS)
 !data/wiring.sqlite
+!data/dtc.sqlite
+!data/dtc_codes.json
 
 # Heavy EWD binaries — deploy to VPS via FTP/panel, never GitHub
 data/ewd/EPC.zip

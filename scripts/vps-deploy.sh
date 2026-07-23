@@ -38,13 +38,18 @@ fi
 echo "==> force-restore SQLite from git"
 mkdir -p data
 rm -f data/wiring.sqlite data/wiring.sqlite-wal data/wiring.sqlite-shm
-git checkout HEAD -- data/wiring.sqlite
-ls -la data/wiring.sqlite
+rm -f data/dtc.sqlite data/dtc.sqlite-wal data/dtc.sqlite-shm
+git checkout HEAD -- data/wiring.sqlite data/dtc.sqlite
+ls -la data/wiring.sqlite data/dtc.sqlite
 
 BYTES=$(wc -c < data/wiring.sqlite | tr -d ' ')
 if [ "$BYTES" -lt 100000 ]; then
   echo "ERROR: wiring.sqlite too small ($BYTES bytes)"
   exit 1
+fi
+DTC_BYTES=$(wc -c < data/dtc.sqlite | tr -d ' ')
+if [ "$DTC_BYTES" -lt 10000 ]; then
+  echo "WARN: dtc.sqlite missing or tiny ($DTC_BYTES bytes) — DTC search may be empty"
 fi
 
 COMPONENTS=$(python3 - <<'PY'
@@ -79,13 +84,14 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e NODE_ENV=production \
   -e PORT=3000 \
   -e DATABASE_PATH=/app/data/wiring.sqlite \
+  -e DTC_DATABASE_PATH=/app/data/dtc.sqlite \
   -e EWD_DATA_DIR=/app/data/ewd \
   -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
   -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" \
   -e ADMIN_SECRET="${ADMIN_SECRET:-}" \
-  -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelo@gmail.com}" \
+  -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
   -e SMTP_HOST="${SMTP_HOST:-}" \
   -e SMTP_PORT="${SMTP_PORT:-}" \
   -e SMTP_SECURE="${SMTP_SECURE:-}" \

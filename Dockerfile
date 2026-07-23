@@ -16,6 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_PATH=/app/data/wiring.sqlite
+ENV DTC_DATABASE_PATH=/app/data/dtc.sqlite
 ENV EWD_DATA_DIR=/app/data/ewd
 ENV CLIENT_DIST=/app/client/dist
 

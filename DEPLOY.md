@@ -10,6 +10,7 @@ SSH может давать timeout — используйте **веб-конс
 |---------------------|----------------------------------------|
 | Код `server/`, `client/`, Docker | `data/ewd/ewd_source/` (SVG, большой архив) |
 | `data/wiring.sqlite` (~0.6 MB) | `data/ewd/EPC.zip`, `imagerepository_Data.MDF` (не обязательны для списка узлов) |
+| `data/dtc.sqlite` (~словарь DTC/OBD из VIDA) | |
 | `data/ewd/*_index.json` | |
 
 ## 1. Обновить код
@@ -156,19 +157,27 @@ curl -s "http://127.0.0.1:3000/api/nav/components?zone=rear_doors" | head -c 400
 ```bash
 ADMIN_PASSWORD=ваш_секретный_пароль
 ADMIN_SECRET=случайная_длинная_строка
-MODERATOR_EMAIL=elzidevelo@gmail.com
+MODERATOR_EMAIL=elzidevelop@gmail.com
 
 # Почта заявок (Gmail App Password)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER=elzidevelo@gmail.com
+SMTP_USER=elzidevelop@gmail.com
 SMTP_PASS=xxxx-xxxx-xxxx-xxxx
-SMTP_FROM=elzidevelo@gmail.com
+SMTP_FROM=elzidevelop@gmail.com
 ```
 
 После правок `.env` перезапустите контейнер: `BUILD=1 bash deploy.sh` или `bash fixdb.sh`.  
 Проверка: отправить ✎ → в ответе `emailSent: true`, письмо на `MODERATOR_EMAIL`.
+
+**Важно:** пароль приложения Gmail (`SMTP_PASS`) только в `/opt/ewd-app/.env` на VPS — никогда в git.
+
+### DTC / OBD словарь
+
+Файл `data/dtc.sqlite` (~18 MB) поднимается вместе с wiring при `deploy.sh` / `fixdb.sh`.
+Пересборка с ПК: `python scripts/extract_vida_dtc.py` (нужен LocalDB + `DiagSwdlRepository_Data.MDF`).
+На сайте: блок «Коды ошибок DTC / OBD» → `/api/dtc/search?q=…`.
 
 На `/admin` после входа:
 - открыть / закрыть весь сайт;

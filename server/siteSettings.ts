@@ -12,6 +12,8 @@ export type SiteFeatures = {
   vinSearch: boolean;
   /** Zone / component navigation. */
   navBrowse: boolean;
+  /** DTC / OBD fault-code dictionary search. */
+  dtcSearch: boolean;
 };
 
 export type SiteSettings = {
@@ -29,6 +31,7 @@ const DEFAULTS: SiteSettings = {
     pdfTables: true,
     vinSearch: true,
     navBrowse: true,
+    dtcSearch: true,
   },
 };
 

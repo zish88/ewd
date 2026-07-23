@@ -97,6 +97,67 @@ export function peerCodeFromSchemeCard(card: SchemeCardLike, selectedCode: strin
   return candidates[0] || "";
 }
 
+/**
+ * Pin cavity belonging to `code` inside a free-text detail
+ * (`3/126C1:2`, `74/507:21`, `3A/65:4` …).
+ * Systemic: card.pin_number is often the junction cavity while the open sheet is a module.
+ */
+export function pinForCodeInText(text: string | null | undefined, code: string): string {
+  const codeN = normalizeSchemeCode(code);
+  const raw = String(text || "");
+  if (!codeN || !raw) return "";
+  const esc = codeN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(?:^|[^\\dA-Z/])${esc}(?:C\\d+)?\\s*:\\s*([0-9A-Z]{1,4})\\b`, "i");
+  const m = raw.match(re);
+  return m?.[1] ? String(m[1]).trim() : "";
+}
+
+export type ResolvedHighlightPin = {
+  /** Best pin to search on the currently selected node's sheet. */
+  pin: string;
+  /** Ordered candidates (selected-side detail pin first, then card pin, then peer-side). */
+  pinCandidates: string[];
+  pinFrom: string;
+  pinTo: string;
+  peerCode: string;
+};
+
+/**
+ * Resolve which digit to hunt on the SVG for `selectedCode`.
+ * Prefer the cavity next to that code in from/to details over raw card.pin_number.
+ */
+export function resolveHighlightPin(
+  card: SchemeCardLike | null | undefined,
+  selectedCode: string,
+  cardPin = "",
+): ResolvedHighlightPin {
+  const selected = normalizeSchemeCode(selectedCode);
+  const peerCode = card ? peerCodeFromSchemeCard(card, selected) : "";
+  const fromDetail = String(card?.from_detail || "");
+  const toDetail = String(card?.to_detail || "");
+  const pinOnSelectedFrom = pinForCodeInText(fromDetail, selected);
+  const pinOnSelectedTo = pinForCodeInText(toDetail, selected);
+  const pinSelected = pinOnSelectedFrom || pinOnSelectedTo;
+  const pinFrom =
+    pinForCodeInText(fromDetail, collectCodes(fromDetail)[0] || "") || pinOnSelectedFrom;
+  const pinTo = pinForCodeInText(toDetail, collectCodes(toDetail)[0] || "") || pinOnSelectedTo;
+  const peerPin = peerCode
+    ? pinForCodeInText(fromDetail, peerCode) || pinForCodeInText(toDetail, peerCode)
+    : "";
+  const fallback = String(cardPin || "").trim();
+  const pinCandidates = [pinSelected, fallback, peerPin, pinFrom, pinTo]
+    .map((p) => String(p || "").trim())
+    .filter(Boolean)
+    .filter((p, i, arr) => arr.indexOf(p) === i);
+  return {
+    pin: pinCandidates[0] || fallback,
+    pinCandidates,
+    pinFrom: pinFrom || pinOnSelectedFrom || "",
+    pinTo: pinTo || pinOnSelectedTo || "",
+    peerCode,
+  };
+}
+
 export function extractSchemeContext(
   card: SchemeCardLike | null | undefined,
   selectedCode: string,

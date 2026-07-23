@@ -11,10 +11,12 @@ import {
   wireColorChipStyle,
 } from "./wireColorFilter.js";
 import {
+  diagramHasCode,
   extractSchemeContext,
   peerCodeFromSchemeCard,
   pickBestDiagram,
   rankDiagramsForContext,
+  resolveHighlightPin,
   type SchemeContext,
 } from "./ewdSchemeResolver.js";
 import "./styles.css";
@@ -49,12 +51,20 @@ type EwdDiagram = {
   groups?: Array<{ schemClass: string; uids: string[]; pathCount: number }>;
 };
 type EwdEndpoint = { from: string; to: string; color: string; wireName: string; pinFrom?: string; pinTo?: string };
-type WireFocus = { pin?: string; wireColor?: string; peerCode?: string };
+type WireFocus = {
+  pin?: string;
+  pinCandidates?: string[];
+  wireColor?: string;
+  peerCode?: string;
+  pinFrom?: string;
+  pinTo?: string;
+};
 type ActiveSvg = {
   diagramUid: string;
   searchCode: string;
   objectIds?: string[];
   pin?: string;
+  pinCandidates?: string[];
   wireColor?: string;
   peerCode?: string;
   zone?: string;
@@ -391,10 +401,23 @@ function endpointIsTautology(ep: EwdEndpoint, codeN: string): boolean {
   const a = normalizeCodeLabel(ep.from);
   const b = normalizeCodeLabel(ep.to);
   if (!a || !b) return false;
-  if (a === b) return true;
-  // Same connector cavity both ends
-  if (codeN && a.startsWith(codeN) && b.startsWith(codeN)) return true;
+  const pf = String(ep.pinFrom || "").trim();
+  const pt = String(ep.pinTo || "").trim();
+  const samePin = Boolean(pf && pt && pf === pt);
+  if (a === b) return !pf && !pt ? true : samePin;
+  // Same selected connector both ends only when cavity digits match
+  if (codeN && a.startsWith(codeN) && b.startsWith(codeN)) return samePin;
   return false;
+}
+
+function pinLabelMatches(label: string | undefined, want: string): boolean {
+  if (!label || !want) return false;
+  const w = String(want).trim();
+  const p = String(label).trim();
+  if (p === w) return true;
+  if (p.endsWith(`:${w}`) || p.endsWith(`-${w}`) || p.endsWith(`/${w}`)) return true;
+  const esc = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\D)${esc}(?:\\D|$)`).test(p);
 }
 
 function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: string): Result[] {
@@ -412,8 +435,8 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
       const colorOk = !color || color === "—" || !epColor || epColor === color;
       const pinOk =
         !pin ||
-        ep.pinFrom === pin ||
-        ep.pinTo === pin ||
+        pinLabelMatches(ep.pinFrom, pin) ||
+        pinLabelMatches(ep.pinTo, pin) ||
         ep.from.includes(`:${pin}`) ||
         ep.to.includes(`:${pin}`);
       const involves =
@@ -421,7 +444,13 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
         ep.to.includes(codeN) ||
         normalizeCodeLabel(ep.from).startsWith(codeN) ||
         normalizeCodeLabel(ep.to).startsWith(codeN);
-      return colorOk && pinOk && (involves || !codeN);
+      // Prefer pin on the selected code's side when both ends have pins
+      const pinOnSelected =
+        !pin ||
+        (normalizeCodeLabel(ep.from).startsWith(codeN) && pinLabelMatches(ep.pinFrom, pin)) ||
+        (normalizeCodeLabel(ep.to).startsWith(codeN) && pinLabelMatches(ep.pinTo, pin)) ||
+        pinOk;
+      return colorOk && pinOnSelected && (involves || !codeN);
     });
     if (!match) return w;
     // Never overwrite good pinout details with weaker EWD
@@ -460,6 +489,7 @@ function SvgDiagramViewer({
   searchCode,
   objectIds = [],
   pin = "",
+  pinCandidates = [],
   wireColor = "",
   peerCode = "",
   zone = "",
@@ -470,6 +500,7 @@ function SvgDiagramViewer({
 }: ActiveSvg & { onPinMiss?: (reason: string) => void }) {
   const onPinMissRef = useRef(onPinMiss);
   onPinMissRef.current = onPinMiss;
+  const [highlightReady, setHighlightReady] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -600,13 +631,16 @@ function SvgDiagramViewer({
 
   useEffect(() => {
     let alive = true;
-    if (!pin && !wireColor && !peerCode) {
+    setHighlightReady(false);
+    if (!pin && !pinCandidates.length && !wireColor && !peerCode) {
       setResolveUids([]);
       setNetPins({});
+      setHighlightReady(true);
       return;
     }
     const params = new URLSearchParams({ code: searchCode, diagramUid });
-    if (pin) params.set("pin", pin);
+    const pinForApi = pin || pinCandidates[0] || "";
+    if (pinForApi) params.set("pin", pinForApi);
     if (wireColor) params.set("color", wireColor);
     if (peerCode) params.set("peer", peerCode);
     if (zone && zone !== "all") params.set("zone", zone);
@@ -626,39 +660,49 @@ function SvgDiagramViewer({
           : [];
         const peerN = normalizeCodeLabel(peerCode);
         const codeN = normalizeCodeLabel(searchCode);
-        // Prefer the single net that involves selected code + peer + pin (avoid duplicate L/R instances)
+        const pinSet = new Set(
+          [pin, ...pinCandidates, pinFrom, pinTo].map((p) => String(p || "").trim()).filter(Boolean),
+        );
+        // Prefer the single net that involves selected code + peer + any candidate pin
         const preferred =
           matchedList.find((m) => {
             const blob = `${m.from || ""} ${m.to || ""}`;
             const hasCode = !codeN || blob.includes(codeN);
             const hasPeer = !peerN || blob.includes(peerN);
             const hasPin =
-              !pin ||
-              String(m.pinFrom || "") === String(pin) ||
-              String(m.pinTo || "") === String(pin);
+              !pinSet.size ||
+              pinSet.has(String(m.pinFrom || "").trim()) ||
+              pinSet.has(String(m.pinTo || "").trim());
             return hasCode && hasPeer && hasPin;
           }) || matchedList[0] || null;
         const fromMatched = preferred
           ? ([preferred.fromUid, preferred.toUid].filter(Boolean) as string[])
           : [];
         const apiUids = Array.isArray(data.uids) ? (data.uids as string[]) : [];
-        // Prefer exact net endpoints only — mixing all sheet UIDs reintroduces duplicate L/R pins
-        setResolveUids(fromMatched.length ? fromMatched : apiUids.slice(0, 8));
+        // Prefer exact net endpoints; fall back to objectIds on this sheet
+        const uidPool = fromMatched.length
+          ? fromMatched
+          : apiUids.length
+            ? apiUids.slice(0, 8)
+            : (objectIds || []).slice(0, 8);
+        setResolveUids(uidPool);
         setNetPins({
           pinFrom: String(preferred?.pinFrom || pinFrom || "").trim() || undefined,
           pinTo: String(preferred?.pinTo || pinTo || "").trim() || undefined,
         });
+        setHighlightReady(true);
       })
       .catch(() => {
         if (alive) {
-          setResolveUids([]);
+          setResolveUids((objectIds || []).slice(0, 8));
           setNetPins({});
+          setHighlightReady(true);
         }
       });
     return () => {
       alive = false;
     };
-  }, [diagramUid, searchCode, pin, wireColor, peerCode, zone, pinFrom, pinTo]);
+  }, [diagramUid, searchCode, pin, pinCandidates, wireColor, peerCode, zone, pinFrom, pinTo, objectIds]);
 
   // Apply SVG markup once per string — never via render dangerouslySetInnerHTML
   // (React re-renders would wipe injected .pin-marker otherwise = false "toggle")
@@ -706,30 +750,48 @@ function SvgDiagramViewer({
   }, [svgMarkup]);
 
   // Marker inject on showSeq / focus change. Strict pin: no frame/viewBox retry.
+  // Wait for /api/ewd/highlight so UID + net pins can drive placement (site-wide pin-miss fix).
   useEffect(() => {
     if (!svgMarkup || !contentRef.current) return;
-    if (!pin && !wireColor && !searchCode) return;
+    if (!pin && !pinCandidates.length && !wireColor && !searchCode) return;
+    if (!highlightReady) return;
     const root = contentRef.current;
     const svg = root.querySelector("svg") as SVGSVGElement | null;
     if (!svg) return;
 
-    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${pin}|${wireColor}|${peerCode}|${showSeq}|${netPins.pinFrom || ""}|${netPins.pinTo || ""}|${resolveUids.join(",")}`;
+    const candidates = [
+      ...new Set(
+        [
+          pin,
+          ...pinCandidates,
+          netPins.pinFrom,
+          netPins.pinTo,
+          pinFrom,
+          pinTo,
+        ]
+          .map((p) => String(p || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${candidates.join("/")}|${wireColor}|${peerCode}|${showSeq}|${resolveUids.join(",")}`;
 
     const result = highlightTarget(root, svg, {
       connectorCode: searchCode,
-      pinNumber: pin,
+      pinNumber: candidates[0] || pin,
+      pinCandidates: candidates,
       wireColor,
       systemUid: resolveUids[0],
+      resolveUids,
       diagramUid,
       peerCode,
     });
-    // Soft mode only: retry once when no pin was requested
-    if (!pin && !svg.querySelector("g.pin-marker")) {
+    if (!candidates.length && !svg.querySelector("g.pin-marker")) {
       highlightTarget(root, svg, {
         connectorCode: searchCode,
-        pinNumber: pin,
+        pinNumber: "",
         wireColor,
         systemUid: resolveUids[0],
+        resolveUids,
         diagramUid,
         peerCode,
       });
@@ -738,7 +800,7 @@ function SvgDiagramViewer({
 
     paintedKeyRef.current = focusKey;
 
-    if (pin && result.stage === "none") {
+    if (candidates.length && result.stage === "none") {
       onPinMissRef.current?.(result.reason || "pin-miss");
       applyPanZoomDom();
       return;
@@ -756,6 +818,7 @@ function SvgDiagramViewer({
     diagramUid,
     resolveUids,
     pin,
+    pinCandidates,
     wireColor,
     peerCode,
     pinFrom,
@@ -763,6 +826,7 @@ function SvgDiagramViewer({
     showSeq,
     netPins.pinFrom,
     netPins.pinTo,
+    highlightReady,
   ]);
 
   useEffect(() => {
@@ -962,16 +1026,19 @@ function renderWireCard(
       return;
     }
     const code = String(selectedCode || item.search_target || item.from_node || "").trim();
-    // Recover pin from multiple card fields — empty pin broke highlight on 74/507 / 3/65
-    let pin = String(item.pin_number || "").trim();
-    if (!pin && Array.isArray(item.pins) && item.pins.length) {
-      pin = String(item.pins[0] ?? "").trim();
+    // Card.pin_number is often the junction cavity (74/xxx:21) while the open sheet is a module
+    // (3/126C1:2). Resolve the digit that belongs to the selected code on this SVG.
+    let cardPin = String(item.pin_number || "").trim();
+    if (!cardPin && Array.isArray(item.pins) && item.pins.length) {
+      cardPin = String(item.pins[0] ?? "").trim();
     }
-    if (!pin) {
+    if (!cardPin) {
       const blob = `${item.card_title || ""} ${item.from_detail || ""} ${item.to_detail || ""} ${item.raw_line || ""}`;
       const m = blob.match(/контакт\s*[№#:]?\s*(\d{1,3})/i) || blob.match(/:(\d{1,3})\b/);
-      if (m?.[1]) pin = String(m[1]);
+      if (m?.[1]) cardPin = String(m[1]);
     }
+    const resolved = resolveHighlightPin(item, code, cardPin);
+    const pin = resolved.pin || cardPin;
     // Persist selection strictly on click — never tied to hover/mouseleave
     setSelectedPinState({
       id: itemId,
@@ -984,8 +1051,11 @@ function renderWireCard(
       undefined,
       {
         pin: pin || undefined,
+        pinCandidates: resolved.pinCandidates.length ? resolved.pinCandidates : undefined,
+        pinFrom: resolved.pinFrom || undefined,
+        pinTo: resolved.pinTo || undefined,
         wireColor: wireCode !== "—" ? wireCode : undefined,
-        peerCode: peerCodeFromCard(item, code) || undefined,
+        peerCode: resolved.peerCode || peerCodeFromCard(item, code) || undefined,
       },
       item,
     );
@@ -1174,7 +1244,19 @@ function App() {
     engines: [],
     transmissions: [],
   });
-  const [mode, setMode] = useState<"search" | null>(null);
+  const [mode, setMode] = useState<"search" | "dtc" | null>(null);
+  type DtcHit = {
+    code: string;
+    ecu: string;
+    obd_code: string;
+    title_ru: string;
+    title_en: string;
+    variants: number;
+  };
+  const [dtcQuery, setDtcQuery] = useState("");
+  const [dtcResults, setDtcResults] = useState<DtcHit[]>([]);
+  const [dtcLoading, setDtcLoading] = useState(false);
+  const [dtcNotice, setDtcNotice] = useState("");
   const [ownerWires, setOwnerWires] = useState<Result[]>([]);
   const [transitWires, setTransitWires] = useState<Result[]>([]);
   const [ewdDiagrams, setEwdDiagrams] = useState<EwdDiagram[]>([]);
@@ -1186,6 +1268,8 @@ function App() {
   const [activePdf, setActivePdf] = useState<ActivePdf | null>(null);
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
   const showSeqRef = useRef(0);
+  /** Diagram UIDs already tried after pin-miss for the current card focus (prevents loops). */
+  const pinMissTriedRef = useRef<Set<string>>(new Set());
   const [zoom, setZoom] = useState(80);
   const [selectedPinState, setSelectedPinState] = useState<{
     id: string | number;
@@ -1204,6 +1288,7 @@ function App() {
     pdfTables: true,
     vinSearch: true,
     navBrowse: true,
+    dtcSearch: true,
   });
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [vehicleConfigured, setVehicleConfigured] = useState(
@@ -1478,7 +1563,41 @@ function App() {
     setSelectedPinState(null);
     setActivePdf(null);
     setActiveSvg(null);
+    setDtcResults([]);
+    setDtcNotice("");
   };
+
+  async function searchDtc() {
+    const q = dtcQuery.trim();
+    if (q.length < 2) {
+      setDtcNotice("Введите код (ABS-0010, P0563) или фрагмент описания.");
+      return;
+    }
+    setDtcLoading(true);
+    setDtcNotice("Ищем…");
+    setMode("dtc");
+    setOwnerWires([]);
+    setTransitWires([]);
+    setActivePdf(null);
+    setActiveSvg(null);
+    setSelectedPinState(null);
+    try {
+      const data = await fetch(`/api/dtc/search?q=${encodeURIComponent(q)}&limit=50`).then((r) => r.json());
+      if (!data.available) {
+        setDtcResults([]);
+        setDtcNotice("Словарь DTC недоступен на сервере.");
+        return;
+      }
+      const results = Array.isArray(data.results) ? (data.results as DtcHit[]) : [];
+      setDtcResults(results);
+      setDtcNotice(results.length ? `Найдено: ${results.length}` : "Ничего не найдено.");
+    } catch {
+      setDtcResults([]);
+      setDtcNotice("Ошибка запроса DTC.");
+    } finally {
+      setDtcLoading(false);
+    }
+  }
 
   /** Minimum unlock: Model + Year. Engine / KPP are optional refinements. */
   function requireVehicleMin(): boolean {
@@ -1541,16 +1660,37 @@ function App() {
     if (!preferred) {
       const picked = pickBestDiagram(ewdDiagrams, ctx);
       preferred = picked.diagram;
-      // Always open a sheet when diagrams exist: fall back to rank #1 even if score is 0
       if (!preferred) {
         const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
-        preferred = ranked[0]?.diagram || ewdDiagrams[0] || null;
+        // Prefer any sheet that actually draws the selected code; avoid random dense junk.
+        preferred =
+          ranked.find((r) => diagramHasCode(r.diagram, code))?.diagram ||
+          (!wire?.pin ? ranked[0]?.diagram || ewdDiagrams[0] || null : null);
       }
     }
     if (!preferred) {
       setNotice("Графическая схема EWD для этого узла не найдена.");
       return;
     }
+    const resolved = card
+      ? resolveHighlightPin(card, code, wire?.pin || "")
+      : null;
+    const pinCandidates = [
+      ...new Set(
+        [
+          ...(wire?.pinCandidates || []),
+          ...(resolved?.pinCandidates || []),
+          wire?.pin,
+          resolved?.pin,
+          wire?.pinFrom,
+          wire?.pinTo,
+        ]
+          .map((p) => String(p || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    // Fresh card click resets pin-miss retry set; retries pass preferredUid only.
+    if (!preferredUid) pinMissTriedRef.current = new Set();
     setActivePdf(null);
     // Always-on marker: bump showSeq on every click so repeat clicks re-inject + recenter
     showSeqRef.current += 1;
@@ -1558,9 +1698,12 @@ function App() {
       diagramUid: preferred.diagramUid,
       searchCode: code,
       objectIds: diagramScopedUids(preferred, ewdObjectIds),
-      pin: wire?.pin,
+      pin: pinCandidates[0] || wire?.pin,
+      pinCandidates,
+      pinFrom: wire?.pinFrom || resolved?.pinFrom,
+      pinTo: wire?.pinTo || resolved?.pinTo,
       wireColor: wire?.wireColor,
-      peerCode: wire?.peerCode || ctx.peerCode || undefined,
+      peerCode: wire?.peerCode || resolved?.peerCode || ctx.peerCode || undefined,
       zone: selectedZone && selectedZone !== "all" ? selectedZone : undefined,
       showSeq: showSeqRef.current,
     });
@@ -1869,10 +2012,77 @@ function App() {
           </div>
         </section>
         ) : null}
+        {features.dtcSearch ? (
+        <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              data-testid="dtc-query"
+              className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-[12rem]"
+              placeholder="ABS-0010, CEM-1A05, P0563, датчик колеса…"
+              value={dtcQuery}
+              onChange={(e) => setDtcQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void searchDtc();
+              }}
+            />
+            <button
+              type="button"
+              data-testid="dtc-search-btn"
+              className="text-[11px] px-2.5 py-1.5"
+              onClick={() => void searchDtc()}
+              disabled={dtcLoading}
+            >
+              {dtcLoading ? "…" : "Найти"}
+            </button>
+          </div>
+          {dtcNotice ? (
+            <p data-testid="dtc-notice" className="text-[11px] text-[var(--muted)]">{dtcNotice}</p>
+          ) : null}
+        </section>
+        ) : null}
       </div>
     </header>
     <div className="flex-1 min-h-0 overflow-hidden">
-    {mode ? <section data-testid="results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
+    {mode === "dtc" ? (
+      <section data-testid="dtc-results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
+        <div className="mb-1 flex justify-between shrink-0 text-xs">
+          <p className="text-[var(--text-muted)]">{dtcLoading ? "Ищем…" : dtcNotice}</p>
+          <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={clear}>Очистить</button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-4" data-mobile-scroll>
+          {dtcResults.map((row) => (
+            <article
+              key={`${row.code}-${row.title_ru.slice(0, 24)}`}
+              className="app-card rounded-lg border px-3 py-2.5 shadow-sm"
+              data-testid="dtc-result"
+            >
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-mono font-semibold text-[var(--accent)] text-sm">{row.code}</span>
+                {row.obd_code ? (
+                  <span className="font-mono text-[11px] text-[var(--text-muted)]">OBD {row.obd_code}</span>
+                ) : null}
+                {row.ecu ? (
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{row.ecu}</span>
+                ) : null}
+                {row.variants > 1 ? (
+                  <span className="text-[10px] text-[var(--text-muted)]">вариантов: {row.variants}</span>
+                ) : null}
+              </div>
+              <p className="text-sm text-[var(--text-main)] mt-1 leading-snug">
+                {row.title_ru || row.title_en || "—"}
+              </p>
+              {row.title_ru && row.title_en ? (
+                <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{row.title_en}</p>
+              ) : null}
+            </article>
+          ))}
+          {!dtcLoading && !dtcResults.length ? (
+            <p className="text-sm text-[var(--text-muted)] text-center py-8">Нет совпадений.</p>
+          ) : null}
+        </div>
+      </section>
+    ) : mode ? <section data-testid="results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
       <div className="mb-1 flex justify-between shrink-0 text-xs">
         <p data-testid="results-notice" className="text-[var(--text-muted)]">{loading ? notice || "Загрузка…" : notice}</p>
         <button type="button" data-testid="clear-results" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={clear}>Очистить</button>
@@ -2072,20 +2282,40 @@ function App() {
               searchCode={activeSvg.searchCode}
               objectIds={activeSvg.objectIds}
               pin={activeSvg.pin}
+              pinCandidates={activeSvg.pinCandidates}
+              pinFrom={activeSvg.pinFrom}
+              pinTo={activeSvg.pinTo}
               wireColor={activeSvg.wireColor}
               peerCode={activeSvg.peerCode}
               zone={activeSvg.zone}
               showSeq={activeSvg.showSeq}
               onPinMiss={(reason) => {
-                setNotice(
-                  `Контакт не найден на этой схеме (${reason}). Выберите релевантную схему с меткой «лучшая».`,
+                pinMissTriedRef.current.add(activeSvg.diagramUid);
+                const ranked = rankDiagramsForContext(
+                  ewdDiagrams,
+                  schemeContext || extractSchemeContext(null, activeSvg.searchCode),
                 );
-                if (bestDiagramUid && bestDiagramUid !== activeSvg.diagramUid) {
-                  openEwdDiagram(activeSvg.searchCode, bestDiagramUid, {
+                const next = ranked.find(
+                  (r) =>
+                    !pinMissTriedRef.current.has(r.diagram.diagramUid) &&
+                    diagramHasCode(r.diagram, activeSvg.searchCode),
+                )?.diagram;
+                if (next) {
+                  setNotice(
+                    `Контакт не найден на этой схеме — пробуем другую с узлом ${activeSvg.searchCode}…`,
+                  );
+                  openEwdDiagram(activeSvg.searchCode, next.diagramUid, {
                     pin: activeSvg.pin,
+                    pinCandidates: activeSvg.pinCandidates,
+                    pinFrom: activeSvg.pinFrom,
+                    pinTo: activeSvg.pinTo,
                     wireColor: activeSvg.wireColor,
                     peerCode: activeSvg.peerCode,
                   });
+                } else {
+                  setNotice(
+                    `Контакт не найден на доступных схемах (${reason}). Выберите схему вручную или откройте «Таблица».`,
+                  );
                 }
               }}
             />
@@ -2126,7 +2356,9 @@ function App() {
         </div>
       )}
       </div></section> : (
-      <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-sm px-4 text-center">Выберите авто, зону и узел в выпадающем списке — контакты появятся здесь.</div>
+      <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-sm px-4 text-center">
+        Выберите авто, зону и узел — или найдите код ошибки DTC / OBD выше.
+      </div>
     )}
     </div>
     {editingItem && (
@@ -2206,7 +2438,7 @@ function SuggestEditModal({
           {done.warning ? (
             <p className="text-xs text-amber-700">{done.warning}</p>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">Уведомление отправлено на elzidevelo@gmail.com.</p>
+            <p className="text-xs text-[var(--text-muted)]">Уведомление отправлено на elzidevelop@gmail.com.</p>
           )}
           <button type="button" className="w-full bg-emerald-600 text-white rounded-xl py-2 text-sm font-medium" onClick={onClose}>
             Закрыть
@@ -2320,7 +2552,7 @@ function SuggestEditModal({
               autoComplete="off"
             />
           </label>
-          <p className="text-[11px] text-[var(--text-muted)]">Уйдёт модератору elzidevelo@gmail.com вместе со ссылкой на эту карточку. Повтор по той же карточке — не чаще чем раз в 2 минуты.</p>
+          <p className="text-[11px] text-[var(--text-muted)]">Уйдёт модератору elzidevelop@gmail.com вместе со ссылкой на эту карточку. Повтор по той же карточке — не чаще чем раз в 2 минуты.</p>
           {formError ? <p className="text-xs text-red-600">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs border border-[var(--border-color)]">Отмена</button>
