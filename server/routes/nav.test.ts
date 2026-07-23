@@ -174,6 +174,68 @@ test("nav components zone filter hides engine connector", async () => {
   assert.ok(!codes.includes("74/301"));
 });
 
+test("nav components prefer home_zone natives and hide foreign home_zone", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const page = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 10, "Connector 74/1", "connector").lastInsertRowid,
+  );
+  db.prepare(
+    "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+  ).run("74/1", "Разъем", "Door", "front_doors");
+  db.prepare(
+    "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+  ).run("74/2", "Разъем", "Engine", "engine");
+  const doorId = Number(
+    (db.prepare("SELECT id FROM components WHERE component_code='74/1'").get() as { id: number }).id,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "1",
+    "BK",
+    "Черный",
+    "",
+    "74/1:1",
+    "74/2:1",
+    "74/1:1",
+    "74/2:1",
+    "",
+    "74/1",
+    "connector_pinout",
+    0,
+    0,
+    50,
+    doorId,
+    null,
+    null,
+    "Harness front door",
+    "Dashboard harness",
+    null,
+    0,
+  );
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/components?zone=front_doors");
+  assert.equal(res.status, 200);
+  const codes = res.body.groups.flatMap((g: { items: Array<{ code: string; home_zone?: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(codes.includes("74/1"));
+  assert.ok(!codes.includes("74/2"), `engine home_zone must stay out: ${codes.join(",")}`);
+});
+
 test("nav components front_bumper does not list steering peer SCL", async () => {
   const db = openDatabase(":memory:");
   const enId = Number(
@@ -279,6 +341,63 @@ test("nav wires zone front_doors excludes engine harness rows", async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.owner_wires.length, 0);
   assert.equal(res.body.transit_wires.length, 0);
+});
+
+test("nav wires owner kept under zone when harness empty (connector title)", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const page = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 247, "Разъем 74/507 (12-конт., серый)", "connector").lastInsertRowid,
+  );
+  const conn = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("74/507", "Промежуточный разъем жгута", "", "Connector")
+      .lastInsertRowid,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "13",
+    "VT-RD",
+    "Фиолетово-Красный",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "74/507",
+    "connector_pinout",
+    1,
+    0,
+    100,
+    null,
+    conn,
+    null,
+    "",
+    "",
+    null,
+    0,
+  );
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/wires?code=74/507&zone=front_doors");
+  assert.equal(res.status, 200);
+  assert.ok(res.body.owner_wires.length >= 1, "owner pins must survive empty-harness zone filter");
 });
 
 test("nav wires zone engine keeps engine connector", async () => {

@@ -19,6 +19,7 @@ import {
 } from "./ewdSchemeResolver.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
+import { loadPersistedFilters, savePersistedFilters } from "./filterPersist.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -36,6 +37,7 @@ type Result = {
   harness_left?: string; harness_right?: string; function_text?: string; pins?: string[];
   source_code?: string; destination_code?: string; raw_line?: string;
   match_role?: "owner" | "transit"; card_title?: string; part_number?: string;
+  voltage?: string; wire_gauge?: string;
 };
 type EwdDiagram = {
   diagramUid: string;
@@ -1046,6 +1048,10 @@ function renderWireCard(
             {wireRu}{wireCode !== "—" ? ` (${wireCode})` : ""}
           </span>
         </div>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[var(--text-muted)] font-sans">
+          <span>Сечение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.wire_gauge ? `${item.wire_gauge} мм²` : "—"}</span></span>
+          <span>Напряжение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.voltage?.trim() || "—"}</span></span>
+        </div>
       </div>
       <div className="flex gap-2 mt-0.5">
         {hasEwdDiagram ? (
@@ -1169,6 +1175,7 @@ function App() {
   const [vehicleConfigured, setVehicleConfigured] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const deepWireIdRef = useRef<string>("");
+  const filtersHydratedRef = useRef(false);
   const [selectedCode, setSelectedCode] = useState("");
   /** null = all colors; otherwise normalized wireColor from current node cards */
   const [wireColorFilter, setWireColorFilter] = useState<string | null>(null);
@@ -1348,27 +1355,37 @@ function App() {
       .catch(() => undefined);
   }, []);
 
-  // Deep link: ?model=&year=&engine=&zone=&code=&wireId=
+  // Restore filters: URL query > localStorage (survives F5)
   useEffect(() => {
+    const saved = loadPersistedFilters();
     const q = new URLSearchParams(window.location.search);
-    const model = q.get("model") || "";
-    const year = q.get("year") || "";
-    const engine = q.get("engine") || "";
-    const zone = q.get("zone") || "";
-    const code = q.get("code") || "";
     const wireId = q.get("wireId") || "";
-    if (model) setSelectedModel(model);
-    if (year) setSelectedYear(year);
-    if (engine) setSelectedEngine(engine);
-    if (zone) setSelectedZone(zone);
-    if (code) setSelectedCode(code);
+    if (saved.model) setSelectedModel(saved.model);
+    if (saved.year) setSelectedYear(saved.year);
+    if (saved.engine) setSelectedEngine(saved.engine);
+    if (saved.transmission) setSelectedTransmission(saved.transmission);
+    if (saved.zone) setSelectedZone(saved.zone);
+    if (saved.code) setSelectedCode(saved.code);
     if (wireId) deepWireIdRef.current = wireId;
-    if (model && year && engine) setVehicleConfigured(true);
+    if (saved.model && saved.year) setVehicleConfigured(true);
+    filtersHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
     if (selectedModel && selectedYear && selectedEngine) setVehicleConfigured(true);
   }, [selectedModel, selectedYear, selectedEngine]);
+
+  useEffect(() => {
+    if (!filtersHydratedRef.current) return;
+    savePersistedFilters({
+      model: selectedModel,
+      year: selectedYear,
+      engine: selectedEngine,
+      transmission: selectedTransmission,
+      zone: selectedZone,
+      code: selectedCode,
+    });
+  }, [selectedModel, selectedYear, selectedEngine, selectedTransmission, selectedZone, selectedCode]);
 
   useEffect(() => {
     if (selectedCode && selectedModel && selectedYear) void loadWires(selectedCode);
@@ -1803,7 +1820,7 @@ function App() {
                 )}
               </select>
               <span className="text-[10px] text-[var(--text-muted)] leading-tight">
-                Пометки: [схема]=EWD SVG · [табл]=таблица контактов · [PDF]=страница мануала
+                Пометки: [схема]=графика EWD (SVG на диске) · [табл]=таблица контактов · [PDF-схема]=диаграмма в PDF
               </span>
             </label>
           </div>
@@ -2115,6 +2132,46 @@ function SuggestEditModal({
   const [description, setDescription] = useState(String(item.function_text || item.card_title || ""));
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [done, setDone] = useState<{ ticketId: number; warning?: string } | null>(null);
+  const [challenge, setChallenge] = useState<{ a: number; b: number; challenge: string } | null>(null);
+  const [challengeAnswer, setChallengeAnswer] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/tickets/challenge");
+        const data = await r.json();
+        if (!cancelled && data?.challenge) setChallenge({ a: data.a, b: data.b, challenge: data.challenge });
+      } catch {
+        /* ignore — submit will ask to refresh */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (done) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 max-w-md w-full shadow-xl space-y-3 text-left">
+          <h3 className="text-base font-semibold text-emerald-700">Заявка принята</h3>
+          <p className="text-sm text-[var(--text-main)]">Номер тикета: <strong>#{done.ticketId}</strong></p>
+          {done.warning ? (
+            <p className="text-xs text-amber-700">{done.warning}</p>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">Уведомление отправлено на elzidevelo@gmail.com.</p>
+          )}
+          <button type="button" className="w-full bg-emerald-600 text-white rounded-xl py-2 text-sm font-medium" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -2129,7 +2186,9 @@ function SuggestEditModal({
           className="space-y-2 text-sm"
           onSubmit={async (e) => {
             e.preventDefault();
+            if (busy) return;
             setBusy(true);
+            setFormError("");
             try {
               const response = await fetch("/api/tickets", {
                 method: "POST",
@@ -2147,20 +2206,48 @@ function SuggestEditModal({
                   subject_code: subject,
                   zone,
                   card_url: cardUrl,
+                  website: honeypot,
+                  challenge: challenge?.challenge || "",
+                  challenge_answer: challengeAnswer,
                 }),
               });
               const data = await response.json();
-              if (!response.ok) {
-                alert(`${data.error || "Ошибка"} · тикет #${data.ticketId ?? "—"}`);
+              if (response.status === 429) {
+                setFormError(data.error || "Слишком часто. Подождите.");
                 return;
               }
-              alert(`Заявка #${data.ticketId} отправлена на elzidevelo@gmail.com`);
-              onClose();
+              if (!response.ok && !data.ticketId) {
+                setFormError(data.error || "Ошибка отправки");
+                // refresh challenge after failed check
+                try {
+                  const r = await fetch("/api/tickets/challenge");
+                  const c = await r.json();
+                  if (c?.challenge) {
+                    setChallenge({ a: c.a, b: c.b, challenge: c.challenge });
+                    setChallengeAnswer("");
+                  }
+                } catch {
+                  /* ignore */
+                }
+                return;
+              }
+              // Ticket stored (even if SMTP missing) — stop retries / spam
+              setDone({
+                ticketId: Number(data.ticketId) || 0,
+                warning: data.warning || (!data.emailSent ? "Письмо может быть не отправлено (SMTP)." : undefined),
+              });
+            } catch {
+              setFormError("Сеть недоступна. Попробуйте позже.");
             } finally {
               setBusy(false);
             }
           }}
         >
+          {/* honeypot — hidden from users */}
+          <label className="absolute -left-[9999px] opacity-0 h-0 w-0 overflow-hidden" aria-hidden>
+            Компания
+            <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
+          </label>
           <label className="block text-xs text-[var(--text-muted)]">Пин
             <input className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono" value={pin} onChange={(e) => setPin(e.target.value)} required />
           </label>
@@ -2179,10 +2266,22 @@ function SuggestEditModal({
           <label className="block text-xs text-[var(--text-muted)]">Комментарий
             <textarea className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 h-16" value={comment} onChange={(e) => setComment(e.target.value)} />
           </label>
-          <p className="text-[11px] text-[var(--text-muted)]">Уйдёт модератору elzidevelo@gmail.com вместе со ссылкой на эту карточку.</p>
+          <label className="block text-xs text-[var(--text-muted)]">
+            Проверка: сколько будет {challenge ? `${challenge.a} + ${challenge.b}` : "…"}?
+            <input
+              className="mt-0.5 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5 font-mono"
+              inputMode="numeric"
+              value={challengeAnswer}
+              onChange={(e) => setChallengeAnswer(e.target.value)}
+              required
+              autoComplete="off"
+            />
+          </label>
+          <p className="text-[11px] text-[var(--text-muted)]">Уйдёт модератору elzidevelo@gmail.com вместе со ссылкой на эту карточку. Повтор по той же карточке — не чаще чем раз в 2 минуты.</p>
+          {formError ? <p className="text-xs text-red-600">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs border border-[var(--border-color)]">Отмена</button>
-            <button type="submit" disabled={busy} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-[#1c1917] rounded-xl text-xs font-semibold disabled:opacity-50">Отправить</button>
+            <button type="submit" disabled={busy} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-[#1c1917] rounded-xl text-xs font-semibold disabled:opacity-50">{busy ? "Отправка…" : "Отправить"}</button>
           </div>
         </form>
       </div>

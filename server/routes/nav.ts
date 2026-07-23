@@ -1,14 +1,14 @@
 import { Router } from "express";
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type Database from "better-sqlite3";
 import type { PageType } from "../db/schema.js";
+import { loadEwdCodeSet } from "../ewdPaths.js";
 import { localizeEngineeringText } from "../termGlossary.js";
 import {
   ZONE_LABELS,
   classifySystemText,
   harnessToZone,
   textBelongsToZone,
+  textConflictsWithZone,
   textMatchesZone,
   wireMatchesZone,
   zonesConflict,
@@ -23,25 +23,8 @@ type NavListItem = {
   has_pinout: boolean;
   has_diagram: boolean;
   has_ewd: boolean;
+  home_zone?: string;
 };
-
-let ewdCodeSet: Set<string> | null = null;
-function loadEwdCodeSet(): Set<string> {
-  if (ewdCodeSet) return ewdCodeSet;
-  const dir = resolve(process.env.EWD_DATA_DIR ?? "data/ewd");
-  const path = join(dir, "device_index.json");
-  ewdCodeSet = new Set();
-  if (!existsSync(path)) return ewdCodeSet;
-  try {
-    const idx = JSON.parse(readFileSync(path, "utf-8")) as { by_code?: Record<string, { diagramUids?: string[] }> };
-    for (const [code, rec] of Object.entries(idx.by_code || {})) {
-      if ((rec.diagramUids || []).length > 0) ewdCodeSet.add(code);
-    }
-  } catch {
-    /* ignore */
-  }
-  return ewdCodeSet;
-}
 
 /** Endpoint belongs in the zone list only if its own detail classifies into that zone. */
 function endpointBelongsToZone(detail: string, zone: string): boolean {
@@ -68,6 +51,8 @@ const NAV_SELECT = `
     w.integrity_score,
     w.harness_left,
     w.harness_right,
+    IFNULL(w.voltage,'') AS voltage,
+    IFNULL(w.wire_gauge,'') AS wire_gauge,
     w.diagram_source_page,
     w.diagram_page_id,
     w.from_component_id,
@@ -301,6 +286,8 @@ function rowToNavCard(
     harness_right,
     harness_zone_left: harnessToZone(harness_left),
     harness_zone_right: harnessToZone(harness_right),
+    voltage: String(row.voltage || "").trim(),
+    wire_gauge: String(row.wire_gauge || "").trim(),
     score: 0,
   };
   out.score = calculateDataScore(out);
@@ -340,6 +327,28 @@ export function createNavRouter(db: Database.Database) {
         if (fromPage) zones.add(fromPage);
       }
       for (const z of zones) counts.set(z, (counts.get(z) || 0) + 1);
+    }
+
+    // Prefer component home_zone counts when sufficiently populated (phase 3)
+    try {
+      const homeFilled = Number(
+        (db.prepare(`SELECT COUNT(*) AS n FROM components WHERE TRIM(IFNULL(home_zone,'')) != ''`).get() as { n: number })
+          .n,
+      );
+      if (homeFilled >= 80) {
+        const homeRows = db
+          .prepare(
+            `SELECT home_zone AS z, COUNT(*) AS n FROM components
+             WHERE TRIM(IFNULL(home_zone,'')) != '' GROUP BY home_zone`,
+          )
+          .all() as Array<{ z: string; n: number }>;
+        for (const id of Object.keys(ZONE_LABELS) as ZoneId[]) counts.set(id, 0);
+        for (const r of homeRows) {
+          if (ZONE_LABELS[r.z as ZoneId]) counts.set(r.z as ZoneId, r.n);
+        }
+      }
+    } catch {
+      /* column may be missing on very old DB before migrate */
     }
 
     const zones = (Object.keys(ZONE_LABELS) as ZoneId[]).map((id) => ({
@@ -411,7 +420,8 @@ export function createNavRouter(db: Database.Database) {
     const comps = db
       .prepare(
         `SELECT id, component_code, component_type_ru, description_en, description_ru,
-                IFNULL(name_ru,'') AS name_ru, IFNULL(part_number,'') AS part_number
+                IFNULL(name_ru,'') AS name_ru, IFNULL(part_number,'') AS part_number,
+                IFNULL(home_zone,'') AS home_zone
          FROM components ORDER BY component_code`,
       )
       .all() as Array<{
@@ -422,11 +432,22 @@ export function createNavRouter(db: Database.Database) {
       description_ru: string;
       name_ru: string;
       part_number: string;
+      home_zone: string;
     }>;
 
     const byCode = new Map<string, (typeof comps)[0]>();
     for (const c of comps) {
-      if (idSet.has(c.id) || subjectCodes.has(c.component_code)) {
+      if (!zoneFilter) {
+        if (idSet.has(c.id) || subjectCodes.has(c.component_code)) {
+          byCode.set(c.component_code, c);
+        }
+        continue;
+      }
+      // Zone list = home_zone natives + subject owners on zone wires + peers with matching detail
+      // (never pull a component whose home_zone is a different known zone).
+      const home = c.home_zone && ZONE_LABELS[c.home_zone as ZoneId] ? c.home_zone : "";
+      if (home && home !== zone) continue;
+      if (home === zone || subjectCodes.has(c.component_code) || idSet.has(c.id)) {
         byCode.set(c.component_code, c);
       }
     }
@@ -465,9 +486,10 @@ export function createNavRouter(db: Database.Database) {
       const has_diagram = diagramCodes.has(c.component_code);
       const has_ewd = ewdCodes.has(c.component_code);
       const marks: string[] = [];
+      // Strict labels: схема = real EWD SVG on disk; табл = pinout; PDF-схема = manual diagram page
       if (has_ewd) marks.push("схема");
       if (has_pinout) marks.push("табл");
-      if (!has_ewd && has_diagram) marks.push("PDF");
+      if (has_diagram) marks.push("PDF-схема");
       const mark = marks.length ? ` [${marks.join("·")}]` : "";
       const label = desc
         ? `${c.component_code} — ${desc}${pn}${mark}`
@@ -479,6 +501,7 @@ export function createNavRouter(db: Database.Database) {
         has_pinout,
         has_diagram,
         has_ewd,
+        home_zone: c.home_zone || "",
       };
       groups[componentGroup(c.component_code)].push(item);
     }
@@ -599,30 +622,44 @@ export function createNavRouter(db: Database.Database) {
       /* ignore */
     }
 
-    const inZoneContext = (row: {
-      harness_left?: string;
-      harness_right?: string;
-      system_name?: string;
-      from_detail?: string;
-      to_detail?: string;
-      function_text?: string;
-    }) => {
+    const inZoneContext = (
+      row: {
+        harness_left?: string;
+        harness_right?: string;
+        system_name?: string;
+        from_detail?: string;
+        to_detail?: string;
+        function_text?: string;
+      },
+      role: "owner" | "transit",
+    ) => {
       if (!zoneActive && !systemHint) return true;
       if (zoneActive) {
         const harnessOk = wireMatchesZone(row.harness_left, row.harness_right, zone);
         const noHarness =
           !String(row.harness_left || "").trim() && !String(row.harness_right || "").trim();
-        const pageOk =
-          noHarness &&
-          (textBelongsToZone(row.system_name, zone) ||
-            textBelongsToZone(
-              `${row.from_detail || ""} ${row.to_detail || ""} ${row.function_text || ""}`,
-              zone,
-            ));
-        if (!harnessOk && !pageOk) return false;
+        const detailBlob = `${row.from_detail || ""} ${row.to_detail || ""} ${row.function_text || ""}`;
+        const pageBlob = `${row.system_name || ""} ${detailBlob}`;
+
+        if (role === "owner") {
+          // Empty harness: soft-keep owner pins unless text conflicts with selected zone.
+          if (noHarness) {
+            if (textConflictsWithZone(pageBlob, zone) || textConflictsWithZone(detailBlob, zone)) {
+              return false;
+            }
+          } else if (!harnessOk) {
+            return false;
+          }
+        } else {
+          // Transit: require positive zone signal (harness or text belongs).
+          const pageOk =
+            noHarness &&
+            (textBelongsToZone(row.system_name, zone) || textBelongsToZone(detailBlob, zone));
+          if (!harnessOk && !pageOk) return false;
+        }
+
         // Drop rows whose endpoint text clearly belongs to a conflicting zone
         // (duplicate connector codes: engine injectors vs bumper PAM).
-        const detailBlob = `${row.from_detail || ""} ${row.to_detail || ""} ${row.function_text || ""}`;
         const detailZone = (() => {
           if (/inject|ECM|Engine Control Module|форсун/i.test(detailBlob)) return "engine" as ZoneId;
           if (/parking\s*assistance|парктрон|бампер|bumper|fog\s*lamp|washer/i.test(detailBlob)) {
@@ -653,12 +690,12 @@ export function createNavRouter(db: Database.Database) {
     };
 
     let owner_wires = ownerRows
-      .filter((r) => inZoneContext(r))
+      .filter((r) => inZoneContext(r, "owner"))
       .map((r) =>
         rowToNavCard(r, code, "owner", partByCode, pageMetaBySource, allowedDiagramPages, fallbackDiagramPage),
       );
     let transit_wires = transitRows
-      .filter((r) => inZoneContext(r))
+      .filter((r) => inZoneContext(r, "transit"))
       .map((r) =>
         rowToNavCard(r, code, "transit", partByCode, pageMetaBySource, allowedDiagramPages, fallbackDiagramPage),
       );

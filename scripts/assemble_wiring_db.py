@@ -82,7 +82,8 @@ CREATE TABLE components (
   description_ru TEXT NOT NULL DEFAULT '',
   description_en TEXT NOT NULL DEFAULT '',
   name_ru TEXT NOT NULL DEFAULT '',
-  part_number TEXT NOT NULL DEFAULT ''
+  part_number TEXT NOT NULL DEFAULT '',
+  home_zone TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE wire_connections (
@@ -108,7 +109,9 @@ CREATE TABLE wire_connections (
   harness_left TEXT NOT NULL DEFAULT '',
   harness_right TEXT NOT NULL DEFAULT '',
   diagram_page_id INTEGER REFERENCES pages(id) ON DELETE SET NULL,
-  diagram_source_page INTEGER NOT NULL DEFAULT 0
+  diagram_source_page INTEGER NOT NULL DEFAULT 0,
+  voltage TEXT NOT NULL DEFAULT '',
+  wire_gauge TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE component_diagram_pages (

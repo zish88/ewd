@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { existsSync, readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { join, normalize, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { textMatchesZone } from "../harnessZones.js";
+import { ewdDataDir, resolveIndexedPath, safeUnderDataDir } from "../ewdPaths.js";
 import { filterDesignUidsByZone, loadEwdSystemCatalog } from "../zoneContext.js";
 
 type DeviceIndex = {
@@ -83,75 +84,9 @@ function ensureIndexes() {
   if (!connectivityIndex) connectivityIndex = loadJson<ConnectivityIndex>("connectivity_index.json");
 }
 
-function toPosix(p: string): string {
-  return String(p || "").replace(/\\/g, "/");
-}
-
-function indexDataDirRaw(): string {
-  return toPosix(svgIndex?.data_dir || deviceIndex?.data_dir || connectivityIndex?.data_dir || "").replace(
-    /\/$/,
-    "",
-  );
-}
-
 function dataDir(): string {
   ensureIndexes();
-  if (process.env.EWD_SOURCE_DIR) return resolve(process.env.EWD_SOURCE_DIR);
-
-  const fromIndex = indexDataDirRaw();
-  if (fromIndex) {
-    const asIs = resolve(normalize(fromIndex));
-    if (existsSync(asIs)) return asIs;
-  }
-
-  const candidates = [
-    resolve(EWD_DATA, "ewd_source", "39363002", "1", "2"),
-    resolve(EWD_DATA, "ewd_source"),
-    resolve(process.env.MANUAL_DIR ?? "E:\\manual", "ewd_source", "39363002", "1", "2"),
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return candidates[0];
-}
-
-function safeUnderDataDir(absPath: string): boolean {
-  const root = resolve(dataDir());
-  const target = resolve(absPath);
-  const rel = relative(root, target);
-  return !rel.startsWith("..") && !normalize(rel).startsWith("..");
-}
-
-/** Remap absolute Windows paths from JSON indexes onto the live Linux/Windows dataDir(). */
-function resolveIndexedPath(stored: string): string | null {
-  const storedPosix = toPosix(stored);
-  if (!storedPosix) return null;
-
-  const direct = resolve(normalize(storedPosix));
-  if (existsSync(direct) && safeUnderDataDir(direct)) return direct;
-
-  const root = dataDir();
-  const indexRoot = indexDataDirRaw();
-  let rel = "";
-  if (indexRoot) {
-    const a = storedPosix.toLowerCase();
-    const b = indexRoot.toLowerCase();
-    if (a === b) rel = ".";
-    else if (a.startsWith(`${b}/`)) rel = storedPosix.slice(indexRoot.length).replace(/^\/+/, "");
-  }
-  if (!rel || rel === ".") {
-    const m = storedPosix.match(/ewd_source\/39363002\/1\/2\/(.+)$/i);
-    if (m) rel = m[1];
-  }
-  if (!rel || rel === ".") {
-    const parts = storedPosix.split("/").filter(Boolean);
-    if (parts.length >= 2) rel = parts.slice(-2).join("/");
-  }
-  if (!rel || rel === ".") return existsSync(root) ? root : null;
-
-  const candidate = resolve(root, rel);
-  if (existsSync(candidate) && safeUnderDataDir(candidate)) return candidate;
-  return null;
+  return ewdDataDir();
 }
 
 function normalizeCode(raw: string): string {
@@ -616,6 +551,8 @@ export function createEwdRouter() {
         const allGroups = rec.groups || [];
         const relevant = allGroups.filter((g) => (g.uids || []).some((u) => codeObjectIds.has(u)));
         const groups = (relevant.length ? relevant : allGroups).slice(0, 200);
+        // Only expose diagrams whose SVG file actually exists on disk
+        if (!resolveIndexedPath(rec.svg)) return null;
         const sysRec = cat.get(rec.designFolder);
         return {
           diagramUid,
@@ -628,6 +565,7 @@ export function createEwdRouter() {
           textCodes: rec.textCodes || [],
           pathCount: rec.pathCount || 0,
           groups,
+          svgAvailable: true,
         };
       })
       .filter(Boolean)

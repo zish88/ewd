@@ -28,13 +28,13 @@ export const ZONE_LABELS: Record<ZoneId, string> = {
 };
 
 const ZONE_RULES: Array<{ id: ZoneId; re: RegExp }> = [
-  { id: "front_bumper", re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|parking\s*assistance|forward-?aimed\s*radar|\bFLC\b/i },
-  { id: "rear_bumper", re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер/i },
+  { id: "front_bumper", re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b/i },
+  { id: "rear_bumper", re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|park\s*assist(?:ance)?\s*system\s*rear/i },
   { id: "trunk", re: /\btrunk\s*lid|tailgate|tail\s*gate|cargo|багажн|задн\w*\s*двер[ьи].*крыш|fifth\s*door/i },
   { id: "front_doors", re: /\bfront\s*door|передн\w*\s*двер/i },
   { id: "rear_doors", re: /\brear\s*door|задн\w*\s*двер/i },
   { id: "engine", re: /\bengine\s*(compartment\s*)?harness|\bengine\b|compartment|мотор|капот|двигател|starter\s*motor/i },
-  { id: "dashboard", re: /\bdashboard|instrument|heater|cabin|infotainment|center\s*console|climate|салон|панел|торпед/i },
+  { id: "dashboard", re: /\bdashboard|instrument|heater\s*harness|\bheater\b|cabin|infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед/i },
   { id: "floor", re: /\bfloor|tunnel|пол|туннел|rear\s*axle|axle\s*harness/i },
   { id: "roof", re: /\broof|крыш|windshield\s*module/i },
   { id: "seats", re: /\bseat|сиден/i },
@@ -157,4 +157,40 @@ export function wireMatchesZone(
 export function zonesConflict(a: ZoneId, b: ZoneId): boolean {
   if (a === b || a === "other" || b === "other") return false;
   return (a === "engine" && BODY_ZONES.has(b)) || (b === "engine" && BODY_ZONES.has(a));
+}
+
+/**
+ * Soft keep for empty-harness DBs: unknown text does NOT exclude the row.
+ * Only drop when text classifies into a zone that conflicts with the selection
+ * (e.g. engine ↔ bumper/doors).
+ */
+export function textConflictsWithZone(text: string | null | undefined, zone: string | null | undefined): boolean {
+  const z = String(zone || "").trim();
+  if (!z || z === "all") return false;
+  let zoneId = z as ZoneId;
+  if (!ZONE_LABELS[zoneId]) {
+    for (const [id, label] of Object.entries(ZONE_LABELS)) {
+      if (label === z) {
+        zoneId = id as ZoneId;
+        break;
+      }
+    }
+  }
+  if (!ZONE_LABELS[zoneId]) return false;
+  const classified = classifySystemText(text);
+  if (classified === null || classified === zoneId) return false;
+  return zonesConflict(zoneId, classified);
+}
+
+/**
+ * Resolve zone id from label or id string; null if unknown / all.
+ */
+export function resolveZoneId(zone: string | null | undefined): ZoneId | null {
+  const z = String(zone || "").trim();
+  if (!z || z === "all") return null;
+  if (ZONE_LABELS[z as ZoneId]) return z as ZoneId;
+  for (const [id, label] of Object.entries(ZONE_LABELS)) {
+    if (label === z) return id as ZoneId;
+  }
+  return null;
 }

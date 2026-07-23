@@ -43,7 +43,8 @@ const CORE_DDL = `
     description_ru TEXT NOT NULL DEFAULT '',
     description_en TEXT NOT NULL DEFAULT '',
     name_ru TEXT NOT NULL DEFAULT '',
-    part_number TEXT NOT NULL DEFAULT ''
+    part_number TEXT NOT NULL DEFAULT '',
+    home_zone TEXT NOT NULL DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS wire_connections (
@@ -69,7 +70,9 @@ const CORE_DDL = `
     harness_left TEXT NOT NULL DEFAULT '',
     harness_right TEXT NOT NULL DEFAULT '',
     diagram_page_id INTEGER REFERENCES pages(id) ON DELETE SET NULL,
-    diagram_source_page INTEGER NOT NULL DEFAULT 0
+    diagram_source_page INTEGER NOT NULL DEFAULT 0,
+    voltage TEXT NOT NULL DEFAULT '',
+    wire_gauge TEXT NOT NULL DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS component_diagram_pages (
@@ -188,6 +191,8 @@ function ensureNavColumns(db: Database.Database) {
       `diagram_source_page INTEGER NOT NULL DEFAULT 0`,
       wnames,
     );
+    addColumnIfMissing(db, "wire_connections", "voltage", `voltage TEXT NOT NULL DEFAULT ''`, wnames);
+    addColumnIfMissing(db, "wire_connections", "wire_gauge", `wire_gauge TEXT NOT NULL DEFAULT ''`, wnames);
 
     // Backfill subject_code from connector page titles when empty (e.g. "Connector 74/507")
     try {
@@ -234,6 +239,7 @@ function ensureNavColumns(db: Database.Database) {
     const cnames = new Set(compCols.map((c) => c.name));
     addColumnIfMissing(db, "components", "name_ru", `name_ru TEXT NOT NULL DEFAULT ''`, cnames);
     addColumnIfMissing(db, "components", "part_number", `part_number TEXT NOT NULL DEFAULT ''`, cnames);
+    addColumnIfMissing(db, "components", "home_zone", `home_zone TEXT NOT NULL DEFAULT ''`, cnames);
   }
 }
 
