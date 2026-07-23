@@ -1,0 +1,71 @@
+# Dependencies & builds
+node_modules/
+dist/
+client/dist/
+tmp/
+*.log
+
+# Cursor / IDE clutter (do not ship)
+agent-tools/
+agent-transcripts/
+terminals/
+mcps/
+canvases/
+.cursor/
+assets/
+
+# Archives / accidental uploads
+app.zip
+*.zip
+!package-lock.json
+
+# SQLite WAL sidecars & page caches (keep wiring.sqlite via exception below)
+data/*.sqlite-*
+data/pages/
+data/_wiring_*.sqlite
+data/overrides/
+data/stage2/
+data/vida_tmp/
+data/_*.py
+data/_*.txt
+data/_*.out.txt
+data/assemble_*.log
+data/assemble_*.json
+data/assemble_report.json
+data/book_manifest*.json
+data/diagram_titles.json
+data/test_colored*
+data/vida_extract_run*.log
+data/vida_*.json
+data/vida_schema_probe.json
+
+# Allow the production SQLite DB in git (small, required for VPS)
+!data/wiring.sqlite
+
+# Heavy EWD binaries — deploy to VPS via FTP/panel, never GitHub
+data/ewd/EPC.zip
+data/ewd/imagerepository_Data.MDF
+data/ewd/ewd_source/
+data/ewd/**/*.pdf
+data/ewd/**/*.MDF
+data/ewd/**/*.mdf
+data/ewd/connectivity_samples/
+
+# Keep lightweight EWD indexes in git
+!data/ewd/device_index.json
+!data/ewd/connectivity_index.json
+!data/ewd/svg_desc_index.json
+!data/ewd/extract_report.json
+
+# Smoke / local bundles / Python cache
+scripts/_*-smoke*
+scripts/_inspect-*.mjs
+scripts/_ewd-smoke-bundle.js
+scripts/_scheme-resolver-smoke.js
+scripts/e2e-smoke-report.json
+scripts/__pycache__/
+**/__pycache__/
+*.pyc
+debug_harness_text.txt
+download.py
+ssh.sh

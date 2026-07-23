@@ -1,0 +1,16 @@
+node_modules
+client/dist
+.git
+.tmp
+tmp
+*.md
+.env
+.env.*
+!.env.example
+scripts/_*-smoke*
+scripts/e2e-smoke-report.json
+data/*.sqlite
+data/*.sqlite-*
+data/pages
+manual
+E:\\manual

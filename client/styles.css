@@ -1,0 +1,43 @@
+:root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #11171a; color: #edf2ed; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+header { padding: 3.5rem max(7vw, 1.5rem); background: linear-gradient(120deg, #182b2a, #11171a); border-bottom: 1px solid #34554f; }
+h1 { margin: .25rem 0; font-size: clamp(1.9rem, 4vw, 3.4rem); }
+.eyebrow { color: #9bc6ae; font-size: .8rem; font-weight: 800; letter-spacing: .14em; }
+.vehicle-picker { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: 1.5rem; }
+.vehicle-picker label { min-width: 150px; color: #9bc6ae; font-weight: 700; }
+main { display: grid; grid-template-columns: 310px 1fr; gap: 2rem; padding: 2rem max(7vw, 1.5rem); }
+aside { border-right: 1px solid #34554f; padding-right: 2rem; }
+form { display: grid; gap: 1rem; }
+label { display: grid; gap: .35rem; font-size: .85rem; color: #bad0c6; }
+input, select, button { border-radius: .4rem; border: 1px solid #47645d; padding: .72rem; background: #172321; color: inherit; font: inherit; }
+button { cursor: pointer; background: #2e6b5b; border: 0; font-weight: 700; }
+button:hover { background: #3d8874; }
+.examples { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; }
+.examples button { padding: .35rem .55rem; font-size: .8rem; background: #263c37; }
+.warning { border-left: 3px solid #e2a94f; padding-left: .8rem; color: #d9c99e; font-size: .85rem; line-height: 1.5; }
+#status { min-height: 2rem; color: #bcd6cd; }
+.wire-finder { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(220px, 1fr); gap: 1.25rem; margin-bottom: 2rem; padding: 1.4rem; border: 1px solid #477d6c; border-radius: .75rem; background: #13201d; }
+.wire-finder h2 { margin: .2rem 0; }
+.wire-finder form { align-content: start; }
+.wire-results { grid-column: 1 / -1; }
+.wire-result { padding: .9rem 0; border-top: 1px solid #2d4942; line-height: 1.5; }
+.wire-result p { margin: .35rem 0; color: #c3d3ce; }
+.wire-result a, .pdf-link { color: #9ce1c0; }
+.location-finder { margin-bottom: 2rem; padding: 1.4rem; border: 1px solid #47645d; border-radius: .75rem; background: #151d21; }
+.location-finder h2 { margin: .2rem 0; }
+.location-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .65rem; margin: 1.1rem 0; }
+.location-buttons button { min-height: 3rem; text-align: left; background: #223a42; }
+.location-buttons button:hover { background: #315663; }
+.location-results { display: grid; gap: .65rem; }
+.location-title { margin: .25rem 0; font-weight: 800; color: #9ce1c0; }
+.location-wire { display: grid; grid-template-columns: 150px 1fr; overflow: hidden; border: 1px solid #36554e; border-radius: .5rem; background: #172321; }
+.insulation { display: grid; place-items: center; min-height: 108px; padding: .8rem; color: #fff; font-size: 1.25rem; font-weight: 900; letter-spacing: .08em; text-shadow: 0 1px 3px #000; }
+.location-wire > div:last-child { padding: .75rem 1rem; }
+.location-wire p { margin: .35rem 0; color: #c3d3ce; }
+.location-wire a { color: #9ce1c0; font-size: .9rem; }
+.result { margin: 1rem 0; padding: 1.1rem 1.25rem; background: #172321; border: 1px solid #2d4942; border-radius: .6rem; }
+.result-heading { display: flex; justify-content: space-between; gap: 1rem; color: #9ce1c0; }
+.meta, details { color: #aebfba; font-size: .86rem; }
+.excerpt { line-height: 1.55; }
+@media (max-width: 760px) { main, .wire-finder { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #34554f; padding: 0 0 1.5rem; } .location-wire { grid-template-columns: 1fr; } .insulation { min-height: 70px; } }

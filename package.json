@@ -1,0 +1,46 @@
+{
+  "name": "volvo-xc70-wiring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite --config vite.config.ts",
+    "build": "vite build --config vite.config.ts",
+    "start": "tsx server/index.ts",
+    "start:full": "node scripts/bootstrap.js",
+    "import:manual": "tsx scripts/import-wiring-manual.ts",
+    "test": "tsx --test server/**/*.test.ts",
+    "test:e2e": "node scripts/e2e-smoke.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "lucide-react": "latest",
+    "nodemailer": "latest",
+    "pdf-parse": "latest",
+    "pdfjs-dist": "^6.1.200",
+    "react": "latest",
+    "react-dom": "latest",
+    "tsx": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "latest",
+    "@types/better-sqlite3": "latest",
+    "@types/express": "latest",
+    "@types/node": "latest",
+    "@types/nodemailer": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/supertest": "latest",
+    "concurrently": "latest",
+    "playwright": "^1.61.1",
+    "supertest": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}
