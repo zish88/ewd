@@ -66,32 +66,32 @@ docker restart volvo-xc70-wiring
 
 ## 2b. Страница «сайт на обновлении» при 502 (один раз)
 
-Пока контейнер лежит во время `BUILD=1 bash deploy.sh`, nginx обычно отдаёт голый 502. Чтобы показать тот же экран, что при закрытии сайта в `/admin`, но с текстом **«сайт на обновлении»**:
+Пока контейнер лежит во время деплоя, без настройки nginx показывается голый **502 Bad Gateway**. Нужна **разовая** настройка nginx (деплой Docker сам по себе этого не делает).
 
-1. После `git pull` файл уже на диске: `/opt/ewd-app/client/public/updating.html` (самодостаточный HTML).
-2. В конфиг nginx сайта (блок `server` с `proxy_pass` на `127.0.0.1:3000`) вставьте директивы из [`scripts/nginx-ewd-updating.conf`](scripts/nginx-ewd-updating.conf):
-
-```nginx
-proxy_intercept_errors on;
-error_page 502 503 504 /updating.html;
-
-location = /updating.html {
-    root /opt/ewd-app/client/public;
-    default_type text/html;
-    charset utf-8;
-    add_header Cache-Control "no-store";
-}
-```
-
-3. Проверка конфига и перезагрузка:
+В консоли VPS **по шагам**:
 
 ```bash
-nginx -t && systemctl reload nginx
+cd /opt/ewd-app
+git fetch origin
+git checkout -f master
+git reset --hard origin/master
+ls -la client/public/updating.html
+bash scripts/install-nginx-updating.sh
 ```
 
-4. Тест: `docker stop volvo-xc70-wiring` → открыть https://ewd-volvo.ru → должна быть страница с силуэтом и «сайт на обновлении» (авто-обновление раз в 15 с). Затем `docker start volvo-xc70-wiring`.
+Скрипт создаст `/etc/nginx/snippets/ewd-updating.conf`, вставит `include` в конфиг с `proxy_pass :3000`, сделает `nginx -t` и `reload`. Бэкап конфига рядом с исходным файлом (`*.bak.…`).
 
-Закрытие сайта в админке по-прежнему показывает «сайт на профилактических работах» (React); 502 — только статическая `updating.html`.
+Проверка:
+
+```bash
+curl -sI https://ewd-volvo.ru/updating.html | head
+docker stop volvo-xc70-wiring
+curl -s https://ewd-volvo.ru/ | head -n 25
+# в выводе: VOLVO EWD и «сайт на обновлении»
+docker start volvo-xc70-wiring
+```
+
+Закрытие сайта в админке по-прежнему: «сайт на профилактических работах». При 502 — статическая `updating.html`.
 
 ## 3. Схемы (SVG) и таблицы (PDF) — без прямого доступа ПК→VPS
 
