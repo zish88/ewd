@@ -64,6 +64,35 @@ curl -s http://127.0.0.1:3000/api/health
 docker restart volvo-xc70-wiring
 ```
 
+## 2b. Страница «сайт на обновлении» при 502 (один раз)
+
+Пока контейнер лежит во время `BUILD=1 bash deploy.sh`, nginx обычно отдаёт голый 502. Чтобы показать тот же экран, что при закрытии сайта в `/admin`, но с текстом **«сайт на обновлении»**:
+
+1. После `git pull` файл уже на диске: `/opt/ewd-app/client/public/updating.html` (самодостаточный HTML).
+2. В конфиг nginx сайта (блок `server` с `proxy_pass` на `127.0.0.1:3000`) вставьте директивы из [`scripts/nginx-ewd-updating.conf`](scripts/nginx-ewd-updating.conf):
+
+```nginx
+proxy_intercept_errors on;
+error_page 502 503 504 /updating.html;
+
+location = /updating.html {
+    root /opt/ewd-app/client/public;
+    default_type text/html;
+    charset utf-8;
+    add_header Cache-Control "no-store";
+}
+```
+
+3. Проверка конфига и перезагрузка:
+
+```bash
+nginx -t && systemctl reload nginx
+```
+
+4. Тест: `docker stop volvo-xc70-wiring` → открыть https://ewd-volvo.ru → должна быть страница с силуэтом и «сайт на обновлении» (авто-обновление раз в 15 с). Затем `docker start volvo-xc70-wiring`.
+
+Закрытие сайта в админке по-прежнему показывает «сайт на профилактических работах» (React); 502 — только статическая `updating.html`.
+
 ## 3. Схемы (SVG) и таблицы (PDF) — без прямого доступа ПК→VPS
 
 Список узлов = SQLite. Схемы/таблицы = архив ~287 MB.
