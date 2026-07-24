@@ -21,10 +21,8 @@ html = f"""<!doctype html>
     :root {{
       --bg-main: #0f172a;
       --accent: #34d399;
-      --text-muted: #94a3b8;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
-      --dash: 40px;
     }}
     * {{ box-sizing: border-box; }}
     html, body {{
@@ -58,12 +56,18 @@ html = f"""<!doctype html>
       letter-spacing: 0.14em;
       color: var(--accent);
       text-transform: uppercase;
+      will-change: opacity, text-shadow;
+      animation: brand-pulse 4s ease-in-out infinite;
     }}
-    /* Scene: road scrolls under the car → «едет» без скачка цикла */
+    /* Края силуэта растворяются; центр чёткий (не filter:blur всей картинки) */
     .drive-scene {{
       width: min(100%, 26rem);
       margin: 0.2rem 0 0.1rem;
       overflow: hidden;
+      -webkit-mask-image: radial-gradient(ellipse 72% 68% at 50% 48%, #000 42%, transparent 78%);
+      mask-image: radial-gradient(ellipse 72% 68% at 50% 48%, #000 42%, transparent 78%);
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
       animation: scene-fade-in 0.85s ease-out both;
     }}
     .drive-car {{
@@ -71,9 +75,8 @@ html = f"""<!doctype html>
       width: 100%;
       aspect-ratio: 475 / 345;
       color: var(--accent);
-      opacity: 0.9;
-      will-change: transform, filter;
-      /* мягкое движение + лёгкое размытие; 0%===100% → без скачка */
+      opacity: 0.92;
+      will-change: transform;
       animation: car-cruise 7.5s ease-in-out infinite;
     }}
     .drive-car svg {{
@@ -81,71 +84,47 @@ html = f"""<!doctype html>
       height: 100%;
       display: block;
     }}
-    .drive-road {{
-      position: relative;
-      height: 10px;
-      margin: -0.35rem 8% 0;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--accent) 12%, #0b1220);
-      overflow: hidden;
-      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
-      filter: blur(0.4px);
-    }}
-    .drive-road__dashes {{
-      position: absolute;
-      inset: 3px -var(--dash) 3px 0;
-      background: repeating-linear-gradient(
-        90deg,
-        var(--accent) 0 18px,
-        transparent 18px var(--dash)
-      );
-      opacity: 0.45;
-      will-change: transform;
-      animation: road-scroll 1.35s linear infinite;
-    }}
     .maintenance-msg {{
       margin: 0;
       font-size: clamp(0.95rem, 2.6vw, 1.1rem);
       line-height: 1.45;
-      color: var(--text-muted);
       letter-spacing: 0.02em;
+      color: var(--accent);
+      text-shadow:
+        0 0 18px rgba(251, 146, 60, 0.45),
+        0 0 36px rgba(239, 68, 68, 0.28);
     }}
     @keyframes scene-fade-in {{
-      from {{ opacity: 0; transform: translateY(8px); filter: blur(2px); }}
-      to {{ opacity: 1; transform: translateY(0); filter: blur(0); }}
+      from {{ opacity: 0; transform: translateY(8px); }}
+      to {{ opacity: 1; transform: translateY(0); }}
     }}
-    /* Плавный «проезд»: малая амплитуда + пульс blur, стык цикла незаметен */
+    @keyframes brand-pulse {{
+      0%, 100% {{
+        opacity: 0.88;
+        text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent);
+      }}
+      50% {{
+        opacity: 1;
+        text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 55%, transparent);
+      }}
+    }}
+    /* 0% === 100% → бесшовный цикл */
     @keyframes car-cruise {{
       0%, 100% {{
         transform: translate3d(-6px, 0, 0) rotate(-0.25deg);
-        filter: blur(0.85px);
-        opacity: 0.88;
-      }}
-      35% {{
-        transform: translate3d(2px, -1.5px, 0) rotate(0.1deg);
-        filter: blur(1.35px);
         opacity: 0.9;
       }}
       50% {{
         transform: translate3d(6px, -2px, 0) rotate(0.25deg);
-        filter: blur(0.85px);
-        opacity: 0.92;
+        opacity: 0.95;
       }}
-      85% {{
-        transform: translate3d(-2px, -1px, 0) rotate(-0.1deg);
-        filter: blur(1.35px);
-        opacity: 0.9;
-      }}
-    }}
-    @keyframes road-scroll {{
-      from {{ transform: translate3d(0, 0, 0); }}
-      to {{ transform: translate3d(calc(-1 * var(--dash)), 0, 0); }}
     }}
     @media (prefers-reduced-motion: reduce) {{
-      .drive-scene {{ animation: none; }}
+      .drive-scene,
       .drive-car,
-      .drive-road__dashes {{ animation: none; }}
-      .drive-car {{ filter: blur(0.85px); opacity: 0.9; }}
+      .maintenance-brand {{ animation: none; }}
+      .maintenance-brand {{ opacity: 1; }}
+      .drive-car {{ opacity: 0.92; }}
     }}
   </style>
 </head>
@@ -156,9 +135,6 @@ html = f"""<!doctype html>
       <div class="drive-scene" role="img" aria-label="Volvo V70 / XC70 / S80">
         <div class="drive-car">
 {svg}
-        </div>
-        <div class="drive-road" aria-hidden="true">
-          <div class="drive-road__dashes"></div>
         </div>
       </div>
       <p class="maintenance-msg">сайт на обновлении</p>

@@ -1764,8 +1764,8 @@ main.is-filters-sheet-open {
   opacity: 0.9;
   -webkit-mask: url("/maintenance-volvo.svg") center / contain no-repeat;
   mask: url("/maintenance-volvo.svg") center / contain no-repeat;
-  will-change: transform, filter;
-  /* Плавный проезд + лёгкий blur; 0%===100% */
+  will-change: transform;
+  /* Плавный проезд без filter:blur всей картинки */
   animation: maintenance-car-cruise 7.5s ease-in-out infinite;
 }
 
@@ -1786,30 +1786,17 @@ main.is-filters-sheet-open {
   0%,
   100% {
     transform: translate3d(-6px, 0, 0) rotate(-0.25deg);
-    filter: blur(0.85px);
-    opacity: 0.88;
-  }
-  35% {
-    transform: translate3d(2px, -1.5px, 0) rotate(0.1deg);
-    filter: blur(1.35px);
     opacity: 0.9;
   }
   50% {
     transform: translate3d(6px, -2px, 0) rotate(0.25deg);
-    filter: blur(0.85px);
-    opacity: 0.92;
-  }
-  85% {
-    transform: translate3d(-2px, -1px, 0) rotate(-0.1deg);
-    filter: blur(1.35px);
-    opacity: 0.9;
+    opacity: 0.95;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .maintenance-car {
     animation: none;
-    filter: blur(0.85px);
     opacity: 0.9;
   }
 }
