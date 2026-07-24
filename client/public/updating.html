@@ -61,9 +61,10 @@
       width: 100%;
       aspect-ratio: 475 / 345;
       color: var(--accent);
-      opacity: 0.92;
-      will-change: transform;
-      animation: car-cruise 4.8s ease-in-out infinite;
+      opacity: 0.9;
+      will-change: transform, filter;
+      /* мягкое движение + лёгкое размытие; 0%===100% → без скачка */
+      animation: car-cruise 7.5s ease-in-out infinite;
     }
     .drive-car svg {
       width: 100%;
@@ -78,6 +79,7 @@
       background: color-mix(in srgb, var(--accent) 12%, #0b1220);
       overflow: hidden;
       box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
+      filter: blur(0.4px);
     }
     .drive-road__dashes {
       position: absolute;
@@ -87,9 +89,9 @@
         var(--accent) 0 18px,
         transparent 18px var(--dash)
       );
-      opacity: 0.55;
+      opacity: 0.45;
       will-change: transform;
-      animation: road-scroll 0.9s linear infinite;
+      animation: road-scroll 1.35s linear infinite;
     }
     .maintenance-msg {
       margin: 0;
@@ -99,13 +101,31 @@
       letter-spacing: 0.02em;
     }
     @keyframes scene-fade-in {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); filter: blur(2px); }
+      to { opacity: 1; transform: translateY(0); filter: blur(0); }
     }
-    /* 0% === 100% → бесшовный цикл, без прыжка */
+    /* Плавный «проезд»: малая амплитуда + пульс blur, стык цикла незаметен */
     @keyframes car-cruise {
-      0%, 100% { transform: translate3d(-12px, 0, 0) rotate(-0.6deg); }
-      50% { transform: translate3d(12px, -3px, 0) rotate(0.6deg); }
+      0%, 100% {
+        transform: translate3d(-6px, 0, 0) rotate(-0.25deg);
+        filter: blur(0.85px);
+        opacity: 0.88;
+      }
+      35% {
+        transform: translate3d(2px, -1.5px, 0) rotate(0.1deg);
+        filter: blur(1.35px);
+        opacity: 0.9;
+      }
+      50% {
+        transform: translate3d(6px, -2px, 0) rotate(0.25deg);
+        filter: blur(0.85px);
+        opacity: 0.92;
+      }
+      85% {
+        transform: translate3d(-2px, -1px, 0) rotate(-0.1deg);
+        filter: blur(1.35px);
+        opacity: 0.9;
+      }
     }
     @keyframes road-scroll {
       from { transform: translate3d(0, 0, 0); }
@@ -115,6 +135,7 @@
       .drive-scene { animation: none; }
       .drive-car,
       .drive-road__dashes { animation: none; }
+      .drive-car { filter: blur(0.85px); opacity: 0.9; }
     }
   </style>
 </head>
