@@ -28,6 +28,8 @@ dist-upload/
 data/*.sqlite-*
 # Runtime visit counters (separate from wiring.sqlite; survive deploy)
 data/visits.sqlite
+data/admin-corrections.sqlite
+data/admin-corrections.sqlite-*
 data/pages/
 data/_wiring_*.sqlite
 data/overrides/

@@ -12,6 +12,110 @@ import {
 import { readSiteSettings, writeSiteSettings, type SiteSettings } from "../siteSettings.js";
 import { sendModeratorMail, smtpPublicStatus } from "../smtpMail.js";
 import { getVisitStats } from "../visits.js";
+import {
+  applyAllCorrections,
+  applyWirePatch,
+  correctionsTodayCount,
+  lastSyncRun,
+  listCorrections,
+  markCorrectionApplied,
+  upsertCorrection,
+  type WirePatch,
+} from "../adminCorrections.js";
+
+type TicketRow = {
+  id: number;
+  created_at: string;
+  model: string;
+  year: string;
+  engine: string;
+  location_name: string;
+  pin_number: string;
+  wire_color: string;
+  source_block: string;
+  source_pin: string | null;
+  destination_block: string;
+  destination_pin: string | null;
+  description: string;
+  comment: string | null;
+  status: string;
+  wire_id?: number | null;
+  subject_code?: string | null;
+  zone?: string | null;
+  card_url?: string | null;
+  resolved_at?: string | null;
+  admin_note?: string | null;
+};
+
+function parseCardMeta(comment: string | null | undefined): {
+  wire_id: number | null;
+  subject_code: string;
+  zone: string;
+  card_url: string;
+} {
+  const text = String(comment || "");
+  const wireMatch = text.match(/wire_id=(\d+)/i);
+  const subjectMatch = text.match(/subject=([^;\n]+)/i);
+  const zoneMatch = text.match(/zone=([^;\n]+)/i);
+  const urlMatch = text.match(/url=(\S+)/i);
+  return {
+    wire_id: wireMatch ? Number(wireMatch[1]) : null,
+    subject_code: subjectMatch ? subjectMatch[1].trim() : "",
+    zone: zoneMatch ? zoneMatch[1].trim() : "",
+    card_url: urlMatch ? urlMatch[1].trim() : "",
+  };
+}
+
+function enrichTicket(row: TicketRow) {
+  const meta = parseCardMeta(row.comment);
+  const wire_id = Number(row.wire_id) || meta.wire_id;
+  return {
+    ...row,
+    wire_id,
+    subject_code: String(row.subject_code || meta.subject_code || row.location_name || "").trim(),
+    zone: String(row.zone || meta.zone || "").trim(),
+    card_url: String(row.card_url || meta.card_url || "").trim(),
+    user_comment: String(row.comment || "")
+      .replace(/\[CARD\][^\n]*/g, "")
+      .trim(),
+  };
+}
+
+function loadWire(db: Database.Database, wireId: number) {
+  return db
+    .prepare(
+      `SELECT
+         w.id, w.page_id, w.pin_number, w.wire_color_raw, w.wire_color_ru,
+         w.function_text, w.from_detail, w.to_detail, w.from_token, w.to_token,
+         w.subject_code, w.harness_left, w.harness_right, w.source_kind, w.is_verified,
+         fc.component_code AS from_code,
+         tc.component_code AS to_code
+       FROM wire_connections w
+       LEFT JOIN components fc ON fc.id = w.from_component_id
+       LEFT JOIN components tc ON tc.id = w.to_component_id
+       WHERE w.id = ?`,
+    )
+    .get(wireId) as Record<string, unknown> | undefined;
+}
+
+function patchFromBody(b: Record<string, unknown>): WirePatch {
+  const str = (k: string) => (b[k] != null ? String(b[k]) : undefined);
+  return {
+    pin_number: str("pin_number"),
+    wire_color_raw: str("wire_color_raw") ?? str("wire_color"),
+    wire_color_ru: str("wire_color_ru"),
+    function_text: str("function_text") ?? str("description"),
+    from_detail: str("from_detail") ?? str("source_block"),
+    to_detail: str("to_detail") ?? str("destination_block"),
+    from_token: str("from_token") ?? str("from_code"),
+    to_token: str("to_token") ?? str("to_code"),
+    from_code: str("from_code"),
+    to_code: str("to_code"),
+    subject_code: str("subject_code"),
+    harness_left: str("harness_left"),
+    harness_right: str("harness_right"),
+  };
+}
 
 export function createAdminRouter(db: Database.Database) {
   const router = Router();
@@ -84,6 +188,141 @@ export function createAdminRouter(db: Database.Database) {
   router.post("/logout", (_req, res) => {
     clearAdminCookie(res);
     res.json({ ok: true });
+  });
+
+  router.get("/tickets", requireAdmin, (req, res) => {
+    const status = String(req.query.status || "pending").trim();
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+    const rows =
+      status === "all"
+        ? (db
+            .prepare(`SELECT * FROM pending_tickets ORDER BY id DESC LIMIT ?`)
+            .all(limit) as TicketRow[])
+        : (db
+            .prepare(`SELECT * FROM pending_tickets WHERE status=? ORDER BY id DESC LIMIT ?`)
+            .all(status, limit) as TicketRow[]);
+    const counts = db
+      .prepare(
+        `SELECT status, COUNT(*) AS n FROM pending_tickets GROUP BY status`,
+      )
+      .all() as Array<{ status: string; n: number }>;
+    res.json({
+      tickets: rows.map(enrichTicket),
+      counts: Object.fromEntries(counts.map((c) => [c.status, c.n])),
+    });
+  });
+
+  router.get("/tickets/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) {
+      res.status(400).json({ error: "bad id" });
+      return;
+    }
+    const row = db.prepare(`SELECT * FROM pending_tickets WHERE id=?`).get(id) as TicketRow | undefined;
+    if (!row) {
+      res.status(404).json({ error: "Заявка не найдена" });
+      return;
+    }
+    const ticket = enrichTicket(row);
+    const wire = ticket.wire_id ? loadWire(db, ticket.wire_id) : null;
+    res.json({ ticket, wire: wire || null });
+  });
+
+  router.patch("/tickets/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) {
+      res.status(400).json({ error: "bad id" });
+      return;
+    }
+    const b = (req.body || {}) as { status?: string; admin_note?: string };
+    const status = String(b.status || "").trim();
+    if (!["pending", "approved", "rejected"].includes(status)) {
+      res.status(400).json({ error: "status: pending | approved | rejected" });
+      return;
+    }
+    const note = String(b.admin_note ?? "");
+    const info = db
+      .prepare(
+        `UPDATE pending_tickets
+         SET status=?,
+             admin_note=?,
+             resolved_at=CASE WHEN ? IN ('approved','rejected') THEN datetime('now') ELSE NULL END
+         WHERE id=?`,
+      )
+      .run(status, note, status, id);
+    if (!info.changes) {
+      res.status(404).json({ error: "Заявка не найдена" });
+      return;
+    }
+    const row = db.prepare(`SELECT * FROM pending_tickets WHERE id=?`).get(id) as TicketRow;
+    res.json({ ok: true, ticket: enrichTicket(row) });
+  });
+
+  router.get("/wires/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) {
+      res.status(400).json({ error: "bad id" });
+      return;
+    }
+    const wire = loadWire(db, id);
+    if (!wire) {
+      res.status(404).json({ error: "Провод не найден" });
+      return;
+    }
+    res.json({ wire });
+  });
+
+  /** Update existing wire card; persist durable overlay; optionally close ticket. */
+  router.put("/wires/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) {
+      res.status(400).json({ error: "bad id" });
+      return;
+    }
+    const b = (req.body || {}) as Record<string, unknown>;
+    const patch = patchFromBody(b);
+    if (!applyWirePatch(db, id, patch)) {
+      res.status(404).json({ error: "Провод не найден" });
+      return;
+    }
+    const ticketId = Number(b.ticket_id) || null;
+    upsertCorrection({ wireId: id, ticketId, patch });
+    markCorrectionApplied(id);
+
+    if (ticketId) {
+      db.prepare(
+        `UPDATE pending_tickets
+         SET status='approved',
+             resolved_at=datetime('now'),
+             admin_note=COALESCE(NULLIF(?, ''), admin_note),
+             wire_id=COALESCE(wire_id, ?)
+         WHERE id=?`,
+      ).run(String(b.admin_note || ""), id, ticketId);
+    }
+
+    res.json({ ok: true, wire: loadWire(db, id), ticket_id: ticketId });
+  });
+
+  router.get("/corrections", requireAdmin, (_req, res) => {
+    res.json({
+      today: correctionsTodayCount(),
+      lastSync: lastSyncRun(),
+      items: listCorrections(50).map((c) => ({
+        ...c,
+        patch: (() => {
+          try {
+            return JSON.parse(c.payload);
+          } catch {
+            return null;
+          }
+        })(),
+      })),
+    });
+  });
+
+  router.post("/corrections/sync", requireAdmin, (_req, res) => {
+    const result = applyAllCorrections(db, "manual-admin");
+    res.json({ ok: true, ...result, lastSync: lastSyncRun() });
   });
 
   router.post("/components", requireAdmin, (req, res) => {
@@ -199,7 +438,11 @@ export function createAdminRouter(db: Database.Database) {
         String(b.harness_left || ""),
         String(b.harness_right || ""),
       );
-    res.json({ ok: true, id: Number(info.lastInsertRowid) });
+    const newId = Number(info.lastInsertRowid);
+    const patch = patchFromBody(b as Record<string, unknown>);
+    upsertCorrection({ wireId: newId, patch: { ...patch, subject_code: subject, pin_number: pin } });
+    markCorrectionApplied(newId);
+    res.json({ ok: true, id: newId });
   });
 
   return router;

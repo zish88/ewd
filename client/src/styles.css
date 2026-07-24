@@ -89,6 +89,34 @@ html {
   isolation: isolate;
 }
 
+/* Mac/Chrome: prefer dvh so browser chrome doesn't clip the only scrollport */
+.app-shell--viewport {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Grid row must be minmax(0,1fr) or Chrome grows the row to content and kills nested scroll */
+.results-split {
+  min-height: 0;
+  align-content: stretch;
+}
+
+.results-split > .cards-column,
+.results-split > .mobile-pane--scheme {
+  min-height: 0;
+  max-height: 100%;
+}
+
+.cards-column__scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Create a real scrollport even when sticky children are tall (Chrome/Mac) */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* Capital TwoDviews silhouettes (15K867 / 15K868) — desktop atmosphere */
 .desktop-bg-art {
   display: none;
@@ -349,7 +377,8 @@ html {
 
   .filters-host {
     position: relative;
-    overflow: hidden;
+    /* vertical scroll allowed in the later desktop rules; keep x clipped for bg art */
+    overflow-x: hidden;
     background:
       linear-gradient(
         180deg,
@@ -946,12 +975,25 @@ html {
 }
 
 .cards-column__sticky {
-  position: sticky;
-  top: 0;
+  /* Static by default: sticky chrome taller than the scrollport freezes Mac/Chrome trackpad scroll */
+  position: static;
   z-index: 12;
   background: var(--surface-container, var(--bg-main));
   padding-bottom: 0.35rem;
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+@media (min-width: 769px) and (min-height: 900px) {
+  /* Tall desktops only: pin a compact chrome; never exceed half the cards scrollport */
+  .cards-column__sticky {
+    position: sticky;
+    top: 0;
+    max-height: min(42vh, 22rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Mobile node tools: <details> becomes a bottom sheet; desktop shows panel always */
@@ -1417,8 +1459,12 @@ main.is-filters-sheet-open {
     position: static;
     flex-wrap: nowrap;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    /* Let vertical trackpad/wheel bubble to cards-column__scroll (Mac Chrome) */
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
     gap: 0.4rem;
     padding: 0.4rem;
     background: var(--input-bg);
@@ -1713,6 +1759,12 @@ main.is-filters-sheet-open {
   .filters-host {
     display: block;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 1;
+    min-height: 0;
+    max-height: min(38vh, 20rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     /* translucent so filters-bg-art silhouettes read through */
     background:
       linear-gradient(

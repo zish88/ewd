@@ -78,6 +78,22 @@ else
 fi
 
 mkdir -p "${APP_DIR}/manual" "${APP_DIR}/data/ewd"
+
+# ADMIN_PASSWORD must be non-empty or /admin login field stays disabled.
+ADMIN_PASSWORD_TRIMMED="$(printf '%s' "${ADMIN_PASSWORD:-}" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+ADMIN_ENV_ARGS=()
+if [ -z "$ADMIN_PASSWORD_TRIMMED" ]; then
+  echo "WARN: ADMIN_PASSWORD пуст в ${APP_DIR}/.env — админка на проде будет с неактивным полем пароля."
+  echo "      Добавьте строку ADMIN_PASSWORD=... и снова запустите bash deploy.sh"
+else
+  echo "==> ADMIN_PASSWORD задан (длина ${#ADMIN_PASSWORD_TRIMMED})"
+  # Explicit -e after --env-file so password always reaches the container
+  ADMIN_ENV_ARGS+=(-e "ADMIN_PASSWORD=${ADMIN_PASSWORD_TRIMMED}")
+fi
+if [ -n "${ADMIN_SECRET:-}" ]; then
+  ADMIN_ENV_ARGS+=(-e "ADMIN_SECRET=${ADMIN_SECRET}")
+fi
+
 echo "==> docker run"
 # Prefer --env-file so SMTP_PASS is not mangled by shell expansion; -e overrides paths.
 ENV_FILE_ARGS=()
@@ -97,6 +113,7 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
   -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
+  "${ADMIN_ENV_ARGS[@]}" \
   -v "${APP_DIR}/data:/app/data" \
   -v "${APP_DIR}/manual:/data/manual:ro" \
   "$IMAGE"
@@ -105,6 +122,12 @@ sleep 3
 echo "==> status"
 docker ps --filter "name=$NAME"
 echo "==> health"
-curl -sS "http://127.0.0.1:${PORT}/api/health" || true
+HEALTH="$(curl -sS "http://127.0.0.1:${PORT}/api/health" || true)"
+echo "$HEALTH"
+if echo "$HEALTH" | grep -q '"adminConfigured":false'; then
+  echo "WARN: контейнер без ADMIN_PASSWORD — /admin не откроется. Проверьте ${APP_DIR}/.env"
+elif echo "$HEALTH" | grep -q '"adminConfigured":true'; then
+  echo "==> adminConfigured=true · /admin готов к входу"
+fi
 echo
 echo "Done. Open http://SERVER:${PORT}"

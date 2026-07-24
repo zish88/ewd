@@ -1183,6 +1183,26 @@ function App() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // Mac Chrome: overflow-x strips (color chips) swallow vertical trackpad wheel
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      if (t.closest(".filters-host.is-sheet-open, .mobile-node-tools[open]")) return;
+      const trap = t.closest(".wire-color-filter");
+      if (!trap) return;
+      const scroller =
+        (trap.closest(".cards-column__scroll") as HTMLElement | null) ||
+        document.querySelector<HTMLElement>('[data-testid="cards-column-scroll"]');
+      if (!scroller || scroller.scrollHeight <= scroller.clientHeight + 1) return;
+      scroller.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => document.removeEventListener("wheel", onWheel, true);
+  }, []);
+
   // Mobile sheets: scroll-lock, Escape, pull-to-refresh guard, focus
   const anySheetOpen = filtersSheetOpen || (isMobileUi && toolsSheetOpen);
   useEffect(() => {
@@ -2135,7 +2155,7 @@ function App() {
     </>
   );
 
-  return <main className={`app-shell h-screen overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
+  return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
     <div className="desktop-bg-art" aria-hidden="true">
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--b" />
@@ -2394,15 +2414,22 @@ function App() {
           ✕
         </button>
       </div>
-      <div className={`flex-1 min-h-0 grid gap-3 ${rightOpen ? "grid-cols-1 lg:grid-cols-12" : ""}`}>
+      <div
+        className={`results-split flex-1 min-h-0 grid grid-rows-1 gap-3 ${
+          rightOpen ? "grid-cols-1 lg:grid-cols-12" : "grid-cols-1"
+        }`}
+      >
       <div
         data-testid="cards-column"
         data-mobile-scroll
-        className={`mobile-pane mobile-pane--cards cards-column ${rightOpen ? "lg:col-span-5" : "max-w-3xl mx-auto w-full"} flex flex-col min-h-0 overflow-hidden pr-1${
+        className={`mobile-pane mobile-pane--cards cards-column ${rightOpen ? "lg:col-span-5" : "max-w-3xl mx-auto w-full"} flex flex-col min-h-0 min-w-0 h-full overflow-hidden pr-1${
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
-      <div data-testid="cards-column-scroll" className="cards-column__scroll flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]">
+      <div
+        data-testid="cards-column-scroll"
+        className="cards-column__scroll flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-y-contain space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]"
+      >
       <details
         data-testid="cards-column-sticky"
         className="cards-column__sticky cards-column__chrome mobile-node-tools"
@@ -2721,7 +2748,7 @@ function App() {
       {activeSvg && (
         <div
           data-testid="svg-panel"
-          className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
+          className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 min-w-0 h-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
             mobileView === "cards" ? " is-mobile-hidden" : ""
           }`}
         >
@@ -2866,7 +2893,7 @@ function App() {
       {capitalPanel && !activeSvg && (
         <div
           data-testid="capital-panel-host"
-          className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
+          className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 min-w-0 h-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
             mobileView === "cards" ? " is-mobile-hidden" : ""
           }`}
         >

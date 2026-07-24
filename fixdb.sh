@@ -15,6 +15,16 @@ git checkout HEAD -- data/wiring.sqlite data/dtc.sqlite
 ls -la data/wiring.sqlite data/dtc.sqlite
 python3 -c "import sqlite3;c=sqlite3.connect('data/wiring.sqlite');print('components',c.execute('select count(*) from components').fetchone()[0])"
 mkdir -p manual data/ewd
+ADMIN_PASSWORD_TRIMMED="$(printf '%s' "${ADMIN_PASSWORD:-}" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+ADMIN_ENV_ARGS=()
+if [ -z "$ADMIN_PASSWORD_TRIMMED" ]; then
+  echo "WARN: ADMIN_PASSWORD пуст — /admin будет с неактивным полем. Задайте в /opt/ewd-app/.env"
+else
+  ADMIN_ENV_ARGS+=(-e "ADMIN_PASSWORD=${ADMIN_PASSWORD_TRIMMED}")
+fi
+if [ -n "${ADMIN_SECRET:-}" ]; then
+  ADMIN_ENV_ARGS+=(-e "ADMIN_SECRET=${ADMIN_SECRET}")
+fi
 ENV_FILE_ARGS=()
 if [ -f /opt/ewd-app/.env ]; then
   ENV_FILE_ARGS+=(--env-file /opt/ewd-app/.env)
@@ -30,6 +40,7 @@ docker run -d --name volvo-xc70-wiring --restart unless-stopped \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
   -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
+  "${ADMIN_ENV_ARGS[@]}" \
   -v /opt/ewd-app/data:/app/data \
   -v /opt/ewd-app/manual:/data/manual:ro \
   ewd-app:latest

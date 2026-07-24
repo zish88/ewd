@@ -5,12 +5,18 @@ const COOKIE = "ewd_admin";
 /** Cookie is session-only (no Max-Age). Token TTL is a safety cap for the same browser session. */
 const TOKEN_TTL_SEC = 60 * 60 * 12; // 12 hours
 
+/** Trim + strip accidental quotes from .env editors / docker --env-file. */
+function envSecret(name: "ADMIN_PASSWORD" | "ADMIN_SECRET"): string {
+  const raw = String(process.env[name] ?? "").trim();
+  return raw.replace(/^(['"])(.*)\1$/, "$2").trim();
+}
+
 function secret(): string {
-  return process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || "";
+  return envSecret("ADMIN_SECRET") || envSecret("ADMIN_PASSWORD") || "";
 }
 
 export function adminConfigured(): boolean {
-  return Boolean(process.env.ADMIN_PASSWORD?.trim());
+  return Boolean(envSecret("ADMIN_PASSWORD"));
 }
 
 function sign(payload: string): string {
@@ -82,7 +88,7 @@ export function clearAdminCookie(res: Response) {
 }
 
 export function checkAdminPassword(password: string): boolean {
-  const want = process.env.ADMIN_PASSWORD || "";
+  const want = envSecret("ADMIN_PASSWORD");
   if (!want) return false;
   const a = Buffer.from(password);
   const b = Buffer.from(want);

@@ -107,7 +107,13 @@ const CORE_DDL = `
     destination_pin TEXT,
     description TEXT NOT NULL,
     comment TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected'))
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    wire_id INTEGER,
+    subject_code TEXT NOT NULL DEFAULT '',
+    zone TEXT NOT NULL DEFAULT '',
+    card_url TEXT NOT NULL DEFAULT '',
+    resolved_at TEXT,
+    admin_note TEXT NOT NULL DEFAULT ''
   );
 `;
 
@@ -253,6 +259,17 @@ function ensureNavColumns(db: Database.Database) {
     addColumnIfMissing(db, "components", "part_number", `part_number TEXT NOT NULL DEFAULT ''`, cnames);
     addColumnIfMissing(db, "components", "part_number_mate", `part_number_mate TEXT NOT NULL DEFAULT ''`, cnames);
     addColumnIfMissing(db, "components", "home_zone", `home_zone TEXT NOT NULL DEFAULT ''`, cnames);
+  }
+
+  if (tableExists(db, "pending_tickets")) {
+    const ticketCols = db.prepare("PRAGMA table_info(pending_tickets)").all() as Array<{ name: string }>;
+    const tnames = new Set(ticketCols.map((c) => c.name));
+    addColumnIfMissing(db, "pending_tickets", "wire_id", `wire_id INTEGER`, tnames);
+    addColumnIfMissing(db, "pending_tickets", "subject_code", `subject_code TEXT NOT NULL DEFAULT ''`, tnames);
+    addColumnIfMissing(db, "pending_tickets", "zone", `zone TEXT NOT NULL DEFAULT ''`, tnames);
+    addColumnIfMissing(db, "pending_tickets", "card_url", `card_url TEXT NOT NULL DEFAULT ''`, tnames);
+    addColumnIfMissing(db, "pending_tickets", "resolved_at", `resolved_at TEXT`, tnames);
+    addColumnIfMissing(db, "pending_tickets", "admin_note", `admin_note TEXT NOT NULL DEFAULT ''`, tnames);
   }
 }
 

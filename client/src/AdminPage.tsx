@@ -22,6 +22,55 @@ type VisitStats = {
   recent: Array<{ id: number; visitedAt: string; path: string }>;
 };
 
+type Ticket = {
+  id: number;
+  created_at: string;
+  model: string;
+  year: string;
+  engine: string;
+  location_name: string;
+  pin_number: string;
+  wire_color: string;
+  source_block: string;
+  destination_block: string;
+  description: string;
+  status: string;
+  wire_id: number | null;
+  subject_code: string;
+  zone: string;
+  card_url: string;
+  user_comment: string;
+  admin_note?: string;
+};
+
+type WireRow = {
+  id: number;
+  pin_number: string;
+  wire_color_raw: string;
+  wire_color_ru: string;
+  function_text: string;
+  from_detail: string;
+  to_detail: string;
+  from_code: string | null;
+  to_code: string | null;
+  subject_code: string;
+  harness_left: string;
+  harness_right: string;
+};
+
+type WireForm = {
+  pin_number: string;
+  wire_color_raw: string;
+  function_text: string;
+  from_detail: string;
+  to_detail: string;
+  from_code: string;
+  to_code: string;
+  subject_code: string;
+  harness_left: string;
+  harness_right: string;
+};
+
 const FEATURE_LABELS: Record<keyof Features, string> = {
   suggestions: "Предложения правок с карточек (почта)",
   ewdDiagrams: "Графические схемы EWD",
@@ -32,8 +81,20 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
 
+const emptyWireForm = (): WireForm => ({
+  pin_number: "",
+  wire_color_raw: "",
+  function_text: "",
+  from_detail: "",
+  to_detail: "",
+  from_code: "",
+  to_code: "",
+  subject_code: "",
+  harness_left: "",
+  harness_right: "",
+});
+
 function formatVisitAt(isoLike: string): string {
-  // SQLite datetime('now') → "YYYY-MM-DD HH:MM:SS" UTC
   const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(isoLike) ? isoLike : `${isoLike.replace(" ", "T")}Z`;
   const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) return isoLike;
@@ -46,6 +107,21 @@ function formatVisitAt(isoLike: string): string {
   });
 }
 
+function wireToForm(w: WireRow): WireForm {
+  return {
+    pin_number: String(w.pin_number || ""),
+    wire_color_raw: String(w.wire_color_raw || ""),
+    function_text: String(w.function_text || ""),
+    from_detail: String(w.from_detail || ""),
+    to_detail: String(w.to_detail || ""),
+    from_code: String(w.from_code || ""),
+    to_code: String(w.to_code || ""),
+    subject_code: String(w.subject_code || ""),
+    harness_left: String(w.harness_left || ""),
+    harness_right: String(w.harness_right || ""),
+  };
+}
+
 export function AdminPage() {
   const [configured, setConfigured] = useState(false);
   const [admin, setAdmin] = useState(false);
@@ -53,6 +129,18 @@ export function AdminPage() {
   const [notice, setNotice] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [visits, setVisits] = useState<VisitStats | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketCounts, setTicketCounts] = useState<Record<string, number>>({});
+  const [ticketFilter, setTicketFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
+  const [currentWire, setCurrentWire] = useState<WireRow | null>(null);
+  const [editForm, setEditForm] = useState<WireForm>(emptyWireForm());
+  const [editWireId, setEditWireId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [syncInfo, setSyncInfo] = useState<{
+    today: number;
+    lastSync: { ran_at: string; applied_count: number; note: string } | null;
+  } | null>(null);
   const [form, setForm] = useState({
     subject_code: "",
     pin_number: "",
@@ -82,8 +170,143 @@ export function AdminPage() {
   async function loadVisits() {
     const r = await fetch("/api/admin/visits", { credentials: "include" });
     if (!r.ok) return;
-    const d = (await r.json()) as VisitStats;
-    setVisits(d);
+    setVisits((await r.json()) as VisitStats);
+  }
+
+  async function loadTickets(status: typeof ticketFilter = ticketFilter) {
+    const r = await fetch(`/api/admin/tickets?status=${status}&limit=80`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = (await r.json()) as { tickets: Ticket[]; counts: Record<string, number> };
+    setTickets(d.tickets || []);
+    setTicketCounts(d.counts || {});
+  }
+
+  async function loadCorrections() {
+    const r = await fetch("/api/admin/corrections", { credentials: "include" });
+    if (!r.ok) return;
+    const d = await r.json();
+    setSyncInfo({ today: Number(d.today) || 0, lastSync: d.lastSync || null });
+  }
+
+  async function openTicket(id: number) {
+    setNotice("");
+    const r = await fetch(`/api/admin/tickets/${id}`, { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) {
+      setNotice(d.error || "Не удалось открыть заявку");
+      return;
+    }
+    const ticket = d.ticket as Ticket;
+    setActiveTicket(ticket);
+    const wire = (d.wire || null) as WireRow | null;
+    setCurrentWire(wire);
+    if (wire) {
+      setEditWireId(String(wire.id));
+      setEditForm(wireToForm(wire));
+    } else {
+      setEditWireId(ticket.wire_id ? String(ticket.wire_id) : "");
+      setEditForm({
+        ...emptyWireForm(),
+        pin_number: ticket.pin_number || "",
+        wire_color_raw: ticket.wire_color || "",
+        function_text: ticket.description || "",
+        from_detail: ticket.source_block || "",
+        to_detail: ticket.destination_block || "",
+        subject_code: ticket.subject_code || ticket.location_name || "",
+      });
+    }
+  }
+
+  async function loadWireById() {
+    const id = Number(editWireId);
+    if (!id) {
+      setNotice("Укажите ID карточки (wire id)");
+      return;
+    }
+    const r = await fetch(`/api/admin/wires/${id}`, { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) {
+      setNotice(d.error || "Провод не найден");
+      setCurrentWire(null);
+      return;
+    }
+    const wire = d.wire as WireRow;
+    setCurrentWire(wire);
+    setEditForm(wireToForm(wire));
+    setNotice(`Карточка #${wire.id} загружена`);
+  }
+
+  async function saveWireEdit() {
+    const id = Number(editWireId);
+    if (!id) {
+      setNotice("Нужен ID карточки для сохранения");
+      return;
+    }
+    setSaving(true);
+    setNotice("");
+    try {
+      const r = await fetch(`/api/admin/wires/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editForm,
+          ticket_id: activeTicket?.id || null,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setNotice(d.error || "Ошибка сохранения");
+        return;
+      }
+      setCurrentWire(d.wire as WireRow);
+      setNotice(
+        activeTicket
+          ? `Сохранено · карточка #${id} · заявка #${activeTicket.id} закрыта`
+          : `Сохранено · карточка #${id} (сайт обновлён сразу)`,
+      );
+      await loadTickets();
+      await loadCorrections();
+      if (activeTicket) {
+        setActiveTicket({ ...activeTicket, status: "approved" });
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function rejectTicket() {
+    if (!activeTicket) return;
+    const r = await fetch(`/api/admin/tickets/${activeTicket.id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "rejected" }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      setNotice(d.error || "Не удалось отклонить");
+      return;
+    }
+    setNotice(`Заявка #${activeTicket.id} отклонена`);
+    setActiveTicket(null);
+    setCurrentWire(null);
+    setEditForm(emptyWireForm());
+    await loadTickets();
+  }
+
+  async function runSyncNow() {
+    const r = await fetch("/api/admin/corrections/sync", {
+      method: "POST",
+      credentials: "include",
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      setNotice(d.error || "Синхронизация не удалась");
+      return;
+    }
+    setNotice(`Ночной накат вручную: applied=${d.applied}, skipped=${d.skipped}`);
+    await loadCorrections();
   }
 
   async function logoutServer() {
@@ -96,6 +319,8 @@ export function AdminPage() {
     setAdmin(false);
     setSettings(null);
     setVisits(null);
+    setTickets([]);
+    setActiveTicket(null);
   }
 
   useEffect(() => {
@@ -106,7 +331,6 @@ export function AdminPage() {
       } catch {
         uiOk = false;
       }
-      // Always show password form for a new tab/visit — do not restore old cookie alone.
       if (!uiOk) {
         await logoutServer();
         const r = await fetch("/api/admin/me", { credentials: "include" });
@@ -119,6 +343,8 @@ export function AdminPage() {
       if (ok) {
         await loadSettings();
         await loadVisits();
+        await loadTickets();
+        await loadCorrections();
       } else {
         try {
           sessionStorage.removeItem(ADMIN_UI_SESSION_KEY);
@@ -153,6 +379,8 @@ export function AdminPage() {
     setNotice("Вход выполнен");
     await loadSettings();
     await loadVisits();
+    await loadTickets();
+    await loadCorrections();
   }
 
   async function saveSettings(next: Settings) {
@@ -171,9 +399,11 @@ export function AdminPage() {
     setNotice("Настройки сохранены");
   }
 
+  const inputClass = "rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 w-full";
+
   return (
     <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] px-4 py-6">
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-[var(--accent)]">Админ · Volvo EWD</h1>
           <a
@@ -192,30 +422,255 @@ export function AdminPage() {
             <p className="text-sm text-[var(--text-muted)]">
               {configured
                 ? "Войдите паролем ADMIN_PASSWORD, чтобы управлять доступом к сайту."
-                : "ADMIN_PASSWORD не задан. Локально: пропишите в .env и полностью перезапустите npm run dev. На VPS: /opt/ewd-app/.env и BUILD=1 bash deploy.sh."}
+                : "На сервере не задан ADMIN_PASSWORD — поле входа отключено, пока пароль не попадёт в контейнер."}
             </p>
+            {!configured ? (
+              <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100 space-y-1.5 font-mono whitespace-pre-wrap">
+                {`# на VPS в консоли хостинга:
+nano /opt/ewd-app/.env
+# строка (без кавычек, без пробелов вокруг =):
+ADMIN_PASSWORD=ваш_секрет
+
+# пересоздать контейнер (достаточно без BUILD):
+cd /opt/ewd-app && bash deploy.sh
+
+# проверка (должно быть "adminConfigured":true):
+curl -s http://127.0.0.1:3000/api/health | head -c 400`}
+              </div>
+            ) : null}
             <input
               type="password"
-              className="w-full rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-3 py-2 text-sm"
+              className="w-full rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-3 py-2 text-sm disabled:opacity-50"
               placeholder="Пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={!configured}
+              autoComplete="current-password"
             />
-            <button type="submit" className="w-full rounded bg-emerald-600 text-white py-2 text-sm font-medium" disabled={!configured}>
+            <button type="submit" className="w-full rounded bg-emerald-600 text-white py-2 text-sm font-medium disabled:opacity-50" disabled={!configured}>
               Войти
             </button>
           </form>
         ) : (
           <>
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Посещения</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Заявки на правку</h2>
+                <div className="flex flex-wrap gap-1 text-xs">
+                  {(["pending", "approved", "rejected", "all"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`rounded px-2 py-1 border ${
+                        ticketFilter === s
+                          ? "border-emerald-600 text-emerald-700"
+                          : "border-[var(--border-color)] text-[var(--text-muted)]"
+                      }`}
+                      onClick={() => {
+                        setTicketFilter(s);
+                        void loadTickets(s);
+                      }}
+                    >
+                      {s === "pending"
+                        ? `Ожидают (${ticketCounts.pending || 0})`
+                        : s === "approved"
+                          ? `Приняты (${ticketCounts.approved || 0})`
+                          : s === "rejected"
+                            ? `Отклонены (${ticketCounts.rejected || 0})`
+                            : "Все"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">
+                Откройте заявку → сверьте с карточкой → правьте поля → SAVE. На сайте видно сразу. Ночью (03:00–05:00 МСК)
+                все админ-правки повторно накладываются на БД (чтобы не пропали после fixdb).
+              </p>
+              {tickets.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">Нет заявок в этом фильтре.</p>
+              ) : (
+                <ul className="max-h-56 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                  {tickets.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        className={`w-full text-left py-2 px-1 hover:bg-[var(--input-bg)] ${
+                          activeTicket?.id === t.id ? "bg-[var(--input-bg)]" : ""
+                        }`}
+                        onClick={() => void openTicket(t.id)}
+                      >
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium">
+                            #{t.id} · {t.subject_code || t.location_name}
+                            {t.wire_id ? ` · wire#${t.wire_id}` : ""}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+                            {formatVisitAt(t.created_at)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">
+                          {t.model} {t.year} · пин {t.pin_number} · {t.wire_color} · {t.description}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 text-xs">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Правка карточки</h2>
+              {activeTicket ? (
+                <div className="rounded-lg border border-amber-600/40 bg-amber-500/5 p-3 space-y-1 text-sm">
+                  <div className="font-medium text-amber-800 dark:text-amber-200">
+                    Заявка #{activeTicket.id} · {activeTicket.status}
+                  </div>
+                  <div className="text-[var(--text-muted)]">
+                    Авто: {activeTicket.model}, {activeTicket.year}, {activeTicket.engine}
+                    {activeTicket.zone ? ` · зона ${activeTicket.zone}` : ""}
+                  </div>
+                  <div>
+                    Предложение: пин <strong>{activeTicket.pin_number}</strong>, цвет{" "}
+                    <strong>{activeTicket.wire_color}</strong>
+                  </div>
+                  <div>
+                    Откуда: {activeTicket.source_block} → Куда: {activeTicket.destination_block}
+                  </div>
+                  <div>Описание: {activeTicket.description}</div>
+                  {activeTicket.user_comment ? <div>Комментарий: {activeTicket.user_comment}</div> : null}
+                  {activeTicket.card_url ? (
+                    <a className="text-emerald-700 underline break-all" href={activeTicket.card_url} target="_blank" rel="noreferrer">
+                      Открыть карточку на сайте
+                    </a>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-[var(--text-muted)]">Выберите заявку слева или загрузите карточку по ID.</p>
+              )}
+
+              <div className="flex gap-2 items-end">
+                <label className="flex-1 space-y-1">
+                  <span className="text-[10px] uppercase text-[var(--muted)]">Wire ID</span>
+                  <input
+                    className={inputClass}
+                    value={editWireId}
+                    onChange={(e) => setEditWireId(e.target.value)}
+                    placeholder="например 1636"
+                  />
+                </label>
                 <button
                   type="button"
-                  className="text-xs text-emerald-500 hover:underline"
-                  onClick={() => void loadVisits()}
+                  className="rounded border border-[var(--border-color)] px-3 py-1.5"
+                  onClick={() => void loadWireById()}
                 >
+                  Загрузить
+                </button>
+              </div>
+
+              {currentWire ? (
+                <p className="text-[var(--text-muted)]">
+                  Сейчас в БД: #{currentWire.id} · {currentWire.subject_code} · пин {currentWire.pin_number} ·{" "}
+                  {currentWire.wire_color_raw}
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className={inputClass}
+                  placeholder="subject 74/411"
+                  value={editForm.subject_code}
+                  onChange={(e) => setEditForm({ ...editForm, subject_code: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Пин"
+                  value={editForm.pin_number}
+                  onChange={(e) => setEditForm({ ...editForm, pin_number: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Цвет (GN-YE)"
+                  value={editForm.wire_color_raw}
+                  onChange={(e) => setEditForm({ ...editForm, wire_color_raw: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Harness"
+                  value={editForm.harness_left}
+                  onChange={(e) => setEditForm({ ...editForm, harness_left: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Откуда (код)"
+                  value={editForm.from_code}
+                  onChange={(e) => setEditForm({ ...editForm, from_code: e.target.value })}
+                />
+                <input
+                  className={inputClass}
+                  placeholder="Куда (код)"
+                  value={editForm.to_code}
+                  onChange={(e) => setEditForm({ ...editForm, to_code: e.target.value })}
+                />
+                <input
+                  className={`${inputClass} col-span-2`}
+                  placeholder="Откуда (текст)"
+                  value={editForm.from_detail}
+                  onChange={(e) => setEditForm({ ...editForm, from_detail: e.target.value })}
+                />
+                <input
+                  className={`${inputClass} col-span-2`}
+                  placeholder="Куда (текст)"
+                  value={editForm.to_detail}
+                  onChange={(e) => setEditForm({ ...editForm, to_detail: e.target.value })}
+                />
+                <input
+                  className={`${inputClass} col-span-2`}
+                  placeholder="Описание / function"
+                  value={editForm.function_text}
+                  onChange={(e) => setEditForm({ ...editForm, function_text: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="flex-1 rounded bg-emerald-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50"
+                  onClick={() => void saveWireEdit()}
+                >
+                  {saving ? "Сохранение…" : "SAVE · обновить карточку"}
+                </button>
+                {activeTicket && activeTicket.status === "pending" ? (
+                  <button
+                    type="button"
+                    className="rounded border border-red-500/50 text-red-700 px-3 py-2"
+                    onClick={() => void rejectTicket()}
+                  >
+                    Отклонить заявку
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="rounded-lg border border-[var(--border-color)] p-3 space-y-1 text-[var(--text-muted)]">
+                <div>
+                  Правок за сутки (оверлей): <strong className="text-[var(--text-main)]">{syncInfo?.today ?? "—"}</strong>
+                </div>
+                <div>
+                  Последний ночной/ручной накат:{" "}
+                  {syncInfo?.lastSync
+                    ? `${formatVisitAt(syncInfo.lastSync.ran_at)} · ${syncInfo.lastSync.applied_count} · ${syncInfo.lastSync.note}`
+                    : "ещё не было"}
+                </div>
+                <button type="button" className="text-emerald-700 underline" onClick={() => void runSyncNow()}>
+                  Накатить оверлей сейчас
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Посещения</h2>
+                <button type="button" className="text-xs text-emerald-500 hover:underline" onClick={() => void loadVisits()}>
                   Обновить
                 </button>
               </div>
@@ -236,14 +691,11 @@ export function AdminPage() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Одна сессия браузера = одно посещение (повтор в течение 30 мин не считается). Админка не учитывается.
-                  </p>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-1">Когда заходили</h3>
                   {visits.recent.length === 0 ? (
                     <p className="text-sm text-[var(--text-muted)]">Пока нет записей.</p>
                   ) : (
-                    <ul className="max-h-64 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                    <ul className="max-h-40 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
                       {visits.recent.map((v) => (
                         <li key={v.id} className="flex items-baseline justify-between gap-3 py-1.5">
                           <span className="tabular-nums text-[var(--text-main)]">{formatVisitAt(v.visitedAt)}</span>
@@ -274,9 +726,6 @@ export function AdminPage() {
                       }}
                     />
                   </label>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Если выключить — главная покажет только экран профилактики (даже для админа). Админка /admin останется.
-                  </p>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-2">Функции</h3>
                   <ul className="space-y-2">
                     {(Object.keys(FEATURE_LABELS) as Array<keyof Features>).map((key) => (
@@ -297,9 +746,6 @@ export function AdminPage() {
                       </label>
                     ))}
                   </ul>
-                  {settings.updatedAt ? (
-                    <p className="text-[10px] text-[var(--text-muted)]">Обновлено: {settings.updatedAt}</p>
-                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">Загрузка настроек…</p>
@@ -307,10 +753,10 @@ export function AdminPage() {
             </section>
 
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 text-xs">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Данные · узлы и провода</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Добавить узел / провод</h2>
               <div className="grid grid-cols-2 gap-2">
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Код 4/86" value={form.component_code} onChange={(e) => setForm({ ...form, component_code: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Название" value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} />
+                <input className={inputClass} placeholder="Код 4/86" value={form.component_code} onChange={(e) => setForm({ ...form, component_code: e.target.value })} />
+                <input className={inputClass} placeholder="Название" value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} />
               </div>
               <button
                 type="button"
@@ -329,12 +775,12 @@ export function AdminPage() {
                 Сохранить узел
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="subject 74/411" value={form.subject_code} onChange={(e) => setForm({ ...form, subject_code: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Пин" value={form.pin_number} onChange={(e) => setForm({ ...form, pin_number: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Откуда" value={form.from_code} onChange={(e) => setForm({ ...form, from_code: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Куда" value={form.to_code} onChange={(e) => setForm({ ...form, to_code: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Цвет" value={form.wire_color_raw} onChange={(e) => setForm({ ...form, wire_color_raw: e.target.value })} />
-                <input className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5" placeholder="Harness…" value={form.harness_left} onChange={(e) => setForm({ ...form, harness_left: e.target.value })} />
+                <input className={inputClass} placeholder="subject 74/411" value={form.subject_code} onChange={(e) => setForm({ ...form, subject_code: e.target.value })} />
+                <input className={inputClass} placeholder="Пин" value={form.pin_number} onChange={(e) => setForm({ ...form, pin_number: e.target.value })} />
+                <input className={inputClass} placeholder="Откуда" value={form.from_code} onChange={(e) => setForm({ ...form, from_code: e.target.value })} />
+                <input className={inputClass} placeholder="Куда" value={form.to_code} onChange={(e) => setForm({ ...form, to_code: e.target.value })} />
+                <input className={inputClass} placeholder="Цвет" value={form.wire_color_raw} onChange={(e) => setForm({ ...form, wire_color_raw: e.target.value })} />
+                <input className={inputClass} placeholder="Harness…" value={form.harness_left} onChange={(e) => setForm({ ...form, harness_left: e.target.value })} />
               </div>
               <button
                 type="button"
@@ -348,6 +794,7 @@ export function AdminPage() {
                   });
                   const d = await r.json();
                   setNotice(r.ok ? `Провод #${d.id} добавлен` : d.error || "Ошибка");
+                  if (r.ok) void loadCorrections();
                 }}
               >
                 Добавить провод

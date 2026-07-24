@@ -11,7 +11,7 @@ import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
 import { dtcStats } from "./dtcDb.js";
-import { isAdminRequest } from "./adminAuth.js";
+import { adminConfigured, isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
 import { sendModeratorMail, smtpPublicStatus } from "./smtpMail.js";
 import {
@@ -24,11 +24,27 @@ import {
 import { resolveFilters } from "./vehicleMatrix.js";
 import { decodeVolvoVin } from "./vinDecoder.js";
 import { ensureVisitsStore, recordVisit } from "./visits.js";
+import {
+  applyAllCorrections,
+  ensureAdminCorrectionsStore,
+  startNightlyCorrectionsScheduler,
+} from "./adminCorrections.js";
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
 ensureVisitsStore();
+ensureAdminCorrectionsStore();
+// Re-apply durable admin edits after fixdb / fresh wiring.sqlite from git
+try {
+  const sync = applyAllCorrections(db, "startup");
+  if (sync.applied || sync.skipped) {
+    console.info(`[admin-corrections] startup re-apply: applied=${sync.applied} skipped=${sync.skipped}`);
+  }
+} catch (e) {
+  console.error("[admin-corrections] startup re-apply failed:", e);
+}
+startNightlyCorrectionsScheduler(db);
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
 const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelop@gmail.com";
 
@@ -137,6 +153,9 @@ app.get("/api/health", (_req, res) => {
   if (!dtc.available) {
     hints.push("DTC dictionary missing. Restore data/dtc.sqlite from git.");
   }
+  if (!adminConfigured()) {
+    hints.push("ADMIN_PASSWORD empty in container — /admin login disabled. Set it in /opt/ewd-app/.env and recreate via bash deploy.sh.");
+  }
   res.json({
     ok: !error && components > 0 && wires > 0 && ewdOk,
     dbPath,
@@ -147,6 +166,7 @@ app.get("/api/health", (_req, res) => {
     ewdSourceExists: ewdOk,
     faceViewIndex: existsSync(join(ewdData, "face_view_index.json")),
     capitalOnly: true,
+    adminConfigured: adminConfigured(),
     error,
     hint: hints.length ? hints.join(" ") : undefined,
   });
@@ -223,10 +243,15 @@ app.post("/api/tickets", async (req, res) => {
     .filter(Boolean)
     .join("; ");
   const commentWithMeta = [b.comment?.trim() || "", meta ? `[CARD] ${meta}` : ""].filter(Boolean).join("\n");
+  const wireIdNum = Number(wireId) || null;
   const ticket = db
     .prepare(
-      `INSERT INTO pending_tickets(model,year,engine,location_name,pin_number,wire_color,source_block,source_pin,destination_block,destination_pin,description,comment)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *`,
+      `INSERT INTO pending_tickets(
+         model,year,engine,location_name,pin_number,wire_color,
+         source_block,source_pin,destination_block,destination_pin,
+         description,comment,wire_id,subject_code,zone,card_url
+       )
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *`,
     )
     .get(
       b.model,
@@ -241,6 +266,10 @@ app.post("/api/tickets", async (req, res) => {
       b.destination_pin ?? "",
       b.description,
       commentWithMeta || null,
+      wireIdNum,
+      subjectCode,
+      zone,
+      cardUrl,
     ) as { id: number };
 
   markTicketAccepted(ip, wireId, payloadHash);
@@ -305,4 +334,5 @@ app.listen(port, () => {
   console.log(`  DATABASE_PATH=${process.env.DATABASE_PATH ?? "data/wiring.sqlite"}`);
   console.log(`  EWD_DATA_DIR=${process.env.EWD_DATA_DIR ?? "data/ewd"}`);
   console.log(`  CLIENT_DIST=${clientDist}`);
+  console.log(`  adminConfigured=${adminConfigured() ? "yes" : "no"}`);
 });
