@@ -12,7 +12,6 @@
 - Поиск DTC / OBD по словарю VIDA
 - Предложения правок с карточек (почта модератору)
 - Мобильный UI: меню фильтров и параметры узла — bottom sheet, карточки на весь экран
-- Админка `/admin`: открыть/закрыть сайт, флаги функций, счётчик посещений (сутки / неделя / месяц / всего)
 
 ## Стек
 
@@ -20,14 +19,13 @@
 |------|------------|
 | UI | React, Vite, Tailwind |
 | API | Express, TypeScript (`tsx`) |
-| Данные | SQLite (`better-sqlite3`): `wiring.sqlite`, `dtc.sqlite` |
-| Схемы | Capital EWD SVG + JSON-индексы в `data/ewd/` |
+| Данные | SQLite (`better-sqlite3`): wiring + DTC |
+| Схемы | Capital EWD SVG + JSON-индексы |
 | Прод | Docker на VPS, Nginx → HTTPS |
 
-## Быстрый старт (локально)
+## Быстрый старт
 
-```powershell
-cd C:\Users\eni19\volvo-xc70-wiring
+```bash
 npm install
 npm run dev
 ```
@@ -38,67 +36,47 @@ npm run dev
 |-----|-----|
 | UI (Vite) | http://localhost:5173 |
 | API | http://localhost:3000 (`/api` проксируется с UI) |
-| Админ | http://localhost:5173/admin |
 
-Нужны на диске:
+В репозитории уже есть основные SQLite и JSON-индексы EWD. Пакет SVG-схем Capital в git не входит — его нужно положить рядом с индексами (см. [DEPLOY.md](./DEPLOY.md)).
 
-- `data/wiring.sqlite`, `data/dtc.sqlite` — в git
-- `data/ewd/*_index.json` — в git
-- `data/ewd/ewd_source/…` — SVG-пакет Capital (**не** в git; один раз положить локально / на VPS)
-
-Скопируйте `.env.example` → `.env`. Для админки локально задайте `ADMIN_PASSWORD` (и желательно `ADMIN_SECRET`).
+Скопируйте `.env.example` → `.env`.
 
 Проверка:
 
-```powershell
+```bash
 npm run typecheck
 npm test
 ```
 
 ## Данные
 
-| Путь | Назначение |
-|------|------------|
-| `data/wiring.sqlite` | Узлы, провода, зоны (деплой восстанавливает из git) |
-| `data/dtc.sqlite` | Словарь DTC / OBD |
-| `data/ewd/` | Индексы и SVG-источник схем |
-| `data/visits.sqlite` | Счётчик посещений (создаётся на сервере, **не** в git; деплой не затирает) |
-| `data/site-settings.json` | Открыт ли сайт и флаги функций (на volume) |
-| `data/vida_*.json` | PN / BOM с EPC для карточек |
+| Что | Назначение |
+|-----|------------|
+| Wiring SQLite | Узлы, провода, зоны |
+| DTC SQLite | Словарь DTC / OBD |
+| EWD indexes + SVG | Индексы и исходник схем Capital |
+| VIDA / EPC JSON | Номера деталей на карточках |
 
 Опциональный импорт PDF-мануала (не нужен для основного EWD):
 
-```powershell
-npm run import:manual -- "C:\path\to\manual.pdf"
+```bash
+npm run import:manual -- path/to/manual.pdf
 ```
-
-## Админ
-
-Страница: `/admin` (пароль из `ADMIN_PASSWORD`).
-
-- Доступность сайта и отдельные функции (схемы, VIN, навигация, DTC, предложения)
-- Посещения: сутки / неделя / месяц / всего и лента «когда заходили»
-- Ручное добавление узлов / проводов в SQLite
-
-Заявки с ✎ на карточке уходят на `MODERATOR_EMAIL` через SMTP (см. `.env.example`). Секреты только в `/opt/ewd-app/.env` на VPS — не коммитить.
 
 ## Деплой
 
 Подробно: [DEPLOY.md](./DEPLOY.md).
 
-Кратко (веб-консоль VPS; SSH с ПК часто таймаутится):
+Кратко на сервере:
 
 ```bash
-cd /opt/ewd-app
 git fetch origin
 git checkout -f master
 git reset --hard origin/master
 BUILD=1 bash deploy.sh
 ```
 
-- Каталог: `/opt/ewd-app` · контейнер: `volvo-xc70-wiring` · порт: `3000`
-- Код и sqlite — из git; SVG `ewd_source` — отдельно (`fetch-ewd.sh` / FTP)
-- После смены только `.env` достаточно перезапуска контейнера (без обязательного `BUILD=1`)
+Код и sqlite — из git; SVG-пакет схем — отдельно. После смены только `.env` достаточно перезапуска контейнера (без обязательного `BUILD=1`).
 
 ## Важно
 
