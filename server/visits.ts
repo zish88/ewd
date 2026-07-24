@@ -4,10 +4,15 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 export type VisitStats = {
-  day: number;
+  /** Calendar day UTC (date(visited_at) = date('now')). */
+  today: number;
+  /** Previous calendar day UTC. */
+  yesterday: number;
   week: number;
   month: number;
   total: number;
+  /** Distinct sessions with a visit in the last 30 minutes. */
+  online30m: number;
   recent: Array<{ id: number; visitedAt: string; path: string }>;
 };
 
@@ -102,8 +107,29 @@ export function getVisitStats(limitRecent = 40): VisitStats {
         n: number;
       }).n,
     );
+  const countOnCalendarDay = (sqliteDateExpr: string) =>
+    Number(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM visits
+             WHERE date(visited_at) = ${sqliteDateExpr}`,
+          )
+          .get() as { n: number }
+      ).n,
+    );
 
   const total = Number((db.prepare(`SELECT COUNT(*) AS n FROM visits`).get() as { n: number }).n);
+  const online30m = Number(
+    (
+      db
+        .prepare(
+          `SELECT COUNT(DISTINCT session_id) AS n FROM visits
+           WHERE visited_at >= datetime('now', '-30 minutes')`,
+        )
+        .get() as { n: number }
+    ).n,
+  );
   const recentRows = db
     .prepare(
       `SELECT id, visited_at AS visitedAt, path
@@ -114,10 +140,12 @@ export function getVisitStats(limitRecent = 40): VisitStats {
     .all(Math.min(200, Math.max(1, limitRecent))) as Array<{ id: number; visitedAt: string; path: string }>;
 
   return {
-    day: countSince("-1 day"),
+    today: countOnCalendarDay(`date('now')`),
+    yesterday: countOnCalendarDay(`date('now', '-1 day')`),
     week: countSince("-7 days"),
     month: countSince("-30 days"),
     total,
+    online30m,
     recent: recentRows,
   };
 }

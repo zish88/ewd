@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Features = {
   suggestions: boolean;
@@ -15,10 +15,12 @@ type Settings = {
 };
 
 type VisitStats = {
-  day: number;
+  today: number;
+  yesterday: number;
   week: number;
   month: number;
   total: number;
+  online30m: number;
   recent: Array<{ id: number; visitedAt: string; path: string }>;
 };
 
@@ -136,6 +138,9 @@ export function AdminPage() {
   const [currentWire, setCurrentWire] = useState<WireRow | null>(null);
   const [editForm, setEditForm] = useState<WireForm>(emptyWireForm());
   const [editWireId, setEditWireId] = useState("");
+  const [editPanelOpen, setEditPanelOpen] = useState(false);
+  const [editActionBadge, setEditActionBadge] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const editBadgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [syncInfo, setSyncInfo] = useState<{
     today: number;
@@ -188,6 +193,20 @@ export function AdminPage() {
     setSyncInfo({ today: Number(d.today) || 0, lastSync: d.lastSync || null });
   }
 
+  function flashEditBadge(tone: "ok" | "bad", text: string) {
+    if (editBadgeTimer.current) clearTimeout(editBadgeTimer.current);
+    setEditActionBadge({ tone, text });
+    editBadgeTimer.current = setTimeout(() => setEditActionBadge(null), 2800);
+  }
+
+  function clearEditWorkspace() {
+    setActiveTicket(null);
+    setCurrentWire(null);
+    setEditForm(emptyWireForm());
+    setEditWireId("");
+    setEditPanelOpen(false);
+  }
+
   async function openTicket(id: number) {
     setNotice("");
     const r = await fetch(`/api/admin/tickets/${id}`, { credentials: "include" });
@@ -215,6 +234,9 @@ export function AdminPage() {
         subject_code: ticket.subject_code || ticket.location_name || "",
       });
     }
+    if (ticket.status === "pending" || wire || ticket.wire_id) {
+      setEditPanelOpen(true);
+    }
   }
 
   async function loadWireById() {
@@ -233,6 +255,7 @@ export function AdminPage() {
     const wire = d.wire as WireRow;
     setCurrentWire(wire);
     setEditForm(wireToForm(wire));
+    setEditPanelOpen(true);
     setNotice(`Карточка #${wire.id} загружена`);
   }
 
@@ -245,13 +268,14 @@ export function AdminPage() {
     setSaving(true);
     setNotice("");
     try {
+      const ticketId = activeTicket?.id ?? null;
       const r = await fetch(`/api/admin/wires/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...editForm,
-          ticket_id: activeTicket?.id || null,
+          ticket_id: ticketId,
         }),
       });
       const d = await r.json();
@@ -259,16 +283,16 @@ export function AdminPage() {
         setNotice(d.error || "Ошибка сохранения");
         return;
       }
-      setCurrentWire(d.wire as WireRow);
-      setNotice(
-        activeTicket
-          ? `Сохранено · карточка #${id} · заявка #${activeTicket.id} закрыта`
-          : `Сохранено · карточка #${id} (сайт обновлён сразу)`,
-      );
       await loadTickets();
       await loadCorrections();
-      if (activeTicket) {
-        setActiveTicket({ ...activeTicket, status: "approved" });
+      if (ticketId) {
+        clearEditWorkspace();
+        const msg = `Заявка #${ticketId} одобрена`;
+        setNotice(msg);
+        flashEditBadge("ok", msg);
+      } else {
+        setCurrentWire(d.wire as WireRow);
+        setNotice(`Сохранено · карточка #${id} (сайт обновлён сразу)`);
       }
     } finally {
       setSaving(false);
@@ -277,7 +301,8 @@ export function AdminPage() {
 
   async function rejectTicket() {
     if (!activeTicket) return;
-    const r = await fetch(`/api/admin/tickets/${activeTicket.id}`, {
+    const ticketId = activeTicket.id;
+    const r = await fetch(`/api/admin/tickets/${ticketId}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -288,10 +313,10 @@ export function AdminPage() {
       setNotice(d.error || "Не удалось отклонить");
       return;
     }
-    setNotice(`Заявка #${activeTicket.id} отклонена`);
-    setActiveTicket(null);
-    setCurrentWire(null);
-    setEditForm(emptyWireForm());
+    clearEditWorkspace();
+    const msg = `Заявка #${ticketId} отклонена`;
+    setNotice(msg);
+    flashEditBadge("bad", msg);
     await loadTickets();
   }
 
@@ -355,6 +380,12 @@ export function AdminPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (editBadgeTimer.current) clearTimeout(editBadgeTimer.current);
+    };
+  }, []);
+
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setNotice("");
@@ -403,7 +434,7 @@ export function AdminPage() {
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] px-4 py-6">
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-3xl md:max-w-5xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-[var(--accent)]">Админ · Volvo EWD</h1>
           <a
@@ -519,137 +550,179 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
             </section>
 
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 text-xs">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Правка карточки</h2>
-              {activeTicket ? (
-                <div className="rounded-lg border border-amber-600/40 bg-amber-500/5 p-3 space-y-1 text-sm">
-                  <div className="font-medium text-amber-800 dark:text-amber-200">
-                    Заявка #{activeTicket.id} · {activeTicket.status}
+              <details
+                className="group"
+                open={editPanelOpen}
+                onToggle={(e) => setEditPanelOpen(e.currentTarget.open)}
+              >
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 select-none [&::-webkit-details-marker]:hidden">
+                  <span className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Правка карточки
+                    <span className="ml-2 text-[10px] font-normal normal-case text-[var(--text-muted)]">
+                      {editPanelOpen ? "▾" : "▸"}
+                    </span>
+                  </span>
+                  {editActionBadge ? (
+                    <span
+                      className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        editActionBadge.tone === "ok"
+                          ? "bg-emerald-600/15 text-emerald-700"
+                          : "bg-red-600/15 text-red-700"
+                      }`}
+                    >
+                      {editActionBadge.text}
+                    </span>
+                  ) : null}
+                </summary>
+
+                <div className="mt-3 space-y-3">
+                  {activeTicket ? (
+                    <div className="rounded-lg border border-amber-600/40 bg-amber-500/5 p-3 space-y-1 text-sm">
+                      <div className="font-medium text-amber-800 dark:text-amber-200">
+                        Заявка #{activeTicket.id} · {activeTicket.status}
+                      </div>
+                      <div className="text-[var(--text-muted)]">
+                        Авто: {activeTicket.model}, {activeTicket.year}, {activeTicket.engine}
+                        {activeTicket.zone ? ` · зона ${activeTicket.zone}` : ""}
+                      </div>
+                      <div>
+                        Предложение: пин <strong>{activeTicket.pin_number}</strong>, цвет{" "}
+                        <strong>{activeTicket.wire_color}</strong>
+                      </div>
+                      <div>
+                        Откуда: {activeTicket.source_block} → Куда: {activeTicket.destination_block}
+                      </div>
+                      <div>Описание: {activeTicket.description}</div>
+                      {activeTicket.user_comment ? <div>Комментарий: {activeTicket.user_comment}</div> : null}
+                      {activeTicket.card_url ? (
+                        <a
+                          className="text-emerald-700 underline break-all"
+                          href={activeTicket.card_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Открыть карточку на сайте
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-[var(--text-muted)]">Выберите заявку слева или загрузите карточку по ID.</p>
+                  )}
+
+                  <div className="flex gap-2 items-end">
+                    <label className="flex-1 space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Wire ID</span>
+                      <input
+                        className={inputClass}
+                        value={editWireId}
+                        onChange={(e) => {
+                          setEditWireId(e.target.value);
+                          if (e.target.value.trim()) setEditPanelOpen(true);
+                        }}
+                        onFocus={() => {
+                          if (editWireId.trim() || activeTicket?.status === "pending") setEditPanelOpen(true);
+                        }}
+                        placeholder="например 1636"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded border border-[var(--border-color)] px-3 py-1.5"
+                      onClick={() => void loadWireById()}
+                    >
+                      Загрузить
+                    </button>
                   </div>
-                  <div className="text-[var(--text-muted)]">
-                    Авто: {activeTicket.model}, {activeTicket.year}, {activeTicket.engine}
-                    {activeTicket.zone ? ` · зона ${activeTicket.zone}` : ""}
-                  </div>
-                  <div>
-                    Предложение: пин <strong>{activeTicket.pin_number}</strong>, цвет{" "}
-                    <strong>{activeTicket.wire_color}</strong>
-                  </div>
-                  <div>
-                    Откуда: {activeTicket.source_block} → Куда: {activeTicket.destination_block}
-                  </div>
-                  <div>Описание: {activeTicket.description}</div>
-                  {activeTicket.user_comment ? <div>Комментарий: {activeTicket.user_comment}</div> : null}
-                  {activeTicket.card_url ? (
-                    <a className="text-emerald-700 underline break-all" href={activeTicket.card_url} target="_blank" rel="noreferrer">
-                      Открыть карточку на сайте
-                    </a>
+
+                  {currentWire ? (
+                    <p className="text-[var(--text-muted)]">
+                      Сейчас в БД: #{currentWire.id} · {currentWire.subject_code} · пин {currentWire.pin_number} ·{" "}
+                      {currentWire.wire_color_raw}
+                    </p>
+                  ) : null}
+
+                  {editWireId.trim() || activeTicket?.status === "pending" ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          className={inputClass}
+                          placeholder="subject 74/411"
+                          value={editForm.subject_code}
+                          onChange={(e) => setEditForm({ ...editForm, subject_code: e.target.value })}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="Пин"
+                          value={editForm.pin_number}
+                          onChange={(e) => setEditForm({ ...editForm, pin_number: e.target.value })}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="Цвет (GN-YE)"
+                          value={editForm.wire_color_raw}
+                          onChange={(e) => setEditForm({ ...editForm, wire_color_raw: e.target.value })}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="Harness"
+                          value={editForm.harness_left}
+                          onChange={(e) => setEditForm({ ...editForm, harness_left: e.target.value })}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="Откуда (код)"
+                          value={editForm.from_code}
+                          onChange={(e) => setEditForm({ ...editForm, from_code: e.target.value })}
+                        />
+                        <input
+                          className={inputClass}
+                          placeholder="Куда (код)"
+                          value={editForm.to_code}
+                          onChange={(e) => setEditForm({ ...editForm, to_code: e.target.value })}
+                        />
+                        <input
+                          className={`${inputClass} col-span-2`}
+                          placeholder="Откуда (текст)"
+                          value={editForm.from_detail}
+                          onChange={(e) => setEditForm({ ...editForm, from_detail: e.target.value })}
+                        />
+                        <input
+                          className={`${inputClass} col-span-2`}
+                          placeholder="Куда (текст)"
+                          value={editForm.to_detail}
+                          onChange={(e) => setEditForm({ ...editForm, to_detail: e.target.value })}
+                        />
+                        <input
+                          className={`${inputClass} col-span-2`}
+                          placeholder="Описание / function"
+                          value={editForm.function_text}
+                          onChange={(e) => setEditForm({ ...editForm, function_text: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          disabled={saving || !editWireId.trim()}
+                          className="flex-1 rounded bg-emerald-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50"
+                          onClick={() => void saveWireEdit()}
+                        >
+                          {saving ? "Сохранение…" : "SAVE · обновить карточку"}
+                        </button>
+                        {activeTicket?.status === "pending" ? (
+                          <button
+                            type="button"
+                            className="rounded border border-red-500/50 text-red-700 px-3 py-2"
+                            onClick={() => void rejectTicket()}
+                          >
+                            Отклонить заявку
+                          </button>
+                        ) : null}
+                      </div>
+                    </>
                   ) : null}
                 </div>
-              ) : (
-                <p className="text-[var(--text-muted)]">Выберите заявку слева или загрузите карточку по ID.</p>
-              )}
-
-              <div className="flex gap-2 items-end">
-                <label className="flex-1 space-y-1">
-                  <span className="text-[10px] uppercase text-[var(--muted)]">Wire ID</span>
-                  <input
-                    className={inputClass}
-                    value={editWireId}
-                    onChange={(e) => setEditWireId(e.target.value)}
-                    placeholder="например 1636"
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="rounded border border-[var(--border-color)] px-3 py-1.5"
-                  onClick={() => void loadWireById()}
-                >
-                  Загрузить
-                </button>
-              </div>
-
-              {currentWire ? (
-                <p className="text-[var(--text-muted)]">
-                  Сейчас в БД: #{currentWire.id} · {currentWire.subject_code} · пин {currentWire.pin_number} ·{" "}
-                  {currentWire.wire_color_raw}
-                </p>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className={inputClass}
-                  placeholder="subject 74/411"
-                  value={editForm.subject_code}
-                  onChange={(e) => setEditForm({ ...editForm, subject_code: e.target.value })}
-                />
-                <input
-                  className={inputClass}
-                  placeholder="Пин"
-                  value={editForm.pin_number}
-                  onChange={(e) => setEditForm({ ...editForm, pin_number: e.target.value })}
-                />
-                <input
-                  className={inputClass}
-                  placeholder="Цвет (GN-YE)"
-                  value={editForm.wire_color_raw}
-                  onChange={(e) => setEditForm({ ...editForm, wire_color_raw: e.target.value })}
-                />
-                <input
-                  className={inputClass}
-                  placeholder="Harness"
-                  value={editForm.harness_left}
-                  onChange={(e) => setEditForm({ ...editForm, harness_left: e.target.value })}
-                />
-                <input
-                  className={inputClass}
-                  placeholder="Откуда (код)"
-                  value={editForm.from_code}
-                  onChange={(e) => setEditForm({ ...editForm, from_code: e.target.value })}
-                />
-                <input
-                  className={inputClass}
-                  placeholder="Куда (код)"
-                  value={editForm.to_code}
-                  onChange={(e) => setEditForm({ ...editForm, to_code: e.target.value })}
-                />
-                <input
-                  className={`${inputClass} col-span-2`}
-                  placeholder="Откуда (текст)"
-                  value={editForm.from_detail}
-                  onChange={(e) => setEditForm({ ...editForm, from_detail: e.target.value })}
-                />
-                <input
-                  className={`${inputClass} col-span-2`}
-                  placeholder="Куда (текст)"
-                  value={editForm.to_detail}
-                  onChange={(e) => setEditForm({ ...editForm, to_detail: e.target.value })}
-                />
-                <input
-                  className={`${inputClass} col-span-2`}
-                  placeholder="Описание / function"
-                  value={editForm.function_text}
-                  onChange={(e) => setEditForm({ ...editForm, function_text: e.target.value })}
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  disabled={saving}
-                  className="flex-1 rounded bg-emerald-600 text-white py-2.5 text-sm font-semibold disabled:opacity-50"
-                  onClick={() => void saveWireEdit()}
-                >
-                  {saving ? "Сохранение…" : "SAVE · обновить карточку"}
-                </button>
-                {activeTicket && activeTicket.status === "pending" ? (
-                  <button
-                    type="button"
-                    className="rounded border border-red-500/50 text-red-700 px-3 py-2"
-                    onClick={() => void rejectTicket()}
-                  >
-                    Отклонить заявку
-                  </button>
-                ) : null}
-              </div>
+              </details>
 
               <div className="rounded-lg border border-[var(--border-color)] p-3 space-y-1 text-[var(--text-muted)]">
                 <div>
@@ -676,26 +749,31 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
               </div>
               {visits ? (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {(
                       [
-                        ["Сутки", visits.day],
+                        ["Сегодня", visits.today],
+                        ["Вчера", visits.yesterday],
+                        ["Онлайн", visits.online30m],
                         ["Неделя", visits.week],
                         ["Месяц", visits.month],
                         ["Всего", visits.total],
                       ] as const
                     ).map(([label, n]) => (
-                      <div key={label} className="rounded-lg border border-[var(--border-color)] px-3 py-2">
+                      <div key={label} className="rounded-lg border border-[var(--border-color)] px-3 py-2.5 min-h-[4.25rem]">
                         <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
-                        <div className="text-xl font-semibold tabular-nums text-[var(--accent)]">{n}</div>
+                        <div className="text-2xl font-semibold tabular-nums text-[var(--accent)] leading-tight mt-0.5">{n}</div>
                       </div>
                     ))}
                   </div>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Онлайн — уникальные сессии за последние 30 мин. Сегодня/вчера — календарные сутки UTC.
+                  </p>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-1">Когда заходили</h3>
                   {visits.recent.length === 0 ? (
                     <p className="text-sm text-[var(--text-muted)]">Пока нет записей.</p>
                   ) : (
-                    <ul className="max-h-40 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                    <ul className="max-h-40 md:max-h-64 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
                       {visits.recent.map((v) => (
                         <li key={v.id} className="flex items-baseline justify-between gap-3 py-1.5">
                           <span className="tabular-nums text-[var(--text-main)]">{formatVisitAt(v.visitedAt)}</span>

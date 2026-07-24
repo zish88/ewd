@@ -29,9 +29,11 @@ describe("visits", () => {
 
     const stats = getVisitStats(10);
     assert.equal(stats.total, 2);
-    assert.equal(stats.day, 2);
+    assert.equal(stats.today, 2);
+    assert.equal(stats.yesterday, 0);
     assert.equal(stats.week, 2);
     assert.equal(stats.month, 2);
+    assert.equal(stats.online30m, 2);
     assert.equal(stats.recent.length, 2);
   });
 });
