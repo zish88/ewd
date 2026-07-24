@@ -6,8 +6,8 @@ export type SiteFeatures = {
   suggestions: boolean;
   /** EWD SVG diagrams / «Показать на схеме». */
   ewdDiagrams: boolean;
-  /** PDF pinout tables. */
-  pdfTables: boolean;
+  /** @deprecated Capital FaceViews replace PDF tables — kept for old admin JSON. */
+  pdfTables?: boolean;
   /** VIN decode. */
   vinSearch: boolean;
   /** Zone / component navigation. */
@@ -28,7 +28,7 @@ const DEFAULTS: SiteSettings = {
   features: {
     suggestions: true,
     ewdDiagrams: true,
-    pdfTables: true,
+    pdfTables: false,
     vinSearch: true,
     navBrowse: true,
     dtcSearch: true,

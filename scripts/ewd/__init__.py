@@ -1,1 +1,1 @@
-"""Dealer EWD (Capital/CHS) extractors — SVG + XML catalogs under E:/manual/ewd_source."""
+"""Dealer EWD (Capital/CHS) extractors — SVG + XML under data/ewd/ewd_source (mirror of E:/manual)."""

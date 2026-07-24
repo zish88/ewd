@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createRoot } from "react-dom/client";
-import * as pdfjsLib from "pdfjs-dist";
 import { highlightTarget, syncPinMarkerScreenSize } from "./ewdHighlight.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
 import {
@@ -24,12 +23,11 @@ import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-
 type Result = {
   id?: number; bookId?: number; book_id?: number; manualId?: number;
   page_number?: number; pinout_page_number?: number; diagram_page_number?: number;
   sourcePage?: number; page?: number; pin_number?: string;
+  pin_uid?: string; wire_uid?: string; system_uid?: string; option_expression?: string;
   wire_color?: string; wire_color_ru?: string; wire_color_label?: string;
   component_code?: string; component_type_ru?: string; from_node?: string; to_node?: string;
   via_node?: string; via_code?: string; from_detail?: string; to_detail?: string;
@@ -42,6 +40,12 @@ type Result = {
   match_role?: "owner" | "transit"; card_title?: string; part_number?: string;
   voltage?: string; wire_gauge?: string;
 };
+
+type CapitalPanel =
+  | { kind: "faceview"; code: string; pin?: string }
+  | { kind: "location"; code: string }
+  | { kind: "report"; report: "fuse" | "inline" | "splice" | "grounds" }
+  | { kind: "intro"; slug: string };
 type EwdDiagram = {
   diagramUid: string;
   title: string;
@@ -52,13 +56,24 @@ type EwdDiagram = {
   groups?: Array<{ schemClass: string; uids: string[]; pathCount: number }>;
 };
 type EwdEndpoint = { from: string; to: string; color: string; wireName: string; pinFrom?: string; pinTo?: string };
+type WireEndFocus = {
+  code: string;
+  pin?: string;
+  pinCandidates?: string[];
+  uid?: string;
+  role?: "from" | "to" | "selected" | "peer";
+};
 type WireFocus = {
   pin?: string;
   pinCandidates?: string[];
   wireColor?: string;
   peerCode?: string;
+  peerPin?: string;
   pinFrom?: string;
   pinTo?: string;
+  fromCode?: string;
+  toCode?: string;
+  ends?: WireEndFocus[];
 };
 type ActiveSvg = {
   diagramUid: string;
@@ -68,16 +83,129 @@ type ActiveSvg = {
   pinCandidates?: string[];
   wireColor?: string;
   peerCode?: string;
+  peerPin?: string;
   zone?: string;
   /** Netlist pins from highlight match (optional, improves opposite-end scoring) */
   pinFrom?: string;
   pinTo?: string;
+  fromCode?: string;
+  toCode?: string;
+  ends?: WireEndFocus[];
   /** Vehicle option tokens for Capital optionExpression filter */
   optionTokens?: string[];
   /** Increments on every «Показать на схеме» — forces marker re-inject + recenter (never toggle-off). */
   showSeq?: number;
 };
-type ActivePdf = { bookId: number; page: number; search?: string };
+function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: () => void }) {
+  const [html, setHtml] = useState("");
+  const [svg, setSvg] = useState("");
+  const [pins, setPins] = useState<Array<Record<string, unknown>>>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setErr(null);
+    setHtml("");
+    setSvg("");
+    setPins([]);
+    const run = async () => {
+      try {
+        if (panel.kind === "faceview") {
+          const qs = new URLSearchParams({ code: panel.code });
+          if (panel.pin) qs.set("pin", panel.pin);
+          const data = await fetch(`/api/ewd/faceview?${qs}`).then((r) => r.json());
+          if (!alive) return;
+          setHtml(String(data.html || ""));
+          setPins(Array.isArray(data.pins) ? data.pins : []);
+        } else if (panel.kind === "location") {
+          const data = await fetch(`/api/ewd/location?code=${encodeURIComponent(panel.code)}`).then((r) =>
+            r.json(),
+          );
+          if (!alive) return;
+          setSvg(String(data.svg || ""));
+          if (!data.svg) setErr("Нет Location View для этого кода");
+        } else if (panel.kind === "report") {
+          const text = await fetch(`/api/ewd/report/${panel.report}`).then((r) => r.text());
+          if (!alive) return;
+          setHtml(text);
+        } else if (panel.kind === "intro") {
+          const text = await fetch(`/api/ewd/intro/${panel.slug}`).then((r) => r.text());
+          if (!alive) return;
+          setHtml(text);
+        }
+      } catch (e) {
+        if (alive) setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      alive = false;
+    };
+  }, [panel]);
+  const title =
+    panel.kind === "faceview"
+      ? `Разъём ${panel.code}`
+      : panel.kind === "location"
+        ? `Расположение ${panel.code}`
+        : panel.kind === "report"
+          ? `Отчёт: ${panel.report}`
+          : "Справка";
+  return (
+    <div className="flex flex-col h-full min-h-0" data-testid="capital-panel">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-[var(--border-color)] bg-[var(--input-bg)] text-xs shrink-0">
+        <span className="font-semibold truncate">{title}</span>
+        <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={onClose}>
+          Закрыть
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto p-2 bg-[var(--bg-card)]">
+        {loading ? <p className="text-xs text-[var(--text-muted)]">Загрузка…</p> : null}
+        {err ? <p className="text-xs text-red-600">{err}</p> : null}
+        {pins.length > 0 ? (
+          <div className="mb-3 overflow-auto">
+            <table className="w-full text-[11px] font-mono border-collapse">
+              <thead>
+                <tr className="text-left text-[var(--text-muted)]">
+                  <th className="p-1 border-b">Pin</th>
+                  <th className="p-1 border-b">Color</th>
+                  <th className="p-1 border-b">Wire</th>
+                  <th className="p-1 border-b">Peer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pins.slice(0, 80).map((row, i) => (
+                  <tr key={i} className="border-b border-[var(--border-color)]/40">
+                    <td className="p-1">{String(row.cavity || "")}</td>
+                    <td className="p-1">{String(row.color || "")}</td>
+                    <td className="p-1 truncate max-w-[120px]">{String(row.wireName || "")}</td>
+                    <td className="p-1">
+                      {String(row.peerCode || "")}
+                      {row.peerPin ? `:${String(row.peerPin)}` : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        {svg ? <div className="ewd-location-svg" dangerouslySetInnerHTML={{ __html: svg }} /> : null}
+        {html && !pins.length ? (
+          <iframe title={title} className="w-full min-h-[70vh] border-0 bg-white" srcDoc={html} />
+        ) : null}
+        {html && pins.length ? (
+          <details className="mt-2">
+            <summary className="text-[11px] cursor-pointer text-[var(--text-muted)]">Исходный FaceView HTML</summary>
+            <iframe title={title} className="w-full min-h-[40vh] border-0 bg-white mt-1" srcDoc={html} />
+          </details>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 type NavItem = {
   code: string;
   label: string;
@@ -97,10 +225,10 @@ type FilterAvailable = {
   transmissions: TransmissionOpt[];
 };
 const colors = WIRE_COLOR_HEX;
-/** RD-GY → «Красный-Серый (RD-GY)» */
+/** RD-GY ??? ????????????????-?????????? (RD-GY)?? */
 function decodeWireColor(colorCode: string | undefined | null): string {
   const raw = normalizeWireColorKey(colorCode);
-  if (!raw || raw === "—") return "—";
+  if (!raw || raw === "???") return "???";
   const names = raw.split("-").filter(Boolean).map((part) => WIRE_COLOR_RU[part] || part);
   return `${names.join("-")} (${raw})`;
 }
@@ -139,254 +267,6 @@ const getColorStyle = (colorCode: string) => {
   };
 };
 
-interface PDFCanvasViewerProps {
-  bookId: number;
-  pageNumber: number;
-  searchTarget: string | null;
-  zoom: number;
-}
-
-/** Normalize Volvo component labels from PDF text items (unicode slashes, spaces). */
-function normalizePdfLabel(s: string): string {
-  return String(s || "")
-    .toUpperCase()
-    .replace(/[\u2215\u2044／]/g, "/")
-    .replace(/\s+/g, "")
-    .trim();
-}
-
-type PdfTextBox = { x: number; y: number; w: number; h: number; text: string; midY: number; endX: number };
-
-function findPdfHighlights(
-  items: Array<{ str: string; transform: number[]; width: number; height: number }>,
-  searchTarget: string,
-  viewportTransform: number[],
-  scale: number,
-): Array<{ x: number; y: number; w: number; h: number; text: string }> {
-  const target = normalizePdfLabel(searchTarget);
-  if (!target) return [];
-  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const exactPattern = new RegExp(`(?:^|[^A-Z0-9/])${escaped}(?![0-9A-Z])`, "i");
-
-  const boxes: PdfTextBox[] = [];
-  for (const item of items) {
-    const raw = String(item.str || "");
-    if (!raw.trim()) continue;
-    const tx = pdfjsLib.Util.transform(viewportTransform, item.transform);
-    const h = Math.max(item.height * scale, 4);
-    const w = Math.max(item.width * scale, 2);
-    boxes.push({
-      x: tx[4],
-      y: tx[5] - h,
-      w,
-      h: h * 1.3,
-      text: raw,
-      midY: tx[5] - h / 2,
-      endX: tx[4] + w,
-    });
-  }
-  boxes.sort((a, b) => (a.midY - b.midY) || (a.x - b.x));
-
-  const found: Array<{ x: number; y: number; w: number; h: number; text: string }> = [];
-  const pushUnique = (box: { x: number; y: number; w: number; h: number; text: string }) => {
-    if (box.w < 2 || box.h < 2) return;
-    const dup = found.some(
-      (f) => Math.abs(f.x - box.x) < 3 && Math.abs(f.y - box.y) < 3 && Math.abs(f.w - box.w) < 6,
-    );
-    if (!dup) found.push(box);
-  };
-
-  const matchesTarget = (joined: string) => {
-    const n = normalizePdfLabel(joined);
-    return n === target || exactPattern.test(n) || exactPattern.test(joined);
-  };
-
-  // 1) Single glyph / word
-  for (const b of boxes) {
-    if (matchesTarget(b.text)) {
-      pushUnique({ x: b.x, y: b.y, w: b.w, h: b.h, text: b.text });
-    }
-  }
-
-  // 2) Horizontal stitch (split "73" "/" "5019" or "73/" "5019")
-  for (let i = 0; i < boxes.length; i++) {
-    let joined = boxes[i].text;
-    let x0 = boxes[i].x;
-    let y0 = boxes[i].y;
-    let x1 = boxes[i].x + boxes[i].w;
-    let y1 = boxes[i].y + boxes[i].h;
-    for (let j = i + 1; j < Math.min(i + 8, boxes.length); j++) {
-      const prev = boxes[j - 1];
-      const cur = boxes[j];
-      if (Math.abs(cur.midY - boxes[i].midY) > Math.max(10, boxes[i].h * 0.7)) break;
-      if (cur.x - prev.endX > 18) break;
-      joined += cur.text;
-      x0 = Math.min(x0, cur.x);
-      y0 = Math.min(y0, cur.y);
-      x1 = Math.max(x1, cur.x + cur.w);
-      y1 = Math.max(y1, cur.y + cur.h);
-      if (matchesTarget(joined)) {
-        pushUnique({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, text: joined });
-        break;
-      }
-    }
-  }
-
-  // 3) Vertical / nearby stitch for Type/Number (esp. 73/xxx branching points)
-  const parts = target.match(/^(\d+)\/(\d+)$/);
-  if (parts) {
-    const typePart = parts[1];
-    const numPart = parts[2];
-    const typeBoxes = boxes.filter((b) => {
-      const n = normalizePdfLabel(b.text);
-      return n === typePart || n === `${typePart}/`;
-    });
-    const numBoxes = boxes.filter((b) => {
-      const n = normalizePdfLabel(b.text);
-      return n === numPart || n === `/${numPart}`;
-    });
-    for (const a of typeBoxes) {
-      for (const b of numBoxes) {
-        const dx = Math.abs(a.x + a.w / 2 - (b.x + b.w / 2));
-        const dy = b.y - (a.y + a.h);
-        const sameLine = Math.abs(a.midY - b.midY) <= 8 && b.x - a.endX >= -2 && b.x - a.endX <= 20;
-        const stacked = dx <= 36 && dy >= -6 && dy <= 28;
-        if (sameLine || stacked) {
-          const x0 = Math.min(a.x, b.x);
-          const y0 = Math.min(a.y, b.y);
-          const x1 = Math.max(a.x + a.w, b.x + b.w);
-          const y1 = Math.max(a.y + a.h, b.y + b.h);
-          pushUnique({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, text: target });
-        }
-      }
-    }
-  }
-
-  return found;
-}
-
-function PDFCanvasViewer({ bookId, pageNumber, searchTarget, zoom }: PDFCanvasViewerProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const firstHighlightRef = useRef<HTMLDivElement>(null);
-  const [highlights, setHighlights] = useState<Array<{ x: number; y: number; w: number; h: number; text: string }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  // Absolute lock: text search must NEVER change this page index
-  const lockedPageRef = useRef(pageNumber);
-  lockedPageRef.current = pageNumber;
-
-  useEffect(() => {
-    let isCurrent = true;
-    setHighlights([]);
-    setPdfError(null);
-    if (canvasRef.current) {
-      canvasRef.current.width = 0;
-      canvasRef.current.height = 0;
-    }
-    if (!bookId || !Number.isInteger(pageNumber) || pageNumber < 1) {
-      setPdfError("Некорректная страница схемы (нет bookId/page).");
-      setLoading(false);
-      return;
-    }
-    // Load full document; page query is ignored by server — we always call getPage(lockedPage)
-    const loadingTask = pdfjsLib.getDocument({ url: `/api/pdf/view?bookId=${bookId}&page=${pageNumber}` });
-
-    async function renderPdfPage() {
-      if (!canvasRef.current) return;
-      const lockedPage = lockedPageRef.current;
-      setLoading(true);
-      try {
-        const pdf = await loadingTask.promise;
-        if (!isCurrent || lockedPageRef.current !== lockedPage) return;
-        if (lockedPage > pdf.numPages) {
-          setPdfError(`Страница ${lockedPage} отсутствует в PDF (всего ${pdf.numPages}).`);
-          return;
-        }
-        // Ironclad: only the card's page_number — never navigate by find-results
-        const page = await pdf.getPage(lockedPage);
-        if (!isCurrent || lockedPageRef.current !== lockedPage) return;
-        const calculatedScale = zoom / 100 * 1.5;
-        const viewport = page.getViewport({ scale: calculatedScale });
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvas, viewport }).promise;
-        if (!isCurrent || lockedPageRef.current !== lockedPage) return;
-
-        let foundItems: Array<{ x: number; y: number; w: number; h: number; text: string }> = [];
-        try {
-          // Highlight ONLY inside this locked page's text layer (with stitch for 73/xxx)
-          const textContent = await page.getTextContent();
-          if (searchTarget) {
-            const rawItems = textContent.items
-              .filter((it): it is typeof it & { str: string; transform: number[]; width: number; height: number } =>
-                typeof it === "object" && it !== null && "str" in it && "transform" in it,
-              )
-              .map((it) => ({
-                str: String(it.str || ""),
-                transform: it.transform as number[],
-                width: Number(it.width) || 0,
-                height: Number(it.height) || 0,
-              }));
-            foundItems = findPdfHighlights(rawItems, searchTarget, viewport.transform, calculatedScale);
-          }
-        } catch (error) {
-          console.warn("Текстовый слой недоступен на этой странице:", error);
-        }
-        if (isCurrent && lockedPageRef.current === lockedPage) setHighlights(foundItems);
-      } catch (error) {
-        const msg = String((error as Error)?.message || error || "");
-        // Race on unmount/switch: pdf.js destroys transport mid-getPage
-        if (/Worker was destroyed|Transport destroyed|Loading aborted|AbortError/i.test(msg)) return;
-        if (isCurrent) {
-          setPdfError(msg.includes("Invalid page") ? `Страница ${lockedPageRef.current} недоступна в этом PDF.` : "Ошибка рендеринга схемы.");
-          console.error("Критическая ошибка рендеринга холста схемы:", error);
-        }
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    }
-
-    void renderPdfPage();
-    return () => {
-      isCurrent = false;
-      void loadingTask.destroy();
-    };
-  }, [bookId, pageNumber, searchTarget, zoom]);
-
-  // Center viewport on the SVG ping marker after highlights are ready
-  useEffect(() => {
-    if (!highlights.length || loading) return;
-    const id = window.requestAnimationFrame(() => {
-      firstHighlightRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "center",
-      });
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [highlights, loading, pageNumber, searchTarget, zoom]);
-
-  return <div ref={containerRef} data-testid="pdf-viewer" className="w-full h-full bg-[var(--bg-main)] overflow-auto relative p-4 flex items-start justify-center">
-    {loading && <div data-testid="pdf-loading" className="absolute inset-0 z-50 bg-[var(--bg-card)]/70 flex items-center justify-center text-xs font-mono text-emerald-700"><span className="animate-pulse">Загрузка стр. {pageNumber}…</span></div>}
-    {pdfError && <div data-testid="pdf-error" className="absolute inset-0 z-40 flex items-center justify-center text-sm text-rose-600 px-4 text-center">{pdfError}</div>}
-    <div className="relative inline-block mx-auto">
-      <canvas data-testid="pdf-canvas" ref={canvasRef} className="shadow-lg bg-[var(--bg-card)] block rounded border border-[var(--border-color)]" />
-      {highlights.map((box, index) => (
-        <div
-          key={`${box.text}-${index}-${box.x}-${box.y}`}
-          ref={index === 0 ? firstHighlightRef : undefined}
-          data-testid={index === 0 ? "pdf-highlight-primary" : "pdf-highlight"}
-          className="absolute border-2 border-amber-500 bg-amber-300/30 shadow-[0_0_12px_rgba(245,158,11,0.55)] rounded pointer-events-none"
-          style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }}
-          title={`Найден узел: ${box.text}`}
-        />
-      ))}
-    </div>
-  </div>;
-}
 
 function normalizeCodeLabel(s: string): string {
   const m = String(s || "").trim().match(/^(\d+)[A-Z]?\/(\d+)/i);
@@ -495,9 +375,13 @@ function SvgDiagramViewer({
   pinCandidates = [],
   wireColor = "",
   peerCode = "",
+  peerPin = "",
   zone = "",
   pinFrom = "",
   pinTo = "",
+  fromCode = "",
+  toCode = "",
+  ends = [],
   optionTokens = [],
   showSeq = 0,
   onPinMiss,
@@ -531,7 +415,12 @@ function SvgDiagramViewer({
   const [resolveUids, setResolveUids] = useState<string[]>([]);
   const [wireUids, setWireUids] = useState<string[]>([]);
   const [pinUids, setPinUids] = useState<string[]>([]);
-  const [netPins, setNetPins] = useState<{ pinFrom?: string; pinTo?: string }>({});
+  const [netPins, setNetPins] = useState<{
+    pinFrom?: string;
+    pinTo?: string;
+    fromUid?: string;
+    toUid?: string;
+  }>({});
 
   const applyPanZoomDom = () => {
     const pan = panRef.current;
@@ -708,6 +597,8 @@ function SvgDiagramViewer({
         setNetPins({
           pinFrom: String(preferred?.pinFrom || pinFrom || "").trim() || undefined,
           pinTo: String(preferred?.pinTo || pinTo || "").trim() || undefined,
+          fromUid: String(preferred?.fromUid || "").trim() || undefined,
+          toUid: String(preferred?.toUid || "").trim() || undefined,
         });
         setHighlightReady(true);
       })
@@ -780,26 +671,63 @@ function SvgDiagramViewer({
     const svg = root.querySelector("svg") as SVGSVGElement | null;
     if (!svg) return;
 
-    const candidates = [
+    const selectedPins = [
       ...new Set(
-        [
-          pin,
-          ...pinCandidates,
-          netPins.pinFrom,
-          netPins.pinTo,
-          pinFrom,
-          pinTo,
-        ]
-          .map((p) => String(p || "").trim())
-          .filter(Boolean),
+        [pin, ...pinCandidates].map((p) => String(p || "").trim()).filter(Boolean),
       ),
     ];
-    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${candidates.join("/")}|${wireColor}|${peerCode}|${showSeq}|${resolveUids.join(",")}|${wireUids.join(",")}`;
+    const endFromCode = normalizeCodeLabel(fromCode);
+    const endToCode = normalizeCodeLabel(toCode);
+    const wireEnds: WireEndFocus[] =
+      Array.isArray(ends) && ends.length
+        ? ends
+        : [
+            ...(endFromCode
+              ? [
+                  {
+                    code: endFromCode,
+                    pin: String(netPins.pinFrom || pinFrom || "").trim(),
+                    pinCandidates: [netPins.pinFrom || pinFrom || ""].filter(Boolean),
+                    uid: netPins.fromUid,
+                    role: "from" as const,
+                  },
+                ]
+              : []),
+            ...(endToCode && endToCode !== endFromCode
+              ? [
+                  {
+                    code: endToCode,
+                    pin: String(netPins.pinTo || pinTo || peerPin || "").trim(),
+                    pinCandidates: [netPins.pinTo || pinTo || peerPin || ""].filter(Boolean),
+                    uid: netPins.toUid,
+                    role: "to" as const,
+                  },
+                ]
+              : []),
+          ];
+    // Fallback: selected node + peer when card ends missing
+    if (!wireEnds.length) {
+      wireEnds.push({
+        code: normalizeCodeLabel(searchCode),
+        pin: selectedPins[0] || "",
+        pinCandidates: selectedPins,
+        role: "selected",
+      });
+      if (peerCode && normalizeCodeLabel(peerCode) !== normalizeCodeLabel(searchCode)) {
+        wireEnds.push({
+          code: normalizeCodeLabel(peerCode),
+          pin: peerPin || pinTo || "",
+          pinCandidates: [peerPin || pinTo || ""].filter(Boolean),
+          role: "peer",
+        });
+      }
+    }
+    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${wireEnds.map((e) => `${e.code}:${e.pin || ""}`).join("/")}|${wireColor}|${showSeq}|${resolveUids.join(",")}|${wireUids.join(",")}`;
 
     const result = highlightTarget(root, svg, {
       connectorCode: searchCode,
-      pinNumber: candidates[0] || pin,
-      pinCandidates: candidates,
+      pinNumber: selectedPins[0] || pin,
+      pinCandidates: selectedPins,
       wireColor,
       systemUid: resolveUids[0],
       resolveUids,
@@ -807,25 +735,15 @@ function SvgDiagramViewer({
       pinUids,
       diagramUid,
       peerCode,
+      peerPin: peerPin || pinTo || netPins.pinTo,
+      ends: wireEnds,
     });
-    if (!candidates.length && !svg.querySelector("g.pin-marker")) {
-      highlightTarget(root, svg, {
-        connectorCode: searchCode,
-        pinNumber: "",
-        wireColor,
-        systemUid: resolveUids[0],
-        resolveUids,
-        wireUids,
-        pinUids,
-        diagramUid,
-        peerCode,
-      });
-    }
     syncPinMarkerScreenSize(svg);
 
     paintedKeyRef.current = focusKey;
 
-    if (candidates.length && result.stage === "none") {
+    // Only flip sheets when nothing useful was drawn (no wire paint AND no markers).
+    if (selectedPins.length && result.stage === "none") {
       onPinMissRef.current?.(result.reason || "pin-miss");
       applyPanZoomDom();
       return;
@@ -848,11 +766,17 @@ function SvgDiagramViewer({
     pinCandidates,
     wireColor,
     peerCode,
+    peerPin,
     pinFrom,
     pinTo,
+    fromCode,
+    toCode,
+    ends,
     showSeq,
     netPins.pinFrom,
     netPins.pinTo,
+    netPins.fromUid,
+    netPins.toUid,
     highlightReady,
   ]);
 
@@ -1033,23 +957,20 @@ function renderWireCard(
   setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string } | null) => void,
   selectedPinState: { id: string | number; code: string; color: string; pin: string } | null,
   onOpenDiagram: (searchCode: string, preferredUid?: string, wire?: WireFocus, card?: Result) => void,
-  setActivePdf: (v: ActivePdf | null) => void,
+  setCapitalPanel: (v: CapitalPanel | null) => void,
   setActiveSvg: (v: ActiveSvg | null) => void,
   setNotice: (v: string) => void,
   setEditingItem: (v: any) => void,
   suggestionsEnabled = true,
-  pdfTablesEnabled = true,
   cardContext?: { zone: string; code: string; model: string; year: string; engine: string },
 ) {
   const itemId = item.id || `search-${index}`;
   const isThis = selectedPinState?.id === itemId;
   const wireRu = item.wire_color_ru || decodeWireColor(item.wire_color).replace(/\s*\([^)]*\)\s*$/, "") || "—";
   const wireCode = item.wire_color && item.wire_color !== "—" ? item.wire_color : "—";
-  const pinoutPage = Number(item.pinout_page_number) || 0;
-  const bookId = Number(item.book_id || item.bookId || item.manualId) || 0;
   const openDiagram = () => {
     if (!hasEwdDiagram) {
-      setNotice("Графическая схема EWD для этого узла не найдена. Используйте «Таблица».");
+      setNotice("Графическая схема EWD для этого узла не найдена. Откройте «Разъём» (FaceView).");
       return;
     }
     const code = String(selectedCode || item.search_target || item.from_node || "").trim();
@@ -1066,6 +987,23 @@ function renderWireCard(
     }
     const resolved = resolveHighlightPin(item, code, cardPin);
     const pin = resolved.pin || cardPin;
+    const wireEnds: WireEndFocus[] = [];
+    if (resolved.fromCode) {
+      wireEnds.push({
+        code: resolved.fromCode,
+        pin: resolved.pinFrom || undefined,
+        pinCandidates: resolved.pinFrom ? [resolved.pinFrom] : undefined,
+        role: "from",
+      });
+    }
+    if (resolved.toCode && resolved.toCode !== resolved.fromCode) {
+      wireEnds.push({
+        code: resolved.toCode,
+        pin: resolved.pinTo || undefined,
+        pinCandidates: resolved.pinTo ? [resolved.pinTo] : undefined,
+        role: "to",
+      });
+    }
     // Persist selection strictly on click — never tied to hover/mouseleave
     setSelectedPinState({
       id: itemId,
@@ -1081,23 +1019,36 @@ function renderWireCard(
         pinCandidates: resolved.pinCandidates.length ? resolved.pinCandidates : undefined,
         pinFrom: resolved.pinFrom || undefined,
         pinTo: resolved.pinTo || undefined,
-        wireColor: wireCode !== "—" ? wireCode : undefined,
+        fromCode: resolved.fromCode || undefined,
+        toCode: resolved.toCode || undefined,
         peerCode: resolved.peerCode || peerCodeFromCard(item, code) || undefined,
+        peerPin: resolved.peerPin || undefined,
+        wireColor: wireCode !== "—" ? wireCode : undefined,
+        ends: wireEnds.length ? wireEnds : undefined,
       },
       item,
     );
   };
-  const openPinout = () => {
-    if (!bookId || pinoutPage < 1) {
-      setNotice("Нет страницы таблицы разъёма.");
+  const faceCode = String(item.subject_code || selectedCode || item.from_node || "").trim();
+  const openFaceView = () => {
+    if (!faceCode) {
+      setNotice("Нет кода разъёма для FaceView.");
       return;
     }
     setActiveSvg(null);
-    setActivePdf({
-      bookId,
-      page: pinoutPage,
-      search: String(item.subject_code || selectedCode || "").trim() || undefined,
+    setCapitalPanel({
+      kind: "faceview",
+      code: faceCode,
+      pin: String(item.pin_number || "").trim() || undefined,
     });
+  };
+  const openLocation = () => {
+    if (!faceCode) {
+      setNotice("Нет кода для Location View.");
+      return;
+    }
+    setActiveSvg(null);
+    setCapitalPanel({ kind: "location", code: faceCode });
   };
   const connectorTitle = item.card_title || item.system_name || "Контакт";
   const steering = item.steering_side === "LHD" || item.steering_side === "RHD" ? item.steering_side : "";
@@ -1187,11 +1138,12 @@ function renderWireCard(
             Показать на схеме
           </button>
         ) : null}
-        {pinoutPage > 0 && pdfTablesEnabled ? (
-          <button type="button" data-testid="show-pinout" onClick={openPinout} className={`${hasEwdDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
-            Таблица
-          </button>
-        ) : null}
+        <button type="button" data-testid="show-faceview" onClick={openFaceView} className={`${hasEwdDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
+          Разъём
+        </button>
+        <button type="button" data-testid="show-location" onClick={openLocation} className="px-2 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
+          Расположение
+        </button>
         {suggestionsEnabled ? (
           <button
             type="button"
@@ -1320,7 +1272,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [editingItem, setEditingItem] = useState<any | null>(null);
-  const [activePdf, setActivePdf] = useState<ActivePdf | null>(null);
+  const [capitalPanel, setCapitalPanel] = useState<CapitalPanel | null>(null);
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
   const showSeqRef = useRef(0);
   /** Diagram UIDs already tried after pin-miss for the current card focus (prevents loops). */
@@ -1344,7 +1296,6 @@ function App() {
   const [features, setFeatures] = useState({
     suggestions: true,
     ewdDiagrams: true,
-    pdfTables: true,
     vinSearch: true,
     navBrowse: true,
     dtcSearch: true,
@@ -1384,7 +1335,7 @@ function App() {
     engine: selectedEngine,
     transmission: selectedTransmission,
   };
-  const rightOpen = Boolean(activeSvg || activePdf);
+  const rightOpen = Boolean(activeSvg || capitalPanel);
   const hasEwdDiagram = ewdDiagrams.length > 0;
 
   const availableWireColors = useMemo(
@@ -1427,10 +1378,10 @@ function App() {
     setWireColorFilter((cur) => nextWireColorFilter(cur, clicked));
   };
 
-  // Pinout PDF open → scheme tab on phones (SVG path uses openEwdDiagram)
+  // Capital FaceView / Location / report → scheme tab on phones
   useEffect(() => {
-    if (activePdf && !activeSvg && isMobileViewport()) setMobileView("scheme");
-  }, [activePdf, activeSvg]);
+    if (capitalPanel && !activeSvg && isMobileViewport()) setMobileView("scheme");
+  }, [capitalPanel, activeSvg]);
 
   const rankedDiagrams = useMemo(() => {
     const ctx = schemeContext || extractSchemeContext(null, selectedCode);
@@ -1625,7 +1576,7 @@ function App() {
     setSchemeContext(null);
     setMobileView("cards");
     setSelectedPinState(null);
-    setActivePdf(null);
+    setCapitalPanel(null);
     setActiveSvg(null);
     setNodeInfo(null);
     setDtcResults([]);
@@ -1656,7 +1607,7 @@ function App() {
     setMode("dtc");
     setOwnerWires([]);
     setTransitWires([]);
-    setActivePdf(null);
+    setCapitalPanel(null);
     setActiveSvg(null);
     setSelectedPinState(null);
     try {
@@ -1743,14 +1694,40 @@ function App() {
           ...(resolved?.pinCandidates || []),
           wire?.pin,
           resolved?.pin,
-          wire?.pinFrom,
-          wire?.pinTo,
         ]
           .map((p) => String(p || "").trim())
           .filter(Boolean),
       ),
     ];
-    const hasPinFocus = pinCandidates.length > 0 || !!wire?.pin;
+    const fromCode = wire?.fromCode || resolved?.fromCode || "";
+    const toCode = wire?.toCode || resolved?.toCode || "";
+    const peerPin = wire?.peerPin || resolved?.peerPin || "";
+    const wireEnds: WireEndFocus[] =
+      wire?.ends?.length
+        ? wire.ends
+        : [
+            ...(fromCode
+              ? [
+                  {
+                    code: fromCode,
+                    pin: wire?.pinFrom || resolved?.pinFrom || undefined,
+                    pinCandidates: [wire?.pinFrom || resolved?.pinFrom || ""].filter(Boolean),
+                    role: "from" as const,
+                  },
+                ]
+              : []),
+            ...(toCode && toCode !== fromCode
+              ? [
+                  {
+                    code: toCode,
+                    pin: wire?.pinTo || resolved?.pinTo || undefined,
+                    pinCandidates: [wire?.pinTo || resolved?.pinTo || ""].filter(Boolean),
+                    role: "to" as const,
+                  },
+                ]
+              : []),
+          ];
+    const hasPinFocus = pinCandidates.length > 0 || !!wire?.pin || wireEnds.some((e) => e.pin);
 
     // Fresh card click resets pin-miss state; retries / manual keep their own budget.
     if (!preferredUid && !opts?.fromPinMissRetry) {
@@ -1790,10 +1767,19 @@ function App() {
           : [];
         pinViableUidsRef.current = viable;
         const pickUid = String(pickRes.diagramUid || "");
-        preferred =
-          (pickUid && ewdDiagrams.find((d) => d.diagramUid === pickUid)) ||
-          (viable[0] && ewdDiagrams.find((d) => d.diagramUid === viable[0])) ||
-          null;
+        const resolveUid = (uid: string): EwdDiagram | null => {
+          if (!uid) return null;
+          return (
+            ewdDiagrams.find((d) => d.diagramUid === uid) || {
+              diagramUid: uid,
+              title: uid,
+              textCodes: [code],
+              designFolder: "",
+              pathCount: 0,
+            }
+          );
+        };
+        preferred = resolveUid(pickUid) || resolveUid(viable[0] || "") || null;
         if (preferred && Number(pickRes.matchedCount) > 0) {
           // Prefer server-chosen pin when it found a stronger cavity match.
           const serverPin = String(pickRes.pin || "").trim();
@@ -1802,10 +1788,11 @@ function App() {
           }
         }
       } catch {
-        /* fall through to score-based pick */
+        /* fall through to score-based open — never block the button */
       }
     }
 
+    // Always open a sheet: pick-diagram is best-effort; never block «Показать на схеме».
     if (!preferred) {
       const picked = pickBestDiagram(ewdDiagrams, ctx);
       preferred = picked.diagram;
@@ -1813,14 +1800,19 @@ function App() {
         const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
         preferred =
           ranked.find((r) => diagramHasCode(r.diagram, code))?.diagram ||
-          (!hasPinFocus ? ranked[0]?.diagram || ewdDiagrams[0] || null : null);
+          ranked[0]?.diagram ||
+          ewdDiagrams[0] ||
+          null;
+      }
+      if (preferred && hasPinFocus) {
+        setNotice("Точный лист по контакту/цвету не найден — открыта ближайшая схема узла.");
       }
     }
     if (!preferred) {
       setNotice("Графическая схема EWD для этого узла не найдена.");
       return;
     }
-    setActivePdf(null);
+    setCapitalPanel(null);
     // Always-on marker: bump showSeq on every click so repeat clicks re-inject + recenter
     showSeqRef.current += 1;
     setActiveSvg({
@@ -1831,8 +1823,12 @@ function App() {
       pinCandidates,
       pinFrom: wire?.pinFrom || resolved?.pinFrom,
       pinTo: wire?.pinTo || resolved?.pinTo,
+      fromCode: fromCode || undefined,
+      toCode: toCode || undefined,
+      ends: wireEnds.length ? wireEnds : undefined,
       wireColor: wire?.wireColor,
       peerCode: wire?.peerCode || resolved?.peerCode || ctx.peerCode || undefined,
+      peerPin: peerPin || undefined,
       zone: selectedZone && selectedZone !== "all" ? selectedZone : undefined,
       optionTokens,
       showSeq: showSeqRef.current,
@@ -1880,7 +1876,7 @@ function App() {
     setSchemeContext(null);
     setNodeInfo(null);
     setMobileView("cards");
-    setActivePdf(null);
+    setCapitalPanel(null);
     setActiveSvg(null);
     setSelectedPinState(null);
     setLoading(true);
@@ -2183,7 +2179,7 @@ function App() {
                   setEwdDiagrams([]);
                   setNodeInfo(null);
                   setMode(null);
-                  setActivePdf(null);
+                  setCapitalPanel(null);
                   setActiveSvg(null);
                   setSelectedPinState(null);
                 }}
@@ -2217,12 +2213,68 @@ function App() {
                 )}
               </select>
               <span className="text-[10px] text-[var(--text-muted)] leading-tight">
-                Пометки: [схема]=графика EWD (SVG на диске) · [табл]=таблица контактов · [PDF-схема]=диаграмма в PDF
+                Пометки: [схема]=графика EWD · [контакты]=FaceView / полость
               </span>
             </label>
           </div>
         </section>
         ) : null}
+        <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="capital-help">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Справка Capital EWD</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { label: "Введение", panel: { kind: "intro", slug: "guide" } as CapitalPanel },
+                { label: "Сокращения", panel: { kind: "intro", slug: "abbreviations" } as CapitalPanel },
+                { label: "Предохранители", panel: { kind: "report", report: "fuse" } as CapitalPanel },
+                { label: "Инлайны", panel: { kind: "report", report: "inline" } as CapitalPanel },
+                { label: "Спайки", panel: { kind: "report", report: "splice" } as CapitalPanel },
+                { label: "Массы", panel: { kind: "report", report: "grounds" } as CapitalPanel },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className="md-btn md-btn--tonal text-[11px] px-2 py-1"
+                onClick={() => {
+                  setActiveSvg(null);
+                  setCapitalPanel(item.panel);
+                  if (isMobileViewport()) setMobileView("scheme");
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+            {selectedCode ? (
+              <>
+                <button
+                  type="button"
+                  data-testid="nav-open-faceview"
+                  className="md-btn md-btn--tonal text-[11px] px-2 py-1"
+                  onClick={() => {
+                    setActiveSvg(null);
+                    setCapitalPanel({ kind: "faceview", code: selectedCode });
+                    if (isMobileViewport()) setMobileView("scheme");
+                  }}
+                >
+                  Разъём {selectedCode}
+                </button>
+                <button
+                  type="button"
+                  data-testid="nav-open-location"
+                  className="md-btn md-btn--tonal text-[11px] px-2 py-1"
+                  onClick={() => {
+                    setActiveSvg(null);
+                    setCapitalPanel({ kind: "location", code: selectedCode });
+                    if (isMobileViewport()) setMobileView("scheme");
+                  }}
+                >
+                  Расположение
+                </button>
+              </>
+            ) : null}
+          </div>
+        </section>
         {features.dtcSearch ? (
         <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
@@ -2484,8 +2536,12 @@ function App() {
                               pinCandidates: activeSvg?.pinCandidates,
                               pinFrom: activeSvg?.pinFrom,
                               pinTo: activeSvg?.pinTo,
+                              fromCode: activeSvg?.fromCode,
+                              toCode: activeSvg?.toCode,
+                              ends: activeSvg?.ends,
                               wireColor: activeSvg?.wireColor || selectedPinState?.color,
                               peerCode: activeSvg?.peerCode,
+                              peerPin: activeSvg?.peerPin,
                             },
                             undefined,
                             { manualPick: true },
@@ -2545,11 +2601,11 @@ function App() {
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
-        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, features.suggestions, features.pdfTables, cardCtx))}
+        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {filteredTransitWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
         ) : null}
-        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setActivePdf, setActiveSvg, setNotice, setEditingItem, features.suggestions, features.pdfTables, cardCtx))}
+        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
         ) : null}
@@ -2591,8 +2647,12 @@ function App() {
                             pinCandidates: activeSvg.pinCandidates,
                             wireColor: activeSvg.wireColor,
                             peerCode: activeSvg.peerCode,
+                            peerPin: activeSvg.peerPin,
                             pinFrom: activeSvg.pinFrom,
                             pinTo: activeSvg.pinTo,
+                            fromCode: activeSvg.fromCode,
+                            toCode: activeSvg.toCode,
+                            ends: activeSvg.ends,
                           }, undefined, { manualPick: true })
                         }
                       >
@@ -2638,8 +2698,12 @@ function App() {
               pinCandidates={activeSvg.pinCandidates}
               pinFrom={activeSvg.pinFrom}
               pinTo={activeSvg.pinTo}
+              fromCode={activeSvg.fromCode}
+              toCode={activeSvg.toCode}
+              ends={activeSvg.ends}
               wireColor={activeSvg.wireColor}
               peerCode={activeSvg.peerCode}
+              peerPin={activeSvg.peerPin}
               zone={activeSvg.zone}
               optionTokens={activeSvg.optionTokens || optionTokens}
               showSeq={activeSvg.showSeq}
@@ -2648,7 +2712,7 @@ function App() {
                 // Never flip through 20+ sheets — only connectivity-viable UIDs, small budget.
                 if (pinMissBudgetRef.current <= 0) {
                   setNotice(
-                    `Контакт не найден на этой схеме (${reason}). Выберите схему вручную или откройте «Таблица».`,
+                    `Контакт не найден на этой схеме (${reason}). Выберите схему вручную или откройте «Разъём».`,
                   );
                   return;
                 }
@@ -2659,7 +2723,7 @@ function App() {
                 if (!nextUid) {
                   pinMissBudgetRef.current = 0;
                   setNotice(
-                    `Контакт не найден на подходящих схемах (${reason}). Выберите схему вручную или откройте «Таблица».`,
+                    `Контакт не найден на подходящих схемах (${reason}). Выберите схему вручную или откройте «Разъём».`,
                   );
                   return;
                 }
@@ -2673,8 +2737,12 @@ function App() {
                     pinCandidates: activeSvg.pinCandidates,
                     pinFrom: activeSvg.pinFrom,
                     pinTo: activeSvg.pinTo,
+                    fromCode: activeSvg.fromCode,
+                    toCode: activeSvg.toCode,
+                    ends: activeSvg.ends,
                     wireColor: activeSvg.wireColor,
                     peerCode: activeSvg.peerCode,
+                    peerPin: activeSvg.peerPin,
                   },
                   undefined,
                   { fromPinMissRetry: true },
@@ -2684,37 +2752,20 @@ function App() {
           </div>
         </div>
       )}
-      {activePdf && !activeSvg && (
+      {capitalPanel && !activeSvg && (
         <div
-          data-testid="pdf-panel"
+          data-testid="capital-panel-host"
           className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
             mobileView === "cards" ? " is-mobile-hidden" : ""
           }`}
         >
-          <div className="bg-[var(--input-bg)] px-3 py-1.5 border-b border-[var(--border-color)] flex justify-between items-center text-xs shrink-0">
-            <div className="flex items-center gap-3 text-[var(--text-muted)]">
-              <span data-testid="pdf-page-label" className="font-semibold text-emerald-700 font-mono">табл. стр. {activePdf.page}</span>
-              <div className="flex items-center gap-1 bg-[var(--bg-card)] rounded border border-[var(--border-color)] px-1 font-mono">
-                <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="px-1.5 py-0.5 hover:text-[var(--text-main)]">−</button>
-                <span className="min-w-[35px] text-center">{zoom}%</span>
-                <button type="button" onClick={() => setZoom((value) => Math.min(300, value + 10))} className="px-1.5 py-0.5 hover:text-[var(--text-main)]">+</button>
-                <button type="button" onClick={() => setZoom(80)} className="px-1.5 py-0.5 hover:text-[var(--text-main)]">80%</button>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setActivePdf(null);
-                setMobileView("cards");
-              }}
-              className="text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold px-2"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--bg-main)] relative">
-            <PDFCanvasViewer key={`pdf-lock-${activePdf.bookId}-p${activePdf.page}`} bookId={activePdf.bookId} pageNumber={Number(activePdf.page)} searchTarget={activePdf.search || null} zoom={zoom} />
-          </div>
+          <CapitalPanelViewer
+            panel={capitalPanel}
+            onClose={() => {
+              setCapitalPanel(null);
+              setMobileView("cards");
+            }}
+          />
         </div>
       )}
       </div></section> : (

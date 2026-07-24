@@ -1,8 +1,10 @@
 {
-  "package": "E:\\manual\\ewd_source\\39363002",
-  "data_dir": "E:\\manual\\ewd_source\\39363002\\1\\2",
+  "package": "data\\ewd\\ewd_source\\39363002",
+  "data_dir": "data\\ewd\\ewd_source\\39363002\\1\\2",
   "outputs": {
-    "connectivity_index": "data\\ewd\\connectivity_index.json",
-    "connectivity_samples": "data\\ewd\\connectivity_samples"
+    "face_view_index": "data\\ewd\\face_view_index.json",
+    "location_index": "data\\ewd\\location_index.json",
+    "lang_ru_index": "data\\ewd\\lang_ru_index.json",
+    "harness_labels": "data\\ewd\\harness_labels.json"
   }
 }

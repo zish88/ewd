@@ -1,12 +1,13 @@
 import express from "express";
 import { createHash } from "node:crypto";
-import { resolve, relative } from "node:path";
+import { join, resolve, relative } from "node:path";
 import { existsSync } from "node:fs";
 import "dotenv/config";
 import { openDatabase } from "./db/schema.js";
 import { createLocationRouter, createOverrideRouter, createSearchRouter } from "./routes/search.js";
 import { createNavRouter } from "./routes/nav.js";
 import { createEwdRouter } from "./routes/ewd.js";
+import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
 import { dtcStats } from "./dtcDb.js";
@@ -26,21 +27,8 @@ import { decodeVolvoVin } from "./vinDecoder.js";
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
-const manualRoot = resolve(process.env.MANUAL_DIR ?? "E:\\manual");
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
 const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelop@gmail.com";
-
-function resolveManualFile(filename: string): string | null {
-  const primary = resolve(manualRoot, filename);
-  if (existsSync(primary)) return primary;
-  // ASCII fallback for VPS uploads without Cyrillic filenames
-  const fallbacks = ["schemes-xc70.pdf", "Elektroshemy-XC70.pdf", "xc70.pdf"];
-  for (const name of fallbacks) {
-    const p = resolve(manualRoot, name);
-    if (existsSync(p)) return p;
-  }
-  return null;
-}
 
 app.use(express.json());
 
@@ -79,10 +67,6 @@ app.use("/api", (req, res, next) => {
     res.status(403).json({ error: "Схемы EWD отключены." });
     return;
   }
-  if (!settings.features.pdfTables && (path.startsWith("/pdf") || path === "/manual")) {
-    res.status(403).json({ error: "Таблицы PDF отключены." });
-    return;
-  }
   if (!settings.features.suggestions && path === "/tickets" && req.method === "POST") {
     res.status(403).json({ error: "Предложения правок отключены." });
     return;
@@ -97,6 +81,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
+app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
@@ -106,7 +91,6 @@ app.get("/api/health", (_req, res) => {
   const ewdSource = resolve(
     process.env.EWD_SOURCE_DIR ?? resolve(ewdData, "ewd_source", "39363002", "1", "2"),
   );
-  const pdfPath = resolveManualFile("Электросхемы XC70.pdf") ?? resolve(manualRoot, "schemes-xc70.pdf");
   let components = 0;
   let wires = 0;
   let pages = 0;
@@ -118,32 +102,33 @@ app.get("/api/health", (_req, res) => {
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
-  const ewdOk = existsSync(ewdSource);
-  const pdfOk = existsSync(pdfPath);
+  const ewdOk =
+    existsSync(join(ewdSource, "index.xml")) &&
+    existsSync(join(ewdSource, "Signals")) &&
+    existsSync(join(ewdData, "face_view_index.json"));
   const hints: string[] = [];
   if (components === 0 || wires === 0) {
     hints.push("Empty SQLite. Restore data/wiring.sqlite from git (DEPLOY.md).");
   }
   if (!ewdOk) {
-    hints.push("SVG source missing. Upload data/ewd/ewd_source to the server (DEPLOY.md §3).");
-  }
-  if (!pdfOk) {
-    hints.push("PDF manual missing. Upload Электросхемы XC70.pdf into MANUAL_DIR (./manual).");
+    hints.push(
+      "Capital EWD missing. Need data/ewd/ewd_source/39363002/1/2 (index.xml, Signals) and face_view_index.json.",
+    );
   }
   const dtc = dtcStats();
   if (!dtc.available) {
     hints.push("DTC dictionary missing. Restore data/dtc.sqlite from git.");
   }
   res.json({
-    ok: !error && components > 0 && wires > 0,
+    ok: !error && components > 0 && wires > 0 && ewdOk,
     dbPath,
     dbExists: existsSync(dbPath),
     counts: { components, wires, pages },
     dtc,
     ewdSourceDir: ewdSource,
     ewdSourceExists: ewdOk,
-    manualDir: manualRoot,
-    pdfExists: pdfOk,
+    faceViewIndex: existsSync(join(ewdData, "face_view_index.json")),
+    capitalOnly: true,
     error,
     hint: hints.length ? hints.join(" ") : undefined,
   });
@@ -281,33 +266,7 @@ app.post("/api/tickets", async (req, res) => {
   });
 });
 
-app.get("/api/manual", (_req, res) => {
-  const manual = (db.prepare("SELECT filename FROM manuals WHERE language = 'RU' LIMIT 1").get()
-    || db.prepare("SELECT filename FROM manuals LIMIT 1").get()) as { filename?: string } | undefined;
-  if (!manual?.filename) {
-    return res.status(404).json({ error: "Руководство ещё не импортировано." });
-  }
-  const file = resolveManualFile(manual.filename);
-  if (!file) {
-    return res.status(404).json({ error: "Исходный PDF недоступен." });
-  }
-  return res.sendFile(file);
-});
-
-app.get("/api/pdf/view", (req, res) => {
-  const bookId = Number(req.query.bookId);
-  const page = Number(req.query.page);
-  if (!Number.isInteger(bookId) || bookId < 1 || !Number.isInteger(page) || page < 1) {
-    return res.status(400).json({ error: "bookId и page должны быть положительными числами." });
-  }
-  const manual = db.prepare("SELECT filename FROM manuals WHERE id = ?").get(bookId) as { filename?: string } | undefined;
-  if (!manual?.filename) return res.status(404).json({ error: "Книга не найдена." });
-  const file = resolveManualFile(manual.filename);
-  if (!file || relative(manualRoot, file).startsWith("..")) {
-    return res.status(404).json({ error: "PDF книги недоступен." });
-  }
-  return res.sendFile(file);
-});
+// PDF pinout removed — Capital FaceViews / reports replace manuals.
 
 // Production: serve Vite build + SPA fallback (API routes registered above)
 if (isProd || existsSync(resolve(clientDist, "index.html"))) {

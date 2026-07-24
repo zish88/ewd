@@ -120,16 +120,20 @@ export function pinForCodeInText(text: string | null | undefined, code: string):
 export type ResolvedHighlightPin = {
   /** Best pin to search on the currently selected node's sheet. */
   pin: string;
-  /** Ordered candidates (selected-side detail pin first, then card pin, then peer-side). */
+  /** Ordered candidates (selected-side detail pin first, then card pin — not peer cavity). */
   pinCandidates: string[];
   pinFrom: string;
   pinTo: string;
   peerCode: string;
+  peerPin: string;
+  fromCode: string;
+  toCode: string;
 };
 
 /**
  * Resolve which digit to hunt on the SVG for `selectedCode`.
  * Prefer the cavity next to that code in from/to details over raw card.pin_number.
+ * Also returns both wire ends (Откуда/Куда) for dual markers.
  */
 export function resolveHighlightPin(
   card: SchemeCardLike | null | undefined,
@@ -137,29 +141,44 @@ export function resolveHighlightPin(
   cardPin = "",
 ): ResolvedHighlightPin {
   const selected = normalizeSchemeCode(selectedCode);
-  const peerCode = card ? peerCodeFromSchemeCard(card, selected) : "";
   const fromDetail = String(card?.from_detail || "");
   const toDetail = String(card?.to_detail || "");
+  const fromCode =
+    collectCodes(fromDetail, card?.from_node, card?.source_code)[0] || "";
+  const toCode =
+    collectCodes(toDetail, card?.to_node, card?.destination_code)[0] || "";
+  const peerCode =
+    (card ? peerCodeFromSchemeCard(card, selected) : "") ||
+    (fromCode && fromCode !== selected ? fromCode : "") ||
+    (toCode && toCode !== selected ? toCode : "");
   const pinOnSelectedFrom = pinForCodeInText(fromDetail, selected);
   const pinOnSelectedTo = pinForCodeInText(toDetail, selected);
   const pinSelected = pinOnSelectedFrom || pinOnSelectedTo;
   const pinFrom =
-    pinForCodeInText(fromDetail, collectCodes(fromDetail)[0] || "") || pinOnSelectedFrom;
-  const pinTo = pinForCodeInText(toDetail, collectCodes(toDetail)[0] || "") || pinOnSelectedTo;
+    pinForCodeInText(fromDetail, fromCode || collectCodes(fromDetail)[0] || "") ||
+    pinOnSelectedFrom;
+  const pinTo =
+    pinForCodeInText(toDetail, toCode || collectCodes(toDetail)[0] || "") ||
+    pinOnSelectedTo;
   const peerPin = peerCode
     ? pinForCodeInText(fromDetail, peerCode) || pinForCodeInText(toDetail, peerCode)
     : "";
   const fallback = String(cardPin || "").trim();
-  const pinCandidates = [pinSelected, fallback, peerPin, pinFrom, pinTo]
+  // Prefer cavity beside selected code in details. Card.pin_number is often the other end
+  // (junction) — only use it when the selected-side cavity is unknown.
+  const pinCandidates = (pinSelected ? [pinSelected] : [fallback])
     .map((p) => String(p || "").trim())
     .filter(Boolean)
     .filter((p, i, arr) => arr.indexOf(p) === i);
   return {
     pin: pinCandidates[0] || fallback,
     pinCandidates,
-    pinFrom: pinFrom || pinOnSelectedFrom || "",
-    pinTo: pinTo || pinOnSelectedTo || "",
+    pinFrom: pinFrom || "",
+    pinTo: pinTo || "",
     peerCode,
+    peerPin: peerPin || "",
+    fromCode,
+    toCode,
   };
 }
 

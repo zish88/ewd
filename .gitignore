@@ -1,3 +1,7 @@
+# Local secrets (use .env.example as template)
+.env
+.env.local
+
 # Dependencies & builds
 node_modules/
 dist/
@@ -54,11 +58,19 @@ data/ewd/**/*.MDF
 data/ewd/**/*.mdf
 data/ewd/connectivity_samples/
 
-# Keep lightweight EWD indexes in git
+# Keep Capital EWD indexes in git (needed for VPS highlight / FaceView / location)
 !data/ewd/device_index.json
 !data/ewd/connectivity_index.json
 !data/ewd/svg_desc_index.json
 !data/ewd/extract_report.json
+!data/ewd/face_view_index.json
+!data/ewd/location_index.json
+!data/ewd/lang_ru_index.json
+!data/ewd/harness_labels.json
+# Heavy pin/signal graphs (~15–40 MB) — build locally/on VPS: python scripts/ewd_extract.py --step pin_wire --connectivity-limit 0
+data/ewd/pin_wire_index.json
+data/ewd/global_signal_index.json
+data/wiring.capital.sqlite
 
 # Smoke / local bundles / Python cache
 scripts/_*-smoke*

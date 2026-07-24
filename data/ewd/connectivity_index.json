@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-21T07:22:45.903495+00:00",
-  "data_dir": "E:\\manual\\ewd_source\\39363002\\1\\2",
+  "generated_at": "2026-07-24T04:09:15.590804+00:00",
+  "data_dir": "data\\ewd\\ewd_source\\39363002\\1\\2",
   "connectivity_files_total": 3429,
   "connectivity_files_scanned": 3429,
   "errors": 0,
@@ -104311,6 +104311,599 @@
       ]
     }
   },
-  "fullSamples": [],
+  "fullSamples": [
+    {
+      "source": "connectivity1.zip",
+      "designName": "connectivity1",
+      "deviceCount": 3,
+      "wireCount": 1,
+      "pinLinkCount": 3,
+      "sampleDevices": [
+        {
+          "id": "_6",
+          "name": "4/147",
+          "kind": "device",
+          "code": "4/147",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c031fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{4/147}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_10",
+              "name": "C1-1",
+              "connectedpin": "_11",
+              "optionExpression": "",
+              "PN": "LH RECLINER HALL FEED",
+              "PPIN": "C1-1",
+              "sourceObjectUID": "UID46feb1-144d0c0322b-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_5",
+          "name": "4/147.C1",
+          "kind": "connector",
+          "code": "4/147",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c0330b-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{4/147}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_11",
+              "name": "1",
+              "connectedpin": "_10",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0c0322c-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_4",
+          "name": "9/9C",
+          "kind": "connector",
+          "code": "9/9",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c03315-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "REAR BACK ELEMENT/MASSAGE EXECUTIVE",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_20",
+              "name": "2",
+              "connectedpin": "",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0c03318-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        }
+      ],
+      "sampleWires": [
+        {
+          "id": "_23",
+          "name": "6-LPSD2A",
+          "optionExpression": "EXEC",
+          "wirecsa": "0.35",
+          "wirecolor": "GN/WH",
+          "color": "Green/White",
+          "harness": "14014",
+          "shortdescription": "SENSOR - REAR SEAT LEFT RECLINE(GN/WH)",
+          "startpinref": "_11",
+          "pinrefs": [
+            "_11",
+            "_20"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0c03385-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID46feb1-144d0bcb7f4-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ],
+      "samplePinLinks": [
+        {
+          "fromPin": "_10",
+          "toPin": "_11",
+          "device": "4/147"
+        },
+        {
+          "fromPin": "_11",
+          "toPin": "_10",
+          "device": "4/147.C1"
+        },
+        {
+          "fromPin": "_11",
+          "toPin": "_20",
+          "wire": "6-LPSD2A",
+          "wireId": "_23",
+          "sourceObjectUID": "UID46feb1-144d0c03385-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ]
+    },
+    {
+      "source": "connectivity10.zip",
+      "designName": "connectivity10",
+      "deviceCount": 7,
+      "wireCount": 6,
+      "pinLinkCount": 10,
+      "sampleDevices": [
+        {
+          "id": "_10",
+          "name": "9/14",
+          "kind": "device",
+          "code": "9/14",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c03276-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{9/14}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_14",
+              "name": "C3-1",
+              "connectedpin": "_15",
+              "optionExpression": "",
+              "PN": "H2-",
+              "PPIN": "C3-1",
+              "sourceObjectUID": "UID46feb1-144d0c03282-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_7",
+          "name": "74/560",
+          "kind": "connector",
+          "code": "74/560",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c03366-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{74/560}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_20",
+              "name": "2",
+              "connectedpin": "_21",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0c0336c-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_4",
+          "name": "74/560",
+          "kind": "connector",
+          "code": "74/560",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c03365-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{74/560}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_21",
+              "name": "2",
+              "connectedpin": "_20",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0c0336b-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_9",
+          "name": "9/14.C3",
+          "kind": "connector",
+          "code": "9/14",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0c03331-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{9/14}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_15",
+              "name": "1",
+              "connectedpin": "_14",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0c03283-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_5",
+          "name": "9/9A",
+          "kind": "connector",
+          "code": "9/9",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bdca71-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0bdcaab-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "REAR BACK ELEMENT/HEADREST FOLD",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_34",
+              "name": "3",
+              "connectedpin": "",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0bfd48f-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        }
+      ],
+      "sampleWires": [
+        {
+          "id": "_47",
+          "name": "5C-CHS40A",
+          "optionExpression": "(K413 || Y285 || Y312H || Y352 || Y413) && RSHEAT",
+          "wirecsa": "1.0",
+          "wirecolor": "GN/BU",
+          "color": "Green/Blue",
+          "harness": "14014",
+          "shortdescription": "CTRL MOD. - HOT/COLD SEAT # REAR LEFT BACK HEATER(GY/VT)",
+          "startpinref": "_34",
+          "pinrefs": [
+            "_34",
+            "_15"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0bfd4cf-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bfd3fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID46feb1-144d0bcc2f7-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "id": "_50",
+          "name": "5C-CHS40A",
+          "optionExpression": "(L421 || Y283) && RSHEAT",
+          "wirecsa": "1.0",
+          "wirecolor": "GN/BU",
+          "color": "Green/Blue",
+          "harness": "14014",
+          "shortdescription": "CTRL MOD. - HOT/COLD SEAT # REAR LEFT BACK HEATER(GY/VT)",
+          "startpinref": "_39",
+          "pinrefs": [
+            "_39",
+            "_15"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0bfd4d1-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bfd3fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID46feb1-144d0bcbb6b-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "id": "_53",
+          "name": "5C-CHS40A",
+          "optionExpression": "RHD && RSHEAT && Y286",
+          "wirecsa": "1.0",
+          "wirecolor": "GN/BU",
+          "color": "Green/Blue",
+          "harness": "14014",
+          "shortdescription": "CTRL MOD. - HOT/COLD SEAT # REAR LEFT BACK HEATER(GY/VT)",
+          "startpinref": "_15",
+          "pinrefs": [
+            "_15",
+            "_39"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0bfd509-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bfd3fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": ""
+        },
+        {
+          "id": "_56",
+          "name": "5C-CHS40A",
+          "optionExpression": "RSH_NEXEC",
+          "wirecsa": "1.0",
+          "wirecolor": "GN/BU",
+          "color": "Green/Blue",
+          "harness": "14014",
+          "shortdescription": "CTRL MOD. - HOT/COLD SEAT # REAR LEFT BACK HEATER(GY/VT)",
+          "startpinref": "_15",
+          "pinrefs": [
+            "_15",
+            "_39"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0bfd4fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bfd3fd-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": ""
+        },
+        {
+          "id": "_59",
+          "name": "6-CHS67A",
+          "optionExpression": "EXEC",
+          "wirecsa": "0.5",
+          "wirecolor": "VT/BN",
+          "color": "Violet/Brown",
+          "harness": "14014",
+          "shortdescription": "CTRL MOD. - HOT/COLD SEAT # REAR LEFT FAN(VT/BN)",
+          "startpinref": "_44",
+          "pinrefs": [
+            "_44",
+            "_15"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0c0338f-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0c031e5-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID46feb1-144d0bcb38b-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ],
+      "samplePinLinks": [
+        {
+          "fromPin": "_14",
+          "toPin": "_15",
+          "device": "9/14"
+        },
+        {
+          "fromPin": "_20",
+          "toPin": "_21",
+          "device": "74/560"
+        },
+        {
+          "fromPin": "_21",
+          "toPin": "_20",
+          "device": "74/560"
+        },
+        {
+          "fromPin": "_15",
+          "toPin": "_14",
+          "device": "9/14.C3"
+        },
+        {
+          "fromPin": "_34",
+          "toPin": "_15",
+          "wire": "5C-CHS40A",
+          "wireId": "_47",
+          "sourceObjectUID": "UID46feb1-144d0bfd4cf-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_39",
+          "toPin": "_15",
+          "wire": "5C-CHS40A",
+          "wireId": "_50",
+          "sourceObjectUID": "UID46feb1-144d0bfd4d1-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_15",
+          "toPin": "_39",
+          "wire": "5C-CHS40A",
+          "wireId": "_53",
+          "sourceObjectUID": "UID46feb1-144d0bfd509-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_15",
+          "toPin": "_39",
+          "wire": "5C-CHS40A",
+          "wireId": "_56",
+          "sourceObjectUID": "UID46feb1-144d0bfd4fd-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_44",
+          "toPin": "_15",
+          "wire": "6-CHS67A",
+          "wireId": "_59",
+          "sourceObjectUID": "UID46feb1-144d0c0338f-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_15",
+          "toPin": "_20",
+          "wire": "6-CHS67B",
+          "wireId": "_62",
+          "sourceObjectUID": "UID46feb1-144d0c033a3-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ]
+    },
+    {
+      "source": "connectivity100.zip",
+      "designName": "connectivity100",
+      "deviceCount": 6,
+      "wireCount": 2,
+      "pinLinkCount": 8,
+      "sampleDevices": [
+        {
+          "id": "_8",
+          "name": "3/27",
+          "kind": "device",
+          "code": "3/27",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bdd16f-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0bdd1a4-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{3/27}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_13",
+              "name": "C3-6",
+              "connectedpin": "_14",
+              "optionExpression": "",
+              "PN": "RECLINER MOTOR +",
+              "PPIN": "C3-6",
+              "sourceObjectUID": "UID46feb1-144d0bdd1ad-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_5",
+          "name": "3/27",
+          "kind": "device",
+          "code": "3/27",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bee92c-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0beeadf-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{3/27}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_20",
+              "name": "C3-6",
+              "connectedpin": "_21",
+              "optionExpression": "",
+              "PN": "RECLINER MOTOR +",
+              "PPIN": "C3-6",
+              "sourceObjectUID": "UID46feb1-144d0beeae9-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_4",
+          "name": "6/23",
+          "kind": "device",
+          "code": "6/23",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bee92c-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0bee9a3-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{6/23}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_26",
+              "name": "2",
+              "connectedpin": "_27",
+              "optionExpression": "",
+              "PN": "2",
+              "PPIN": "-/+",
+              "sourceObjectUID": "UID46feb1-144d0bee9a5-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_6",
+          "name": "C3",
+          "kind": "connector",
+          "code": "",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bdd16f-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0bdd2c4-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{3/27}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_14",
+              "name": "6",
+              "connectedpin": "_13",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0bdd1ae-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        },
+        {
+          "id": "_9",
+          "name": "C3",
+          "kind": "connector",
+          "code": "",
+          "optionExpression": "",
+          "sourceDesignUID": "UID46feb1-144d0bee92c-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceObjectUID": "UID46feb1-144d0beec27-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "ServiceDescription": "{3/27}",
+          "pinCount": 1,
+          "pins": [
+            {
+              "id": "_21",
+              "name": "6",
+              "connectedpin": "_20",
+              "optionExpression": "",
+              "PN": "",
+              "PPIN": "",
+              "sourceObjectUID": "UID46feb1-144d0beeaea-7e5bcfe21ab1742afb31d5d5a30fe451"
+            }
+          ]
+        }
+      ],
+      "sampleWires": [
+        {
+          "id": "_42",
+          "name": "35S-AH36",
+          "optionExpression": "PSS && RHD",
+          "wirecsa": "1.5",
+          "wirecolor": "OG/BU",
+          "color": "Orange/Blue",
+          "harness": "INSEAT",
+          "shortdescription": "",
+          "startpinref": "_27",
+          "pinrefs": [
+            "_27",
+            "_14"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0bdd30f-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bdd16f-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID5eefae-1478a3b95ee-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "id": "_45",
+          "name": "35S-AH36",
+          "optionExpression": "PSS && RHD",
+          "wirecsa": "1.5",
+          "wirecolor": "OG/BU",
+          "color": "Orange/Blue",
+          "harness": "INSEAT",
+          "shortdescription": "",
+          "startpinref": "_27",
+          "pinrefs": [
+            "_27",
+            "_21"
+          ],
+          "sourceObjectUID": "UID46feb1-144d0beedba-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sourceDesignUID": "UID46feb1-144d0bee92c-7e5bcfe21ab1742afb31d5d5a30fe451",
+          "sharedObjectUID": "UID46feb1-144d0bcbdc7-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ],
+      "samplePinLinks": [
+        {
+          "fromPin": "_13",
+          "toPin": "_14",
+          "device": "3/27"
+        },
+        {
+          "fromPin": "_20",
+          "toPin": "_21",
+          "device": "3/27"
+        },
+        {
+          "fromPin": "_26",
+          "toPin": "_27",
+          "device": "6/23"
+        },
+        {
+          "fromPin": "_14",
+          "toPin": "_13",
+          "device": "C3"
+        },
+        {
+          "fromPin": "_21",
+          "toPin": "_20",
+          "device": "C3"
+        },
+        {
+          "fromPin": "_27",
+          "toPin": "_26",
+          "device": "C55"
+        },
+        {
+          "fromPin": "_27",
+          "toPin": "_14",
+          "wire": "35S-AH36",
+          "wireId": "_42",
+          "sourceObjectUID": "UID46feb1-144d0bdd30f-7e5bcfe21ab1742afb31d5d5a30fe451"
+        },
+        {
+          "fromPin": "_27",
+          "toPin": "_21",
+          "wire": "35S-AH36",
+          "wireId": "_45",
+          "sourceObjectUID": "UID46feb1-144d0beedba-7e5bcfe21ab1742afb31d5d5a30fe451"
+        }
+      ]
+    }
+  ],
   "note": "connectivity*.zip are gzip XML; devices+connectors indexed; codeToSystemFiles scopes by sourceDesignUID"
 }

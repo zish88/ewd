@@ -3,8 +3,8 @@ CLI: extract dealer EWD indexes (devices, SVG desc linkage, connectivity).
 
 Examples:
   python scripts/ewd_extract.py
-  python scripts/ewd_extract.py --ewd-root E:\\manual\\ewd_source --connectivity-limit 100
-  python scripts/ewd_extract.py --step devices
+  python scripts/ewd_extract.py --connectivity-limit 100
+  python scripts/ewd_extract.py --ewd-root data/ewd/ewd_source --step devices
 """
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ewd.index_devices import run as run_devices  # noqa: E402
 from ewd.parse_svg_desc import run as run_svg  # noqa: E402
 from ewd.import_connectivity import run as run_connectivity  # noqa: E402
+from ewd.build_pin_wire_index import run as run_pin_wire  # noqa: E402
+from ewd.parse_faceviews import run as run_faceviews  # noqa: E402
+from ewd.parse_locations import run as run_locations  # noqa: E402
+from ewd.parse_langdictionary import run as run_lang  # noqa: E402
 from ewd.paths import find_package_root, package_data_dir  # noqa: E402
 
 
@@ -29,7 +33,11 @@ def main() -> int:
         pass
 
     ap = argparse.ArgumentParser(description="Extract EWD device/SVG/connectivity indexes")
-    ap.add_argument("--ewd-root", default=None, help="EWD source root (default E:\\manual\\ewd_source)")
+    ap.add_argument(
+        "--ewd-root",
+        default=None,
+        help="EWD source root (default: data/ewd/ewd_source, then E:\\manual\\ewd_source)",
+    )
     ap.add_argument(
         "--out-dir",
         default=str(Path("data") / "ewd"),
@@ -37,7 +45,17 @@ def main() -> int:
     )
     ap.add_argument(
         "--step",
-        choices=("all", "devices", "svg", "connectivity"),
+        choices=(
+            "all",
+            "devices",
+            "svg",
+            "connectivity",
+            "pin_wire",
+            "faceviews",
+            "locations",
+            "lang",
+            "capital",
+        ),
         default="all",
     )
     ap.add_argument(
@@ -134,6 +152,46 @@ def main() -> int:
                 )
         report["outputs"]["connectivity_index"] = str(path)
         report["outputs"]["connectivity_samples"] = str(out_dir / "connectivity_samples")
+
+    if args.step in ("all", "pin_wire"):
+        print("\n=== pin_wire + global_signal indexes ===")
+        max_files = None if args.connectivity_limit == 0 else args.connectivity_limit
+        pin_path, glob_path = run_pin_wire(
+            ewd_root,
+            out_dir,
+            max_files=max_files,
+            global_max=None,
+        )
+        report["outputs"]["pin_wire_index"] = str(pin_path)
+        report["outputs"]["global_signal_index"] = str(glob_path)
+
+    if args.step in ("all", "capital", "faceviews"):
+        print("\n=== face_view_index ===")
+        path = run_faceviews(ewd_root, out_dir / "face_view_index.json")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        print(
+            f"Wrote {path} files={payload.get('face_html_files')} "
+            f"pins={payload.get('pin_rows')} codes={payload.get('codes_with_faceview')}"
+        )
+        report["outputs"]["face_view_index"] = str(path)
+
+    if args.step in ("all", "capital", "locations"):
+        print("\n=== location_index ===")
+        path = run_locations(ewd_root, out_dir / "location_index.json")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        print(
+            f"Wrote {path} locations={payload.get('location_count')} "
+            f"codes={payload.get('unique_codes')}"
+        )
+        report["outputs"]["location_index"] = str(path)
+
+    if args.step in ("all", "capital", "lang"):
+        print("\n=== lang_ru + harness_labels ===")
+        lang_path, harness_path = run_lang(ewd_root)
+        print(f"Wrote {lang_path}")
+        print(f"Wrote {harness_path}")
+        report["outputs"]["lang_ru_index"] = str(lang_path)
+        report["outputs"]["harness_labels"] = str(harness_path)
 
     summary_path = out_dir / "extract_report.json"
     summary_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

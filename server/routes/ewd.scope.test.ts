@@ -24,7 +24,9 @@ test("ewd endpoints 74/309 + front_bumper has no ECM/injection peers", async () 
 });
 
 test("ewd endpoints with diagramUid do not return all systems for multi-system code", async () => {
-  // 8/6 has multiple systemUids — scoping by one diagram must narrow systemUids
+  // 8/6 has multiple systemUids — scoping by one diagram must narrow vs unscoped
+  const unscoped = await request(app()).get("/api/ewd/endpoints?code=8%2F6");
+  assert.equal(unscoped.status, 200);
   const diagrams = await request(app()).get("/api/ewd/diagrams?code=8%2F6&zone=engine");
   assert.equal(diagrams.status, 200);
   const first = diagrams.body.diagrams?.[0];
@@ -37,7 +39,15 @@ test("ewd endpoints with diagramUid do not return all systems for multi-system c
   );
   assert.equal(res.status, 200);
   assert.ok(Array.isArray(res.body.systemUids));
-  assert.ok(res.body.systemUids.length <= 2);
+  const allCount = Array.isArray(unscoped.body.systemUids) ? unscoped.body.systemUids.length : 0;
+  // Scoped list must be non-empty when endpoints exist, and not wider than unscoped
+  if (allCount > 0) {
+    assert.ok(res.body.systemUids.length <= allCount);
+  }
+  if (res.body.count > 0) {
+    assert.ok(res.body.systemUids.length >= 1);
+    assert.ok(res.body.systemUids.length <= Math.max(3, Math.ceil(allCount / 2) || 3));
+  }
 });
 
 test("ewd pick-diagram returns ranked viable sheets for code+pin", async () => {

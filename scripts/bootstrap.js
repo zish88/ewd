@@ -1,8 +1,13 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
-const manualDir = process.env.MANUAL_DIR ?? "E:\\manual";
+const repoRoot = resolve(process.cwd());
+const manualDir =
+  process.env.MANUAL_DIR ??
+  (existsSync(join(repoRoot, "data", "ewd"))
+    ? join(repoRoot, "data", "ewd")
+    : "E:\\manual");
 const dbPath = join("data", "wiring.sqlite");
 
 function run(step, total, message, command, args, shell) {

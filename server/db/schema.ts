@@ -194,6 +194,16 @@ function ensureNavColumns(db: Database.Database) {
     );
     addColumnIfMissing(db, "wire_connections", "voltage", `voltage TEXT NOT NULL DEFAULT ''`, wnames);
     addColumnIfMissing(db, "wire_connections", "wire_gauge", `wire_gauge TEXT NOT NULL DEFAULT ''`, wnames);
+    addColumnIfMissing(db, "wire_connections", "pin_uid", `pin_uid TEXT NOT NULL DEFAULT ''`, wnames);
+    addColumnIfMissing(db, "wire_connections", "wire_uid", `wire_uid TEXT NOT NULL DEFAULT ''`, wnames);
+    addColumnIfMissing(db, "wire_connections", "system_uid", `system_uid TEXT NOT NULL DEFAULT ''`, wnames);
+    addColumnIfMissing(
+      db,
+      "wire_connections",
+      "option_expression",
+      `option_expression TEXT NOT NULL DEFAULT ''`,
+      wnames,
+    );
 
     // Backfill subject_code from connector page titles when empty (e.g. "Connector 74/507")
     try {

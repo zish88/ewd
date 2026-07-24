@@ -18,7 +18,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from diagram_titles import format_diagram_title, is_non_diagram_reference_title  # noqa: E402
 from vida_extractor import clean_vida_component_name  # noqa: E402
 
-MANUALS_DIR = os.environ.get("MANUAL_DIR", r"E:\manual")
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MANUALS_DIR = os.environ.get("MANUAL_DIR") or (
+    os.path.join(_REPO, "data", "ewd")
+    if os.path.isdir(os.path.join(_REPO, "data", "ewd"))
+    else r"E:\manual"
+)
 DB_PATH = os.path.join("data", "wiring.sqlite")
 MANIFEST_PATH = os.path.join("data", "book_manifest.json")
 STAGE2_DIR = os.path.join("data", "stage2")

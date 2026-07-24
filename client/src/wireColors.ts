@@ -56,8 +56,10 @@ export const WIRE_COLOR_RU: Record<string, string> = {
 export function normalizeWireColorKey(raw: string | undefined | null): string {
   return String(raw || "")
     .toUpperCase()
-    .replace(/\//g, "-")
-    .replace(/\s+/g, "")
+    // SVG / VIDA: GN/BN, GN BN, GN_BN, GN-BN
+    .replace(/[/_.,\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
     .trim();
 }
 
@@ -66,6 +68,23 @@ export function wireColorParts(wireColor: string): string[] {
   const key = normalizeWireColorKey(wireColor);
   if (!key) return [];
   return key.split("-").filter(Boolean);
+}
+
+/**
+ * True when colors describe the same insulation.
+ * Dual codes match regardless of order: GN-BN === BN-GN === GN/BN.
+ */
+export function wireColorsMatch(
+  a: string | undefined | null,
+  b: string | undefined | null,
+): boolean {
+  const na = normalizeWireColorKey(a);
+  const nb = normalizeWireColorKey(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const pa = wireColorParts(na).slice().sort().join("-");
+  const pb = wireColorParts(nb).slice().sort().join("-");
+  return Boolean(pa && pb && pa === pb);
 }
 
 export function wireColorHex(code: string, fallback = "#059669"): string {

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { ewdDataDir, resolveIndexedPath, safeUnderDataDir } from "../ewdPaths.js";
 import { filterDesignUidsByZone, loadEwdSystemCatalog } from "../zoneContext.js";
 import { evaluateOptionExpression } from "../optionExpression.js";
+import { lookupFacePins } from "./ewdCapital.js";
 
 type DeviceIndex = {
   data_dir?: string;
@@ -194,9 +195,21 @@ function formatEndpoint(pin: PinRec | undefined, fallback: string): string {
 function normalizeWireColor(c: string): string {
   return String(c || "")
     .toUpperCase()
-    .replace(/\//g, "-")
-    .replace(/\s+/g, "")
+    .replace(/[/_.,\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
     .trim();
+}
+
+/** GN-BN === BN-GN === GN/BN — order-independent dual insulation match. */
+function wireColorsMatch(a: string, b: string): boolean {
+  const na = normalizeWireColor(a);
+  const nb = normalizeWireColor(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const pa = na.split("-").filter(Boolean).sort().join("-");
+  const pb = nb.split("-").filter(Boolean).sort().join("-");
+  return Boolean(pa && pb && pa === pb);
 }
 
 function labelMatchesPin(label: string | undefined, want: string): boolean {
@@ -578,9 +591,34 @@ function resolveHighlightUids(opts: {
   const { code, pin, color, peer, diagramUid, zone, optionTokens = [] } = opts;
   const wantColor = normalizeWireColor(color);
 
-  // 1) Prefer O(1) pin_wire_index when pin is known
+  // 1) FaceView = cavity truth (color/peer/option). Paint UIDs must exist on the
+  //    schematic SVG — FaceView span ids are often FaceView-local, so prefer
+  //    pin_wire / connectivity UIDs for diagramUid highlight.
   let matched: EwdEndpoint[] = [];
   let source = "connectivity";
+  let faceColor = wantColor;
+  let facePeer = peer;
+  let faceEdges: Array<Record<string, unknown>> = [];
+  if (pin) {
+    const design = diagramUid ? svgIndex?.diagrams?.[diagramUid]?.designFolder : "";
+    faceEdges = lookupFacePins(code, pin, design).filter((e) => {
+      const colorOk =
+        !wantColor || !e.color || wireColorsMatch(String(e.color || ""), wantColor);
+      const peerOk =
+        !peer ||
+        normalizeCode(String(e.peerCode || "")) === peer ||
+        String(e.peerCode || "").includes(peer);
+      return colorOk && peerOk;
+    });
+    if (faceEdges.length) {
+      if (!faceColor && faceEdges[0].color) {
+        faceColor = normalizeWireColor(String(faceEdges[0].color));
+      }
+      if (!facePeer && faceEdges[0].peerCode) {
+        facePeer = normalizeCode(String(faceEdges[0].peerCode));
+      }
+    }
+  }
   if (pin && pinWireIndex?.by_code_pin) {
     const edges = lookupPinWireEdges(code, pin, {
       diagramUid,
@@ -588,16 +626,53 @@ function resolveHighlightUids(opts: {
       optionTokens,
     }).filter((e) => {
       const colorOk =
-        !wantColor || !e.color || normalizeWireColor(String(e.color)) === wantColor;
+        !faceColor || !e.color || wireColorsMatch(String(e.color), faceColor);
       const peerOk =
-        !peer ||
-        normalizeCode(e.peerCode || "") === peer ||
-        String(e.peerCode || "").includes(peer);
+        !facePeer ||
+        normalizeCode(e.peerCode || "") === facePeer ||
+        String(e.peerCode || "").includes(facePeer);
       return colorOk && peerOk;
     });
     if (edges.length) {
       matched = edges.map(edgeToEndpoint);
-      source = "pin_wire_index";
+      source = faceEdges.length ? "face_view+pin_wire" : "pin_wire_index";
+    }
+  }
+  if (!matched.length && faceEdges.length) {
+    const faceMatched = faceEdges.map((e) =>
+      edgeToEndpoint({
+        code,
+        ppin: String(e.cavity || pin),
+        pin: String(e.cavity || pin),
+        pinUid: String(e.pinUid || ""),
+        wireUid: String(e.wireUid || ""),
+        peerCode: String(e.peerCode || ""),
+        peerPin: String(e.peerPin || ""),
+        peerUid: String(e.peerUid || ""),
+        color: String(e.color || ""),
+        gauge: String(e.gauge || ""),
+        wireName: String(e.wireName || ""),
+        optionExpression: String(e.optionExpression || ""),
+        systemUid: String(e.systemUid || e.designUid || ""),
+      }),
+    );
+    if (diagramUid) {
+      const sheetUids = new Set(
+        (svgIndex?.diagrams?.[diagramUid]?.groups || []).flatMap((g) => g.uids || []),
+      );
+      const onSheet = faceMatched.some(
+        (ep) =>
+          (ep.fromUid && sheetUids.has(ep.fromUid)) ||
+          (ep.toUid && sheetUids.has(ep.toUid)) ||
+          (ep.wireUid && sheetUids.has(ep.wireUid)),
+      );
+      if (onSheet) {
+        matched = faceMatched;
+        source = "face_view";
+      }
+    } else {
+      matched = faceMatched;
+      source = "face_view";
     }
   }
   if (!matched.length) {
@@ -608,8 +683,7 @@ function resolveHighlightUids(opts: {
       optionTokens,
     });
     matched = endpoints.filter((ep) => {
-      const colorOk =
-        !wantColor || !ep.color || normalizeWireColor(ep.color) === wantColor;
+      const colorOk = !faceColor || !ep.color || wireColorsMatch(ep.color, faceColor);
       const pinOnFrom = labelMatchesPin(ep.pinFrom, pin);
       const pinOnTo = labelMatchesPin(ep.pinTo, pin);
       const pinOnSelected =
@@ -617,13 +691,14 @@ function resolveHighlightUids(opts: {
         (normalizeCode(ep.to).startsWith(code) && pinOnTo);
       const pinOnCode = !pin || pinOnSelected || pinOnFrom || pinOnTo;
       const peerOk =
-        !peer ||
-        ep.from.includes(peer) ||
-        ep.to.includes(peer) ||
-        normalizeCode(ep.from).startsWith(peer) ||
-        normalizeCode(ep.to).startsWith(peer);
+        !facePeer ||
+        ep.from.includes(facePeer) ||
+        ep.to.includes(facePeer) ||
+        normalizeCode(ep.from).startsWith(facePeer) ||
+        normalizeCode(ep.to).startsWith(facePeer);
       return colorOk && pinOnCode && peerOk;
     });
+    if (matched.length && faceEdges.length) source = "face_view+connectivity";
   }
 
   const pinUids = new Set<string>();
@@ -673,18 +748,21 @@ function resolveHighlightUids(opts: {
   };
 
   let uids: string[] = [];
+  const keepFace = source.startsWith("face_view");
   if (wireOnSheet.length) {
     uids = expandExact(wireOnSheet, "CAFConductor");
     if (!uids.length) uids = wireOnSheet;
-    source = source === "pin_wire_index" ? "pin_wire_wire" : "wire-uid";
+    if (source === "pin_wire_index") source = "pin_wire_wire";
+    else if (!keepFace) source = "wire-uid";
   } else if (pinOnSheet.length) {
     uids = expandExact(pinOnSheet, "CAFConductor");
     if (!uids.length) uids = expandExact(pinOnSheet, "CAFPinList");
     if (!uids.length) uids = pinOnSheet;
-    source = source === "pin_wire_index" ? "pin_wire_pin" : "pin-uid";
+    if (source === "pin_wire_index") source = "pin_wire_pin";
+    else if (!keepFace) source = "pin-uid";
   } else if (matched.length) {
     uids = [...wireUids, ...pinUids].filter(Boolean);
-    source = "connectivity-uid";
+    if (!keepFace) source = "connectivity-uid";
   } else if (diagramUid) {
     const deviceIds = deviceIndex?.by_code?.[code]?.objectIds || [];
     uids = deviceIds.filter((u) => sheetUids.has(u));

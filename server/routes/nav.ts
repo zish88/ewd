@@ -53,6 +53,10 @@ const NAV_SELECT = `
     w.harness_right,
     IFNULL(w.voltage,'') AS voltage,
     IFNULL(w.wire_gauge,'') AS wire_gauge,
+    IFNULL(w.pin_uid,'') AS pin_uid,
+    IFNULL(w.wire_uid,'') AS wire_uid,
+    IFNULL(w.system_uid,'') AS system_uid,
+    IFNULL(w.option_expression,'') AS option_expression,
     w.diagram_source_page,
     w.diagram_page_id,
     w.from_component_id,
@@ -251,6 +255,10 @@ function rowToNavCard(
     page_number,
     pin_number: pin,
     pins: pin !== "—" ? [pin] : [],
+    pin_uid: String(row.pin_uid || "").trim(),
+    wire_uid: String(row.wire_uid || "").trim(),
+    system_uid: String(row.system_uid || "").trim(),
+    option_expression: String(row.option_expression || "").trim(),
     wire_color: color,
     wire_color_ru: colorRu,
     wire_color_label:
@@ -521,13 +529,12 @@ export function createNavRouter(db: Database.Database) {
       const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
       const pn = c.part_number ? ` [${c.part_number}]` : "";
       const has_pinout = pinoutCodes.has(c.component_code);
-      const has_diagram = diagramCodes.has(c.component_code);
+      const has_diagram = false; // PDF diagram pages removed — Capital SVG only
       const has_ewd = ewdCodes.has(c.component_code);
       const marks: string[] = [];
-      // Strict labels: схема = real EWD SVG on disk; табл = pinout; PDF-схема = manual diagram page
+      // схема = EWD SVG; контакты = Capital FaceView / wire rows (no PDF)
       if (has_ewd) marks.push("схема");
-      if (has_pinout) marks.push("табл");
-      if (has_diagram) marks.push("PDF-схема");
+      if (has_pinout) marks.push("контакты");
       const mark = marks.length ? ` [${marks.join("·")}]` : "";
       const label = desc
         ? `${c.component_code} — ${desc}${pn}${mark}`

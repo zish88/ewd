@@ -50,10 +50,13 @@ export function ewdDataDir(): string {
     if (existsSync(asIs)) return asIs;
   }
 
+  // Prefer in-repo mirror of E:\manual (data/ewd/ewd_source), then MANUAL_DIR / legacy E:\manual
   const candidates = [
     resolve(EWD_DATA, "ewd_source", "39363002", "1", "2"),
     resolve(EWD_DATA, "ewd_source"),
-    resolve(process.env.MANUAL_DIR ?? "E:\\manual", "ewd_source", "39363002", "1", "2"),
+    resolve(ROOT, "manual", "ewd_source", "39363002", "1", "2"),
+    resolve(process.env.MANUAL_DIR ?? join(ROOT, "data", "ewd"), "ewd_source", "39363002", "1", "2"),
+    resolve("E:\\manual", "ewd_source", "39363002", "1", "2"),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;

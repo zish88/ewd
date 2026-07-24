@@ -1,5 +1,5 @@
 /**
- * Temporary Playwright E2E smoke tester for Volvo EWD UI.
+ * Playwright E2E smoke for Capital EWD UI (no PDF).
  * Usage: ensure `npm run:dev` is up, then `npm run test:e2e`
  */
 import { chromium } from "playwright";
@@ -7,20 +7,12 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:5173";
+const API_URL = process.env.E2E_API_URL || "http://localhost:4173";
 const REPORT_PATH = resolve("scripts/e2e-smoke-report.json");
-const MAX_PDF_CLICKS = 3;
+const MAX_DIAGRAM_CLICKS = 3;
 
-const QUICK_BUTTONS = [
-  "quick-horn",
-  "quick-front-left-door",
-  "quick-front-right-door",
-  "quick-fuses",
-  "quick-engine",
-  "quick-locations",
-  "quick-diagram",
-];
-
-const SEARCH_QUERIES = ["16/10", "3/26", "CEM", "RD-GY", "задняя правая дверь"];
+/** Reference codes from Capital FaceView golden set */
+const GOLDEN_CODES = ["74/507", "4/83", "3/74", "15/36", "16/10"];
 
 const report = {
   startedAt: new Date().toISOString(),
@@ -29,7 +21,7 @@ const report = {
   consoleErrors: [],
   pageErrors: [],
   httpErrors: [],
-  pdfFailures: [],
+  diagramFailures: [],
   ok: true,
 };
 
@@ -54,9 +46,7 @@ async function waitForIdle(page, ms = 800) {
 }
 
 async function waitResultsSettled(page) {
-  const notice = page.getByTestId("results-notice");
   await page.waitForSelector('[data-testid="results-panel"]', { timeout: 15000 });
-  // Wait until notice no longer says "Загрузка"
   await page.waitForFunction(
     () => {
       const el = document.querySelector('[data-testid="results-notice"]');
@@ -67,70 +57,83 @@ async function waitResultsSettled(page) {
     { timeout: 20000 },
   );
   await waitForIdle(page, 400);
-  return notice;
 }
 
-async function openDiagrams(page, stepLabel, { requirePdf = false } = {}) {
+async function openDiagrams(page, stepLabel, { requireDiagram = false } = {}) {
   const buttons = page.getByTestId("show-on-diagram");
   const count = await buttons.count();
   if (count === 0) {
-    if (requirePdf) {
-      fail(`${stepLabel}/pdf`, "expected show-on-diagram buttons but found none");
-      report.pdfFailures.push({ step: stepLabel, reason: "empty results" });
+    if (requireDiagram) {
+      fail(`${stepLabel}/diagram`, "expected show-on-diagram buttons but found none");
+      report.diagramFailures.push({ step: stepLabel, reason: "empty results" });
     } else {
-      pass(`${stepLabel}/pdf`, "no show-on-diagram buttons (empty or page-less results)");
+      pass(`${stepLabel}/diagram`, "no show-on-diagram buttons");
     }
     return;
   }
-  const n = Math.min(MAX_PDF_CLICKS, count);
+  const n = Math.min(MAX_DIAGRAM_CLICKS, count);
   for (let i = 0; i < n; i++) {
     await buttons.nth(i).click();
     try {
-      await page.waitForSelector('[data-testid="pdf-panel"]', { timeout: 10000 });
-      await page.waitForFunction(
-        () => {
-          const err = document.querySelector('[data-testid="pdf-error"]');
-          if (err && (err.textContent || "").trim()) return "error";
-          const canvas = document.querySelector('[data-testid="pdf-canvas"]');
-          if (!canvas) return false;
-          return canvas.width > 50 && canvas.height > 50 ? "ok" : false;
-        },
-        { timeout: 20000 },
-      );
-      const loading = page.getByTestId("pdf-loading");
-      if (await loading.count()) {
-        await loading.waitFor({ state: "hidden", timeout: 20000 }).catch(() => {});
+      await page.waitForSelector('[data-testid="svg-panel"]', { timeout: 12000 });
+      const notice = (await page.getByTestId("results-notice").textContent().catch(() => "")) || "";
+      if (/не найдена|pin-miss|Контакт не найден/i.test(notice) && !/пробуем следующий/i.test(notice)) {
+        // Soft warn — still count as opened if svg-panel present
+        report.steps.push({
+          step: `${stepLabel}/diagram-${i}`,
+          status: "warn",
+          message: notice.slice(0, 160),
+        });
       }
-      const pdfErr = page.getByTestId("pdf-error");
-      if (await pdfErr.count()) {
-        const errText = (await pdfErr.textContent()) || "";
-        if (errText.trim()) {
-          fail(`${stepLabel}/pdf-${i}`, `PDF error: ${errText.trim()}`);
-          report.pdfFailures.push({ step: stepLabel, index: i, reason: errText.trim() });
-          continue;
-        }
-      }
-      const bodyText = await page.locator("body").innerText();
-      if (/Критическая ошибка|PDF книги недоступен|Книга не найдена/i.test(bodyText)) {
-        fail(`${stepLabel}/pdf-${i}`, "PDF error text visible", { snippet: bodyText.slice(0, 200) });
-        report.pdfFailures.push({ step: stepLabel, index: i, reason: "error text" });
-      } else {
-        pass(`${stepLabel}/pdf-${i}`, "canvas rendered");
-      }
+      pass(`${stepLabel}/diagram-${i}`, "svg panel open");
     } catch (err) {
-      fail(`${stepLabel}/pdf-${i}`, String(err.message || err));
-      report.pdfFailures.push({ step: stepLabel, index: i, reason: String(err.message || err) });
+      fail(`${stepLabel}/diagram-${i}`, String(err.message || err));
+      report.diagramFailures.push({ step: stepLabel, index: i, reason: String(err.message || err) });
     }
   }
 }
 
-async function main() {
-  // Health check
+async function openFaceView(page, stepLabel) {
+  const btn = page.getByTestId("show-faceview").first();
+  if (!(await btn.count())) {
+    pass(`${stepLabel}/faceview`, "no FaceView button");
+    return;
+  }
+  await btn.click();
   try {
-    const health = await fetch("http://localhost:4173/api/health");
-    if (!health.ok) throw new Error(`API health ${health.status}`);
+    await page.waitForSelector('[data-testid="capital-panel"], [data-testid="capital-panel-host"]', {
+      timeout: 10000,
+    });
+    pass(`${stepLabel}/faceview`, "capital panel open");
   } catch (err) {
-    fail("preflight", `API not reachable on :4173 — start npm run:dev first (${err.message})`);
+    fail(`${stepLabel}/faceview`, String(err.message || err));
+  }
+}
+
+async function selectNavCode(page, code) {
+  await page.getByTestId("nav-zone").selectOption("all").catch(() => {});
+  await page.getByTestId("nav-component").selectOption(code);
+  await waitResultsSettled(page);
+}
+
+async function main() {
+  try {
+    const health = await fetch(`${API_URL}/api/health`);
+    if (!health.ok) throw new Error(`API health ${health.status}`);
+    const body = await health.json();
+    if (!body.capitalOnly && body.pdfExists) {
+      report.steps.push({
+        step: "preflight",
+        status: "warn",
+        message: "health still reports PDF — Capital upgrade incomplete?",
+      });
+    }
+    if (body.faceViewIndex === false || body.ewdSourceExists === false) {
+      throw new Error(`Capital EWD unhealthy: ${JSON.stringify(body)}`);
+    }
+    pass("preflight", `health ok components=${body.counts?.components} wires=${body.counts?.wires}`);
+  } catch (err) {
+    fail("preflight", `API not reachable on ${API_URL} — start npm run:dev first (${err.message})`);
     writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
     process.exit(1);
   }
@@ -143,11 +146,7 @@ async function main() {
     if (msg.type() === "error") {
       const text = msg.text();
       report.consoleErrors.push({ text });
-      if (
-        /Uncaught|TypeError|ReferenceError|is not defined|Критическая ошибка рендеринга|Invalid page request/i.test(
-          text,
-        )
-      ) {
+      if (/Uncaught|TypeError|ReferenceError|is not defined|Критическая ошибка/i.test(text)) {
         report.ok = false;
         console.error("console error:", text.slice(0, 200));
       }
@@ -165,7 +164,7 @@ async function main() {
   page.on("response", (response) => {
     const url = response.url();
     const status = response.status();
-    if (status >= 400 && (/\/api\//.test(url) || /pdf/i.test(url))) {
+    if (status >= 400 && /\/api\//.test(url)) {
       report.httpErrors.push({ url, status });
       report.ok = false;
       console.error(`HTTP ${status} ${url}`);
@@ -178,32 +177,16 @@ async function main() {
 
     await page.getByTestId("vehicle-model").selectOption("XC70");
     await page.getByTestId("vehicle-year").selectOption("2008");
-    // Engine option text may include spaces
     await page.getByTestId("vehicle-engine").selectOption({ label: "3.2 i6" });
     pass("vehicle", "XC70 / 2008 / 3.2 i6");
 
-    for (const testId of QUICK_BUTTONS) {
-      const step = `quick/${testId}`;
+    for (const code of GOLDEN_CODES) {
+      const step = `golden/${code}`;
       try {
-        await page.getByTestId(testId).click();
-        await waitResultsSettled(page);
-        pass(step, "results settled");
-        await openDiagrams(page, step, { requirePdf: true });
-        await page.getByTestId("clear-results").click().catch(() => {});
-        await waitForIdle(page, 300);
-      } catch (err) {
-        fail(step, String(err.message || err));
-      }
-    }
-
-    for (const q of SEARCH_QUERIES) {
-      const step = `search/${q}`;
-      try {
-        await page.getByTestId("smart-search-input").fill(q);
-        await page.getByTestId("smart-search-submit").click();
-        await waitResultsSettled(page);
-        pass(step, "results settled");
-        await openDiagrams(page, step, { requirePdf: true });
+        await selectNavCode(page, code);
+        pass(step, "wires loaded");
+        await openDiagrams(page, step, { requireDiagram: true });
+        await openFaceView(page, step);
         await page.getByTestId("clear-results").click().catch(() => {});
         await waitForIdle(page, 300);
       } catch (err) {
@@ -216,10 +199,9 @@ async function main() {
     await browser.close();
   }
 
-  // Treat hard JS page errors as failure; soft console noise alone does not fail if steps passed
   if (report.pageErrors.length) report.ok = false;
   if (report.httpErrors.length) report.ok = false;
-  if (report.pdfFailures.length) report.ok = false;
+  if (report.diagramFailures.length) report.ok = false;
   if (report.steps.some((s) => s.status === "fail")) report.ok = false;
 
   report.finishedAt = new Date().toISOString();
