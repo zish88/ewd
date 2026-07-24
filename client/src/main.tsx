@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import { createRoot } from "react-dom/client";
+import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
@@ -2156,6 +2157,7 @@ function App() {
   );
 
   return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
+    <InstallAppBanner />
     <div className="desktop-bg-art" aria-hidden="true">
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--b" />
@@ -3125,6 +3127,7 @@ createRoot(document.getElementById("root")!).render(<Root />);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    // iOS 16.4+ / Mac Safari standalone + Android Chrome
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }

@@ -97,6 +97,68 @@ html {
   max-height: 100dvh;
 }
 
+/* PWA install hint — iOS / Mac Safari / Android Chrome */
+.install-app-banner {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(0.75rem + var(--safe-bottom));
+  z-index: 180;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.65rem 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent));
+  box-shadow: var(--elevation-2);
+  backdrop-filter: blur(8px);
+}
+
+.install-app-banner__text {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.install-app-banner__title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-main);
+  margin-bottom: 0.2rem;
+}
+
+.install-app-banner__body {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.install-app-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.install-app-banner__cta {
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
+}
+
+.install-app-banner__dismiss {
+  min-height: 40px;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .install-app-banner {
+    display: none !important;
+  }
+}
+
 /* Grid row must be minmax(0,1fr) or Chrome grows the row to content and kills nested scroll */
 .results-split {
   min-height: 0;

@@ -1,13 +1,19 @@
 {
-  "name": "XC70 Wiring Explorer",
-  "short_name": "XC70 Wiring",
-  "description": "Справочник электропроводки Volvo XC70",
+  "id": "/",
+  "name": "Volvo EWD",
+  "short_name": "Volvo EWD",
+  "description": "Справочник электропроводки Volvo P3 (XC70, V70, S80, XC60, S60, V60)",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#0f1419",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "lang": "ru",
+  "dir": "ltr",
+  "categories": ["utilities", "reference"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -26,6 +32,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

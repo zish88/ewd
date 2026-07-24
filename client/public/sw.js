@@ -1,6 +1,15 @@
 /* Shell-only service worker: caches app shell, never /api/* or EWD SVG assets. */
-const CACHE = "xc70-shell-v1";
-const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE = "volvo-ewd-shell-v2";
+const SHELL = [
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/apple-touch-icon-167.png",
+  "/icons/apple-touch-icon-180.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
