@@ -14,7 +14,34 @@ export type SchemeCardLike = {
   source_code?: string | null;
   destination_code?: string | null;
   search_target?: string | null;
+  subject_code?: string | null;
+  pin_number?: string | null;
+  match_role?: string | null;
+  pin_uid?: string | null;
 };
+
+/**
+ * Contact the pin-marker must follow = card «Откуда» (from_detail).
+ * Never use «Куда» / to_detail for primary focus.
+ */
+export function cardFocusContact(
+  card: SchemeCardLike | null | undefined,
+  selectedCode: string,
+): { code: string; pin: string } {
+  const selected = normalizeSchemeCode(selectedCode);
+  const fromDetail = String(card?.from_detail || "");
+  const fromCode =
+    collectCodes(fromDetail, card?.from_node, card?.source_code)[0] || "";
+  if (fromCode) {
+    const fromPin =
+      pinForCodeInText(fromDetail, fromCode) ||
+      String(card?.pin_number || "").trim();
+    return { code: fromCode, pin: fromPin };
+  }
+  // Empty from_detail: last resort from_node + pin_number (still not to_detail)
+  const node = normalizeSchemeCode(String(card?.from_node || "")) || selected;
+  return { code: node, pin: String(card?.pin_number || "").trim() };
+}
 
 export type SchemeDiagramLike = {
   diagramUid: string;

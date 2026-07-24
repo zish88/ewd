@@ -345,6 +345,213 @@ function parseConnectivityXml(xml: string): EwdEndpoint[] {
   return endpoints;
 }
 
+/** Intermediate harness points — walk through these toward the final module/button. */
+function isPathJunctionCode(code: string): boolean {
+  const c = normalizeCode(code);
+  return /^(63|73|74|15)\//.test(c);
+}
+
+/** Final load / control units — stop BFS after collecting their pin (do not enter internals). */
+function isPathTerminalCode(code: string): boolean {
+  const c = normalizeCode(code);
+  return /^(3|4|6|8|9|10|16|17|20)\//.test(c);
+}
+
+/**
+ * Rank pin_wire edges for path BFS: same sharedUID first, then on-sheet same-color.
+ * sharedUID must NOT exclude other same-color segments (14K138 → 14014 at junctions).
+ */
+export function rankPathEdgesForExpand(
+  edges: PinWireEdge[],
+  opts: { seedSharedUid?: string; sheetUids: Set<string>; wantColor: string },
+): PinWireEdge[] {
+  const shared = String(opts.seedSharedUid || "").trim();
+  const scored = edges.map((e, i) => {
+    const onSheet = Boolean(e.wireUid && opts.sheetUids.has(e.wireUid));
+    const sameShared = shared && e.sharedObjectUID === shared ? 1 : 0;
+    const colorOk =
+      !opts.wantColor || !e.color || wireColorsMatch(String(e.color), opts.wantColor);
+    return { e, i, onSheet, sameShared, colorOk };
+  });
+  // Keep all color-ok edges; prefer shared+onSheet when sorting only
+  return scored
+    .filter((x) => x.colorOk)
+    .sort(
+      (a, b) =>
+        b.sameShared - a.sameShared ||
+        Number(b.onSheet) - Number(a.onSheet) ||
+        a.i - b.i,
+    )
+    .map((x) => x.e);
+}
+
+/**
+ * Expand one-hop card wire into all on-sheet conductor UIDs along the path
+ * through junctions by same wire color (harness / sharedObjectUID may change).
+ * Does NOT use GlobalSignals (would paint entire CAN/LIN buses).
+ */
+function expandWirePathOnSheet(opts: {
+  seedWireUid: string;
+  seedSharedUid?: string;
+  code: string;
+  pin: string;
+  color: string;
+  peer?: string;
+  peerPin?: string;
+  diagramUid: string;
+  zone?: string;
+  optionTokens?: string[];
+  sheetUids: Set<string>;
+}): { wireUids: string[]; pinUids: string[]; hops: number } {
+  const wantColor = normalizeWireColor(opts.color);
+  const sheet = opts.sheetUids;
+  const wireOut = new Set<string>();
+  const pinOut = new Set<string>();
+  const visitedJunctions = new Set<string>(); // code|pin at 73/74/…
+  if (opts.seedWireUid && sheet.has(opts.seedWireUid)) wireOut.add(opts.seedWireUid);
+  else if (opts.seedWireUid) wireOut.add(opts.seedWireUid); // keep seed even if not yet filtered
+
+  type Q = { code: string; pin: string; depth: number };
+  const queue: Q[] = [];
+  const visited = new Set<string>();
+  const enqueue = (code: string, pin: string, depth: number) => {
+    const c = normalizeCode(code);
+    const p = normPinKey(pin);
+    if (!c || !p) return;
+    const key = `${c}|${p}`;
+    if (visited.has(key)) return;
+    queue.push({ code: c, pin: p, depth });
+  };
+  enqueue(opts.code, opts.pin, 0);
+  if (opts.peer) enqueue(opts.peer, opts.peerPin || opts.pin, 0);
+
+  const MAX_HOPS = 8;
+  const MAX_WIRES = 24;
+  let hops = 0;
+
+  while (queue.length && wireOut.size < MAX_WIRES) {
+    const cur = queue.shift()!;
+    const vkey = `${cur.code}|${normPinKey(cur.pin)}`;
+    if (visited.has(vkey)) continue;
+    visited.add(vkey);
+    if (cur.depth > MAX_HOPS) continue;
+    hops = Math.max(hops, cur.depth);
+    if (isPathJunctionCode(cur.code)) visitedJunctions.add(vkey);
+
+    const rawEdges = lookupPinWireEdges(cur.code, cur.pin, {
+      diagramUid: opts.diagramUid || undefined,
+      zone: opts.zone,
+      optionTokens: opts.optionTokens,
+    });
+    // All same-color edges (sharedUID only ranks — never exclusive)
+    const edges = rankPathEdgesForExpand(rawEdges, {
+      seedSharedUid: opts.seedSharedUid,
+      sheetUids: sheet,
+      wantColor,
+    });
+
+    for (const e of edges) {
+      if (e.wireUid && sheet.has(e.wireUid)) wireOut.add(e.wireUid);
+      if (e.pinUid && sheet.has(e.pinUid)) pinOut.add(e.pinUid);
+      if (e.peerUid && sheet.has(e.peerUid)) pinOut.add(e.peerUid);
+
+      const peerCode = normalizeCode(e.peerCode || "");
+      const peerPin = String(e.peerPin || "").trim();
+      if (!peerCode || !peerPin) continue;
+      if (/^31\//.test(peerCode)) continue; // grounds — do not flood
+
+      if (isPathTerminalCode(peerCode)) {
+        // Collect terminal pin on sheet; do not walk into module internals
+        continue;
+      }
+      // Always walk junctions (incl. card peer when it is 73/74) and depth-0 peers
+      if (isPathJunctionCode(peerCode) || isPathJunctionCode(cur.code) || cur.depth === 0) {
+        enqueue(peerCode, peerPin, cur.depth + 1);
+      }
+    }
+  }
+
+  // Fan-out A: same sharedObjectUID on sheet (original harness instance)
+  if (opts.seedSharedUid && pinWireIndex?.by_code_pin && wireOut.size < MAX_WIRES) {
+    for (const list of Object.values(pinWireIndex.by_code_pin)) {
+      for (const e of list) {
+        if (e.sharedObjectUID !== opts.seedSharedUid) continue;
+        if (wantColor && e.color && !wireColorsMatch(String(e.color), wantColor)) continue;
+        if (e.wireUid && sheet.has(e.wireUid)) {
+          wireOut.add(e.wireUid);
+          if (wireOut.size >= MAX_WIRES) break;
+        }
+      }
+      if (wireOut.size >= MAX_WIRES) break;
+    }
+  }
+
+  // Fan-out B: same color on visited junction cavities — picks up 14014 after 14K138
+  if (wantColor && pinWireIndex?.by_code_pin && wireOut.size < MAX_WIRES) {
+    for (const jkey of visitedJunctions) {
+      const [jCode, jPin] = jkey.split("|");
+      if (!jCode || !jPin) continue;
+      const jedges = lookupPinWireEdges(jCode, jPin, {
+        diagramUid: opts.diagramUid || undefined,
+        zone: opts.zone,
+        optionTokens: opts.optionTokens,
+      });
+      for (const e of jedges) {
+        if (e.color && !wireColorsMatch(String(e.color), wantColor)) continue;
+        if (e.wireUid && sheet.has(e.wireUid)) {
+          wireOut.add(e.wireUid);
+          if (wireOut.size >= MAX_WIRES) break;
+        }
+        const peerCode = normalizeCode(e.peerCode || "");
+        const peerPin = String(e.peerPin || "").trim();
+        if (
+          peerCode &&
+          peerPin &&
+          !/^31\//.test(peerCode) &&
+          !isPathTerminalCode(peerCode) &&
+          isPathJunctionCode(peerCode)
+        ) {
+          enqueue(peerCode, peerPin, hops + 1);
+        }
+      }
+      if (wireOut.size >= MAX_WIRES) break;
+    }
+    // Drain any junction peers discovered in fan-out B (bounded)
+    while (queue.length && wireOut.size < MAX_WIRES) {
+      const cur = queue.shift()!;
+      const vkey = `${cur.code}|${normPinKey(cur.pin)}`;
+      if (visited.has(vkey)) continue;
+      visited.add(vkey);
+      if (cur.depth > MAX_HOPS) continue;
+      const edges = rankPathEdgesForExpand(
+        lookupPinWireEdges(cur.code, cur.pin, {
+          diagramUid: opts.diagramUid || undefined,
+          zone: opts.zone,
+          optionTokens: opts.optionTokens,
+        }),
+        { seedSharedUid: opts.seedSharedUid, sheetUids: sheet, wantColor },
+      );
+      for (const e of edges) {
+        if (e.wireUid && sheet.has(e.wireUid)) wireOut.add(e.wireUid);
+        const peerCode = normalizeCode(e.peerCode || "");
+        const peerPin = String(e.peerPin || "").trim();
+        if (!peerCode || !peerPin || /^31\//.test(peerCode)) continue;
+        if (isPathTerminalCode(peerCode)) continue;
+        if (isPathJunctionCode(peerCode) || isPathJunctionCode(cur.code)) {
+          enqueue(peerCode, peerPin, cur.depth + 1);
+        }
+      }
+    }
+  }
+
+  // Seed first in list
+  const wires = [...wireOut];
+  if (opts.seedWireUid && sheet.has(opts.seedWireUid)) {
+    wires.sort((a, b) => (a === opts.seedWireUid ? -1 : b === opts.seedWireUid ? 1 : 0));
+  }
+  return { wireUids: wires.filter((u) => sheet.has(u)).slice(0, MAX_WIRES), pinUids: [...pinOut].slice(0, 16), hops };
+}
+
 function edgeToEndpoint(edge: PinWireEdge): EwdEndpoint {
   const from = `${edge.code || ""}${edge.ppin || edge.pin ? `:${edge.ppin || edge.pin}` : ""}`;
   const to = edge.peerCode
@@ -587,9 +794,24 @@ function resolveHighlightUids(opts: {
   diagramUid: string;
   zone?: string;
   optionTokens?: string[];
+  /** FaceView / SQLite anchors from the selected card — preferred paint seeds. */
+  preferWireUid?: string;
+  preferPinUid?: string;
 }): HighlightResolve {
-  const { code, pin, color, peer, diagramUid, zone, optionTokens = [] } = opts;
+  const {
+    code,
+    pin,
+    color,
+    peer,
+    diagramUid,
+    zone,
+    optionTokens = [],
+    preferWireUid = "",
+    preferPinUid = "",
+  } = opts;
   const wantColor = normalizeWireColor(color);
+  const preferWire = String(preferWireUid || "").trim();
+  const preferPin = String(preferPinUid || "").trim();
 
   // 1) FaceView = cavity truth (color/peer/option). Paint UIDs must exist on the
   //    schematic SVG — FaceView span ids are often FaceView-local, so prefer
@@ -703,11 +925,18 @@ function resolveHighlightUids(opts: {
 
   const pinUids = new Set<string>();
   const wireUids = new Set<string>();
+  // Card-bound UIDs win when present — do not merge every soft pin_wire edge.
+  if (preferWire) wireUids.add(preferWire);
+  if (preferPin) pinUids.add(preferPin);
   for (const ep of matched) {
     const pinOnFrom = labelMatchesPin(ep.pinFrom, pin);
     const pinOnTo = labelMatchesPin(ep.pinTo, pin);
     const fromIsCode = normalizeCode(ep.from).startsWith(code);
     const toIsCode = normalizeCode(ep.to).startsWith(code);
+    const colorOk =
+      !wantColor || !ep.color || wireColorsMatch(ep.color, wantColor || faceColor);
+    // When card fixed a wireUid, ignore other nets entirely
+    if (preferWire && ep.wireUid && ep.wireUid !== preferWire) continue;
     if (pin) {
       if (pinOnFrom && ep.fromUid) pinUids.add(ep.fromUid);
       if (pinOnTo && ep.toUid) pinUids.add(ep.toUid);
@@ -715,33 +944,84 @@ function resolveHighlightUids(opts: {
         if (fromIsCode && ep.fromUid) pinUids.add(ep.fromUid);
         if (toIsCode && ep.toUid) pinUids.add(ep.toUid);
       }
-      // Keep opposite end for dual-pin geometry
-      if (ep.fromUid) pinUids.add(ep.fromUid);
-      if (ep.toUid) pinUids.add(ep.toUid);
-    } else {
+      // Opposite end only when color matches the card
+      if (colorOk) {
+        if (pinOnFrom && ep.toUid) pinUids.add(ep.toUid);
+        if (pinOnTo && ep.fromUid) pinUids.add(ep.fromUid);
+      }
+    } else if (colorOk) {
       if (ep.fromUid) pinUids.add(ep.fromUid);
       if (ep.toUid) pinUids.add(ep.toUid);
     }
-    if (ep.wireUid) wireUids.add(ep.wireUid);
-    if (ep.sharedObjectUID) wireUids.add(ep.sharedObjectUID);
+    // Never paint sharedObjectUID — it is a cross-system instance id, not SVG geometry
+    if (!preferWire && colorOk && ep.wireUid) wireUids.add(ep.wireUid);
   }
 
   const rec = diagramUid ? svgIndex?.diagrams?.[diagramUid] : undefined;
   const groups = rec?.groups || [];
   const sheetUids = new Set(groups.flatMap((g) => g.uids || []));
-  const wireOnSheet = [...wireUids].filter((u) => sheetUids.has(u));
-  const pinOnSheet = [...pinUids].filter((u) => sheetUids.has(u));
+  // Seed: card wireUid if on sheet, else matched wire UIDs on sheet
+  let wireOnSheet = [...wireUids].filter((u) => sheetUids.has(u));
+  if (preferWire && sheetUids.has(preferWire)) {
+    wireOnSheet = [preferWire, ...wireOnSheet.filter((u) => u !== preferWire)];
+    source = source.startsWith("face_view") ? source : "card-wire-uid";
+  }
+  let pinOnSheet = [...pinUids].filter((u) => sheetUids.has(u));
+  if (preferPin && sheetUids.has(preferPin)) {
+    pinOnSheet = [preferPin, ...pinOnSheet.filter((u) => u !== preferPin)];
+  }
 
-  /** Exact conductor UID first (VIDA-style); expand CAFConductor only for those UIDs. */
+  // Path expansion: seed segment → junctions → final module/button (on this sheet only)
+  const seedWire =
+    (preferWire && sheetUids.has(preferWire) ? preferWire : "") ||
+    wireOnSheet[0] ||
+    "";
+  const seedEdge =
+    matched.find((ep) => ep.wireUid && ep.wireUid === seedWire) ||
+    matched.find((ep) => ep.wireUid && sheetUids.has(ep.wireUid)) ||
+    matched[0];
+  const seedShared = String(seedEdge?.sharedObjectUID || "").trim();
+  const pathPeer = facePeer || peer || normalizeCode(String(seedEdge?.to || "").split(":")[0] || "");
+  const pathPeerPin = String(seedEdge?.pinTo || "").trim();
+  if (seedWire && diagramUid && (pin || preferWire)) {
+    const path = expandWirePathOnSheet({
+      seedWireUid: seedWire,
+      seedSharedUid: seedShared,
+      code,
+      pin: pin || String(seedEdge?.pinFrom || ""),
+      color: wantColor || faceColor || String(seedEdge?.color || ""),
+      peer: pathPeer,
+      peerPin: pathPeerPin,
+      diagramUid,
+      zone,
+      optionTokens,
+      sheetUids,
+    });
+    if (path.wireUids.length > wireOnSheet.length) {
+      wireOnSheet = path.wireUids;
+      source = source.includes("path") ? source : `${source}+path`;
+    } else if (path.wireUids.length) {
+      // Merge any extra on-sheet segments
+      const merged = new Set([...wireOnSheet, ...path.wireUids]);
+      wireOnSheet = [
+        seedWire,
+        ...[...merged].filter((u) => u !== seedWire),
+      ];
+      if (path.wireUids.length > 1) source = source.includes("path") ? source : `${source}+path`;
+    }
+    for (const u of path.pinUids) {
+      if (!pinOnSheet.includes(u)) pinOnSheet.push(u);
+    }
+  }
+
+  /** Keep only seed UIDs that live in the preferred schem class — never sibling conductors. */
   const expandExact = (seed: string[], preferClass: string) => {
     const seedSet = new Set(seed);
     const out = new Set<string>();
     for (const g of groups) {
       if (preferClass && g.schemClass !== preferClass) continue;
-      if ((g.uids || []).some((u) => seedSet.has(u))) {
-        for (const u of g.uids || []) {
-          if (seedSet.has(u) || preferClass === "CAFConductor") out.add(u);
-        }
+      for (const u of g.uids || []) {
+        if (seedSet.has(u)) out.add(u);
       }
     }
     return [...out];
@@ -753,11 +1033,10 @@ function resolveHighlightUids(opts: {
     uids = expandExact(wireOnSheet, "CAFConductor");
     if (!uids.length) uids = wireOnSheet;
     if (source === "pin_wire_index") source = "pin_wire_wire";
-    else if (!keepFace) source = "wire-uid";
+    else if (!keepFace && !source.includes("card-wire") && !source.includes("path")) source = "wire-uid";
   } else if (pinOnSheet.length) {
-    uids = expandExact(pinOnSheet, "CAFConductor");
-    if (!uids.length) uids = expandExact(pinOnSheet, "CAFPinList");
-    if (!uids.length) uids = pinOnSheet;
+    // Pin UIDs are for markers — do not expand into every CAFConductor on the pin list
+    uids = pinOnSheet;
     if (source === "pin_wire_index") source = "pin_wire_pin";
     else if (!keepFace) source = "pin-uid";
   } else if (matched.length) {
@@ -769,14 +1048,32 @@ function resolveHighlightUids(opts: {
     source = "device-object";
   }
 
-  const nonGround = matched.filter(
+  let matchedFiltered = matched;
+  if (preferWire) {
+    // Keep seed net + path peers (same color), not every soft edge
+    matchedFiltered = matched.filter(
+      (ep) =>
+        !ep.wireUid ||
+        ep.wireUid === preferWire ||
+        wireOnSheet.includes(ep.wireUid) ||
+        (!!wantColor && !!ep.color && wireColorsMatch(ep.color, wantColor)),
+    );
+  } else if (wantColor) {
+    matchedFiltered = matched.filter(
+      (ep) => !ep.color || wireColorsMatch(ep.color, wantColor),
+    );
+  }
+  const nonGround = matchedFiltered.filter(
     (ep) => !/^31\//.test(normalizeCode(ep.from)) && !/^31\//.test(normalizeCode(ep.to)),
   );
-  const matchedOut = (nonGround.length ? nonGround : matched).slice(0, 8);
+  const matchedOut = (nonGround.length ? nonGround : matchedFiltered).slice(0, 8);
   return {
     uids: uids.slice(0, 24),
-    pinUids: [...pinUids].filter(Boolean).slice(0, 16),
-    wireUids: [...wireUids].filter(Boolean).slice(0, 16),
+    pinUids: [...new Set([...pinOnSheet, ...pinUids])].filter(Boolean).slice(0, 16),
+    // Full on-sheet path (seed first), not exclusive single segment
+    wireUids: wireOnSheet.length
+      ? wireOnSheet.slice(0, 16)
+      : [...wireUids].filter(Boolean).slice(0, 16),
     matched: matchedOut,
     source,
   };
@@ -948,6 +1245,8 @@ export function createEwdRouter() {
     const peer = normalizeCode(String(req.query.peer || ""));
     const diagramUid = String(req.query.diagramUid || "").trim();
     const zone = String(req.query.zone || "").trim();
+    const preferWireUid = String(req.query.wireUid || req.query.wire_uid || "").trim();
+    const preferPinUid = String(req.query.pinUid || req.query.pin_uid || "").trim();
     const optionTokens = parseOptionTokens(req.query.optionTokens || req.query.options);
     if (!code) {
       res.status(400).json({ error: "code required", uids: [] });
@@ -961,6 +1260,8 @@ export function createEwdRouter() {
       diagramUid,
       zone: zone || undefined,
       optionTokens,
+      preferWireUid,
+      preferPinUid,
     });
     res.json({
       code,
@@ -970,6 +1271,8 @@ export function createEwdRouter() {
       diagramUid,
       zone: zone || "all",
       optionTokens,
+      preferWireUid: preferWireUid || null,
+      preferPinUid: preferPinUid || null,
       uids: result.uids,
       pinUids: result.pinUids,
       wireUids: result.wireUids,
@@ -1094,6 +1397,8 @@ export function createEwdRouter() {
     const color = normalizeWireColor(String(req.query.color || ""));
     const peer = normalizeCode(String(req.query.peer || ""));
     const zone = String(req.query.zone || "").trim();
+    const preferWireUid = String(req.query.wireUid || req.query.wire_uid || "").trim();
+    const preferPinUid = String(req.query.pinUid || req.query.pin_uid || "").trim();
     const optionTokens = parseOptionTokens(req.query.optionTokens || req.query.options);
     const requested = String(req.query.diagramUids || "")
       .split(/[,;]+/)
@@ -1101,14 +1406,26 @@ export function createEwdRouter() {
       .filter((u) => /^UID[0-9a-fA-F-]+$/i.test(u))
       .slice(0, 24);
 
-    // Prefer diagrams owned by the net (from pin_wire_index.diagramUids)
+    // Diagrams owned by this net (pin_wire) — never dropped when client sends a probe list
     const netOwned: string[] = [];
+    const pushOwned = (d: string) => {
+      if (d && !netOwned.includes(d)) netOwned.push(d);
+    };
     if (pins.length && pinWireIndex?.by_code_pin) {
       for (const pin of pins) {
         for (const e of lookupPinWireEdges(code, pin, { zone: zone || undefined, optionTokens })) {
-          for (const d of e.diagramUids || []) {
-            if (!netOwned.includes(d)) netOwned.push(d);
-          }
+          if (preferWireUid && e.wireUid && e.wireUid !== preferWireUid) continue;
+          if (color && e.color && !wireColorsMatch(String(e.color), color)) continue;
+          for (const d of e.diagramUids || []) pushOwned(d);
+        }
+      }
+    }
+    // Also find sheets by card wireUid alone (even if pin soft-key missed)
+    if (preferWireUid && pinWireIndex?.by_code_pin) {
+      for (const edges of Object.values(pinWireIndex.by_code_pin)) {
+        for (const e of edges) {
+          if (e.wireUid !== preferWireUid) continue;
+          for (const d of e.diagramUids || []) pushOwned(d);
         }
       }
     }
@@ -1119,9 +1436,13 @@ export function createEwdRouter() {
         ...(deviceIndex?.by_code?.[code]?.diagramUids || []),
         ...(svgIndex?.codeToDiagramUids?.[code] || []),
       ]),
-    ].slice(0, 32);
-    const diagramUids = requested.length ? requested : fallbackUids;
+    ].slice(0, 40);
+    // requested (client probe) ADDS to netOwned — does not replace it
+    const diagramUids = [
+      ...new Set([...netOwned, ...requested, ...(requested.length ? [] : fallbackUids)]),
+    ].slice(0, 40);
     const pinList = pins.length ? pins : [""];
+    const requireWireHit = Boolean(preferWireUid);
 
     type RankRow = {
       diagramUid: string;
@@ -1154,14 +1475,24 @@ export function createEwdRouter() {
           diagramUid,
           zone: zone || undefined,
           optionTokens,
+          preferWireUid,
+          preferPinUid,
         });
         const own = scoreDiagramNetOwnership(diagramUid, result.pinUids, result.wireUids);
+        // With card wireUid: only count hits if that UID is on the sheet
+        let wireHits = own.wireHits;
+        if (preferWireUid) {
+          const sheet = new Set(
+            (svgIndex?.diagrams?.[diagramUid]?.groups || []).flatMap((g) => g.uids || []),
+          );
+          wireHits = sheet.has(preferWireUid) ? Math.max(own.wireHits, 1) : 0;
+        }
         const row: RankRow = {
           diagramUid,
           matchedCount: result.matched.length,
           uidCount: result.uids.length,
           onSheetUidCount: own.onSheet,
-          wireHits: own.wireHits,
+          wireHits,
           pinHits: own.pinHits,
           pin,
           source: result.source,
@@ -1177,7 +1508,7 @@ export function createEwdRouter() {
             row.matchedCount === best.matchedCount &&
             row.uidCount > best.uidCount);
         if (better) best = row;
-        if (best.matchedCount > 0 && best.wireHits > 0) break;
+        if (best.wireHits > 0) break;
       }
       ranked.push(best);
     }
@@ -1185,17 +1516,17 @@ export function createEwdRouter() {
     ranked.sort(
       (a, b) =>
         b.wireHits - a.wireHits ||
-        Number(b.matchedCount > 0 && b.onSheetUidCount > 0) -
-          Number(a.matchedCount > 0 && a.onSheetUidCount > 0) ||
-        Number(b.matchedCount > 0) - Number(a.matchedCount > 0) ||
         b.onSheetUidCount - a.onSheetUidCount ||
+        b.pinHits - a.pinHits ||
         b.matchedCount - a.matchedCount ||
         b.uidCount - a.uidCount,
     );
 
-    const hard = ranked.find((r) => r.matchedCount > 0 && (r.wireHits > 0 || r.onSheetUidCount > 0));
-    const soft = ranked.find((r) => r.matchedCount > 0);
-    const pick = hard || soft || null;
+    // hard = wire on sheet; with card wireUid never fall back to soft (matched-only)
+    const hard = ranked.find((r) => r.wireHits > 0);
+    const soft = ranked.find((r) => r.matchedCount > 0 && (r.wireHits > 0 || r.pinHits > 0));
+    const pick = hard || (requireWireHit ? null : soft) || null;
+    const viableRows = ranked.filter((r) => r.wireHits > 0 || (!requireWireHit && r.pinHits > 0));
 
     res.json({
       code,
@@ -1204,6 +1535,8 @@ export function createEwdRouter() {
       peer,
       zone: zone || "all",
       optionTokens,
+      preferWireUid: preferWireUid || null,
+      preferPinUid: preferPinUid || null,
       diagramUid: pick?.diagramUid || null,
       pin: pick?.pin || pins[0] || "",
       matchedCount: pick?.matchedCount || 0,
@@ -1213,11 +1546,9 @@ export function createEwdRouter() {
       pinHits: pick?.pinHits || 0,
       source: pick?.source || "",
       netOwnedCount: netOwned.length,
-      viable: ranked
-        .filter((r) => r.matchedCount > 0)
-        .map((r) => r.diagramUid)
-        .slice(0, 8),
-      ranked: ranked.slice(0, 12),
+      hard: Boolean(hard),
+      viable: viableRows.map((r) => r.diagramUid).slice(0, 12),
+      ranked: viableRows.slice(0, 12),
     });
   });
 

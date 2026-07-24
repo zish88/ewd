@@ -458,8 +458,42 @@ html {
   display: none;
 }
 
+/* Pan/zoom FABs — desktop + mobile (Location and EWD schematics) */
 .svg-zoom-fab {
-  display: none;
+  display: flex;
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 30;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.svg-zoom-fab__btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: var(--elevation-2);
+}
+
+.svg-zoom-fab__btn--reset {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cards-column__sticky {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: var(--surface-container, var(--bg-main));
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
 }
 
 .suggest-edit-btn {
@@ -631,31 +665,16 @@ html {
   }
 
   .svg-zoom-fab {
-    display: flex;
-    position: absolute;
-    right: 0.75rem;
     bottom: calc(0.75rem + var(--safe-bottom));
-    z-index: 30;
-    flex-direction: column;
-    gap: 0.35rem;
   }
 
   .svg-zoom-fab__btn {
     min-width: 48px;
     min-height: 48px;
-    border-radius: 999px;
-    border: 1px solid var(--outline-variant);
-    background: var(--bg-card);
-    color: var(--text-main);
-    font-size: 1.25rem;
-    font-weight: 700;
-    box-shadow: var(--elevation-2);
   }
 
-  .svg-zoom-fab__btn--reset {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+  .cards-column__sticky {
+    top: 0;
   }
 
   .svg-viewer {

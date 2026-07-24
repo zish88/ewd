@@ -92,6 +92,9 @@ const result = {
   pinOnModule: pinOnModule.pin,
   pinOnJunction: pinOnJunction.pin,
   pinModuleCandidates: pinOnModule.pinCandidates,
+  fromCode: pinOnModule.fromCode,
+  toCode: pinOnModule.toCode,
+  peerPin: pinOnModule.peerPin,
 };
 
 console.log(JSON.stringify(result, null, 2));
@@ -122,8 +125,18 @@ if (result.pinOnModule !== "2") {
 if (result.pinOnJunction !== "21") {
   fail(`selected junction must keep card pin 21, got ${result.pinOnJunction}`);
 }
-if (!Array.isArray(result.pinModuleCandidates) || !result.pinModuleCandidates.includes("2") || !result.pinModuleCandidates.includes("21")) {
-  fail(`module pin candidates must include 2 and 21, got ${JSON.stringify(result.pinModuleCandidates)}`);
+// Selected-side candidates must NOT mix the peer/junction cavity (21) into module (2)
+if (!Array.isArray(result.pinModuleCandidates) || !result.pinModuleCandidates.includes("2")) {
+  fail(`module pin candidates must include 2, got ${JSON.stringify(result.pinModuleCandidates)}`);
+}
+if (result.pinModuleCandidates.includes("21")) {
+  fail(`module pin candidates must not include peer cavity 21, got ${JSON.stringify(result.pinModuleCandidates)}`);
+}
+if (result.fromCode !== "3/126") {
+  fail(`fromCode should be 3/126, got ${result.fromCode}`);
+}
+if (result.toCode !== "3/127") {
+  fail(`toCode should be 3/127, got ${result.toCode}`);
 }
 
 // Pin probe must include junction-only sheets (score 0) after scored pages

@@ -7,6 +7,8 @@ import {
   wireColorRu,
 } from "../volvoStandards.js";
 import { localizeEngineeringText } from "../termGlossary.js";
+import { enrichDetailWithName } from "../detailEnrich.js";
+import { lookupFacePins } from "./ewdCapital.js";
 
 const PAGE_TYPES = new Set<PageType>(["fuses", "locations", "diagram", "connector"]);
 
@@ -247,17 +249,30 @@ function extractSubjectCode(systemName: string): string {
   return m ? m[1] : "";
 }
 
+function loadNameByCode(db: Database.Database): Map<string, string> {
+  return new Map(
+    (
+      db
+        .prepare(
+          `SELECT component_code, COALESCE(NULLIF(TRIM(name_ru), ''), NULLIF(TRIM(description_ru), ''), '') AS name_ru
+           FROM components
+           WHERE TRIM(COALESCE(name_ru, '')) != '' OR TRIM(COALESCE(description_ru, '')) != ''`,
+        )
+        .all() as Array<{ component_code: string; name_ru: string }>
+    ).map((r) => [String(r.component_code), String(r.name_ru || "").trim()]),
+  );
+}
+
 /**
  * One atomic card per wire row (EN-only DB). Sorted by integrity score DESC.
  */
-function rowsToCards(rows: any[]) {
+function rowsToCards(rows: any[], nameByCode?: Map<string, string>) {
   const cards = rows.map((row) => {
     const from_node = row.from_code || "—";
     const to_node = row.to_code || "—";
     const via_node = row.via_code || "—";
     const pin = normalizePin(row.pin_number) || "—";
-    const color = normalizeColor(row.wire_color_raw) || "—";
-    const colorRu = color !== "—" ? wireColorRu(color) : "—";
+    let color = normalizeColor(row.wire_color_raw) || "—";
     const page_type = row.page_type || "diagram";
     const system_name = cleanTitle(row.system_name);
     const subject =
@@ -288,8 +303,20 @@ function rowsToCards(rows: any[]) {
 
     const description = localizeEngineeringText(pickDescription(row));
     const function_text = localizeEngineeringText(String(row.function_text || "").trim() || description);
-    const from_detail = localizeEngineeringText(String(row.from_detail || "").trim());
-    const to_detail = localizeEngineeringText(String(row.to_detail || "").trim());
+    const from_detail = enrichDetailWithName(
+      localizeEngineeringText(String(row.from_detail || "").trim()),
+      nameByCode,
+    );
+    const to_detail = enrichDetailWithName(
+      localizeEngineeringText(String(row.to_detail || "").trim()),
+      nameByCode,
+    );
+    if (color === "—" && (subject || primary_node !== "—") && pin !== "—") {
+      const face = lookupFacePins(subject || primary_node, pin)[0];
+      const faceColor = normalizeColor(String(face?.color || ""));
+      if (faceColor) color = faceColor;
+    }
+    const colorRu = color !== "—" ? wireColorRu(color) : "—";
     const pinout_page_number = Number(row.pinout_page_number) || 0;
     const diagram_page_number = Number(row.diagram_source_page) || 0;
     const page_number = diagram_page_number > 0 ? diagram_page_number : pinout_page_number;
@@ -463,7 +490,7 @@ function executeVolvoSearch(db: Database.Database, spec: SearchSpec) {
     rows = rows.filter((row) => String(row.wire_color_raw || "").toUpperCase() === force);
   }
 
-  return rowsToCards(rows);
+  return rowsToCards(rows, loadNameByCode(db));
 }
 
 function executePhraseAndSearch(db: Database.Database, query: string, forceColor?: string) {
@@ -506,7 +533,7 @@ function executePhraseAndSearch(db: Database.Database, query: string, forceColor
     rows = rows.filter((row) => String(row.wire_color_raw || "").toUpperCase() === force);
   }
 
-  return rowsToCards(rows);
+  return rowsToCards(rows, loadNameByCode(db));
 }
 
 function executeUniversalSearch(db: Database.Database, query: string, forceColor?: string) {
@@ -534,7 +561,7 @@ function executeUniversalSearch(db: Database.Database, query: string, forceColor
     const rows = db
       .prepare(`${BASE_SELECT} WHERE UPPER(w.wire_color_raw) = ? ${ORDER_DIAGRAM_FIRST}`)
       .all(color) as any[];
-    return rowsToCards(rows);
+    return rowsToCards(rows, loadNameByCode(db));
   }
 
   return executePhraseAndSearch(db, q, forceColor);

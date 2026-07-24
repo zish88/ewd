@@ -16,7 +16,7 @@ export type WireEndPayload = {
   pinCandidates?: string[] | null;
   /** Preferred geometry UID for this end (fromUid / toUid). */
   uid?: string | null;
-  role?: "from" | "to" | "selected" | "peer";
+  role?: "from" | "to" | "selected" | "peer" | "primary";
 };
 
 export type HighlightTargetPayload = {
@@ -1007,6 +1007,7 @@ function resolveMarkerAnchor(
 }
 
 function clearHighlights(root: Element, svg: SVGSVGElement): void {
+  root.querySelectorAll(".ewd-highlight-dual").forEach((el) => el.remove());
   root.querySelectorAll(".ewd-highlight").forEach((el) => {
     el.classList.remove("ewd-highlight");
     const s = (el as SVGElement).style;
@@ -1016,23 +1017,199 @@ function clearHighlights(root: Element, svg: SVGSVGElement): void {
     s.removeProperty("stroke-opacity");
     s.removeProperty("opacity");
     s.removeProperty("vector-effect");
+    s.removeProperty("stroke-dasharray");
   });
   svg.querySelectorAll("g.pin-marker, g.ewd-ping-marker").forEach((el) => el.remove());
 }
 
-function applyStrokeHighlight(el: Element, wireColor: string): void {
+/** Dual-color stroke plan (solid base + dashed overlay), same idea as pin-marker rings. */
+export function dualHighlightSpec(wireColor: string): {
+  primary: string;
+  secondary: string | null;
+  dash: string;
+} {
   const borders = wireBorderColors(wireColor || "GN");
-  const stroke = borders[0] || "#10b981";
+  return {
+    primary: borders[0] || "#10b981",
+    secondary: borders.length > 1 ? borders[1] ?? null : null,
+    dash: "6 4",
+  };
+}
+
+function applyStrokeHighlight(el: Element, wireColor: string): void {
+  const { primary, secondary, dash } = dualHighlightSpec(wireColor);
+  // Drop prior dual overlay clones for this path
+  let sib = el.nextElementSibling;
+  while (sib?.classList.contains("ewd-highlight-dual")) {
+    const doomed = sib;
+    sib = sib.nextElementSibling;
+    doomed.remove();
+  }
   el.classList.add("ewd-highlight");
   const s = (el as SVGElement).style;
-  s.setProperty("stroke", stroke, "important");
+  s.setProperty("stroke", primary, "important");
   s.setProperty("stroke-width", "2.4", "important");
   s.setProperty("stroke-opacity", "0.95", "important");
   s.setProperty("fill", "none", "important");
   s.setProperty("vector-effect", "non-scaling-stroke", "important");
-  if (borders.length > 1) {
-    s.setProperty("stroke-dasharray", "6 4", "important");
+  s.removeProperty("stroke-dasharray");
+  if (secondary) {
+    const clone = el.cloneNode(true) as Element;
+    clone.removeAttribute("id");
+    clone.classList.add("ewd-highlight", "ewd-highlight-dual");
+    const cs = (clone as SVGElement).style;
+    cs.setProperty("stroke", secondary, "important");
+    cs.setProperty("stroke-width", "2.4", "important");
+    cs.setProperty("stroke-opacity", "0.95", "important");
+    cs.setProperty("fill", "none", "important");
+    cs.setProperty("vector-effect", "non-scaling-stroke", "important");
+    cs.setProperty("stroke-dasharray", dash, "important");
+    el.parentNode?.insertBefore(clone, el.nextSibling);
   }
+}
+
+/** Primary marker roles = Откуда (never Куда / peer / to). */
+export function isPrimaryMarkerRole(role?: string | null): boolean {
+  return role === "selected" || role === "primary" || role === "from";
+}
+
+/** Primary ends first; secondary (to/peer) only when allowSecondary. */
+export function orderEndsForMarker<T extends { role?: string | null }>(
+  ends: T[],
+  allowSecondary: boolean,
+): T[] {
+  const primary = ends.filter((e) => isPrimaryMarkerRole(e.role));
+  if (!allowSecondary) return primary;
+  return [...primary, ...ends.filter((e) => !isPrimaryMarkerRole(e.role))];
+}
+
+/**
+ * Pick connectivity UID for card «Откуда» (never the opposite / Куда side).
+ * Handles Capital from/to swap vs card from_detail.
+ */
+export function alignPrimaryUidForFrom(opts: {
+  fromCode: string;
+  fromPin: string;
+  matched?: {
+    from?: string;
+    to?: string;
+    pinFrom?: string;
+    pinTo?: string;
+    fromUid?: string;
+    toUid?: string;
+  } | null;
+  cardPinUid?: string;
+}): { primaryUid: string; secondaryUid: string } {
+  const fromCode = normalizeCodeLabel(opts.fromCode).toUpperCase();
+  const fromPin = String(opts.fromPin || "").trim();
+  const m = opts.matched;
+  const empty = { primaryUid: "", secondaryUid: "" };
+  if (!m || !fromCode) {
+    return { primaryUid: String(opts.cardPinUid || "").trim(), secondaryUid: "" };
+  }
+  const epFrom = normalizeCodeLabel(m.from || "").toUpperCase();
+  const epTo = normalizeCodeLabel(m.to || "").toUpperCase();
+  const pinFrom = String(m.pinFrom || "").trim();
+  const pinTo = String(m.pinTo || "").trim();
+  const pinMatch = (a: string, b: string) => !a || !b || a === b;
+  const onFromSide =
+    epFrom === fromCode && pinMatch(fromPin, pinFrom);
+  const onToSide = epTo === fromCode && pinMatch(fromPin, pinTo);
+  if (onFromSide) {
+    return {
+      primaryUid: String(m.fromUid || opts.cardPinUid || "").trim(),
+      secondaryUid: String(m.toUid || "").trim(),
+    };
+  }
+  if (onToSide) {
+    return {
+      primaryUid: String(m.toUid || opts.cardPinUid || "").trim(),
+      secondaryUid: String(m.fromUid || "").trim(),
+    };
+  }
+  // Soft: code match without pin
+  if (epFrom === fromCode) {
+    return {
+      primaryUid: String(m.fromUid || opts.cardPinUid || "").trim(),
+      secondaryUid: String(m.toUid || "").trim(),
+    };
+  }
+  if (epTo === fromCode) {
+    return {
+      primaryUid: String(m.toUid || opts.cardPinUid || "").trim(),
+      secondaryUid: String(m.fromUid || "").trim(),
+    };
+  }
+  return {
+    primaryUid: String(opts.cardPinUid || "").trim(),
+    secondaryUid: "",
+  };
+}
+
+/**
+ * Nearest endpoint of painted strokes to a connector scope center (Откуда fallback).
+ */
+export function nearestPaintedEndpointToScopes(
+  painted: Element[],
+  scopes: Element[],
+): Pt | null {
+  if (!painted.length || !scopes.length) return null;
+  const centers: Pt[] = [];
+  for (const s of scopes) {
+    try {
+      const b = (s as SVGGraphicsElement).getBBox();
+      centers.push({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!centers.length) return null;
+  let best: Pt | null = null;
+  let bestD = Infinity;
+  for (const el of painted) {
+    for (const pt of wireEndpoints(el)) {
+      for (const c of centers) {
+        const d = (pt.x - c.x) ** 2 + (pt.y - c.y) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          best = pt;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/** Clear stroke highlights + pin markers (public for pin-miss cleanup). */
+export function clearEwdHighlights(root: Element, svg: SVGSVGElement): void {
+  clearHighlights(root, svg);
+}
+
+/** Remove pin circles only — keep wire paint when retrying / reporting pin-miss. */
+export function clearPinMarkers(svg: SVGSVGElement): void {
+  svg.querySelectorAll("g.pin-marker, g.ewd-ping-marker").forEach((el) => el.remove());
+}
+
+/**
+ * Color fallback / extend is allowed only when there is no pin+UID card anchor.
+ * Prevents painting a foreign same-color branch (e.g. VT pin 4 next to pin 10).
+ */
+export function allowWireColorFallback(opts: {
+  hasPinFocus: boolean;
+  hasUidAnchor: boolean;
+  wireUidsLength: number;
+  paintedLength: number;
+  wireColor: string;
+  endCodesLength: number;
+}): boolean {
+  const strictUidPaint = opts.hasPinFocus && opts.hasUidAnchor;
+  return (
+    !strictUidPaint &&
+    Boolean(opts.wireColor) &&
+    opts.endCodesLength > 0 &&
+    opts.paintedLength === 0 &&
+    opts.wireUidsLength === 0
+  );
 }
 
 /** Paint path/line/polyline strokes inside groups that match exact wire UIDs. */
@@ -1084,14 +1261,14 @@ function paintByWireColorLabel(
   if (!want) return [];
   const maxDim = Math.max(viewBoxBox(svg).w, viewBoxBox(svg).h, 1000);
   const codeSet = new Set(nearCodes.map((c) => normalizeCodeLabel(c).toUpperCase()).filter(Boolean));
-  let scopeBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
-  if (codeSet.size) {
-    const scopes: Element[] = [];
-    for (const code of codeSet) {
-      scopes.push(...findConnectorScopes(root, svg, code, "", []));
-    }
-    scopeBoxes = scopeBBoxes(scopes);
+  // Refuse unscoped whole-sheet color paint — that is how wrong branches get highlighted
+  if (!codeSet.size) return [];
+  const scopes: Element[] = [];
+  for (const code of codeSet) {
+    scopes.push(...findConnectorScopes(root, svg, code, "", []));
   }
+  const scopeBoxes = scopeBBoxes(scopes);
+  if (!scopeBoxes.length) return [];
   const pad = Math.max(500, maxDim * 0.04);
   const painted: Element[] = [];
   const seen = new Set<Element>();
@@ -1109,20 +1286,18 @@ function paintByWireColorLabel(
       if (seen.has(el) || isServiceGraphic(el, svg)) continue;
       const len = strokeLength(el);
       if (len > 0 && len < 2) continue;
-      if (scopeBoxes.length) {
-        let near = false;
-        try {
-          const b = (el as SVGGraphicsElement).getBBox();
-          const mid = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-          near = nearAnyScope(mid, scopeBoxes, pad);
-          for (const end of wireEndpoints(el)) {
-            if (nearAnyScope(end, scopeBoxes, pad)) near = true;
-          }
-        } catch {
-          near = true;
+      let near = false;
+      try {
+        const b = (el as SVGGraphicsElement).getBBox();
+        const mid = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        near = nearAnyScope(mid, scopeBoxes, pad);
+        for (const end of wireEndpoints(el)) {
+          if (nearAnyScope(end, scopeBoxes, pad)) near = true;
         }
-        if (!near) continue;
+      } catch {
+        near = false;
       }
+      if (!near) continue;
       applyStrokeHighlight(el, wireColor);
       seen.add(el);
       painted.push(el);
@@ -1130,6 +1305,90 @@ function paintByWireColorLabel(
     }
   }
   return painted;
+}
+
+/**
+ * After UID paint: extend same-color strokes that touch already-painted endpoints
+ * (and optional connector codes). Continues GN-RD/BK-GN past 74/508 when harness ID changes.
+ * Does NOT whole-sheet flood — only near painted path + end code scopes.
+ */
+export function extendPaintAlongPaintedPath(
+  root: Element,
+  svg: SVGSVGElement,
+  wireColor: string,
+  alreadyPainted: Element[],
+  nearCodes: string[] = [],
+): Element[] {
+  const want = normalizeWireColorKey(wireColor);
+  if (!want || !alreadyPainted.length) return [];
+  const maxDim = Math.max(viewBoxBox(svg).w, viewBoxBox(svg).h, 1000);
+  const pad = Math.max(400, maxDim * 0.03);
+  const hubs: Pt[] = [];
+  for (const el of alreadyPainted) {
+    for (const p of wireEndpoints(el)) hubs.push(p);
+    try {
+      const b = (el as SVGGraphicsElement).getBBox();
+      hubs.push({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    } catch {
+      /* ignore */
+    }
+  }
+  const scopes: Element[] = [];
+  for (const code of nearCodes.map((c) => normalizeCodeLabel(c)).filter(Boolean)) {
+    scopes.push(...findConnectorScopes(root, svg, code, "", []));
+  }
+  const scopeBoxes = scopeBBoxes(scopes);
+  const nearHub = (pt: Pt): boolean => {
+    for (const h of hubs) {
+      const d = Math.hypot(pt.x - h.x, pt.y - h.y);
+      if (d <= pad) return true;
+    }
+    if (scopeBoxes.length && nearAnyScope(pt, scopeBoxes, pad)) return true;
+    return false;
+  };
+
+  const seen = new Set(alreadyPainted);
+  const added: Element[] = [];
+  // Grow a few waves so segments chain past the junction
+  for (let wave = 0; wave < 4 && added.length < 60; wave++) {
+    let waveAdded = 0;
+    for (const g of root.querySelectorAll("g")) {
+      if (!/CAFConductor/i.test(readDesc(g)) || isServiceGraphic(g, svg)) continue;
+      const groupColors: string[] = [];
+      for (const node of g.querySelectorAll("text, tspan")) {
+        groupColors.push(...parseColorTokens(node.textContent || ""));
+      }
+      if (!groupColors.some((c) => wireColorsMatch(c, want))) continue;
+      const paths = g.querySelectorAll("path, line, polyline, polygon");
+      for (const el of paths) {
+        if (seen.has(el) || isServiceGraphic(el, svg)) continue;
+        const len = strokeLength(el);
+        if (len > 0 && len < 2) continue;
+        let near = false;
+        try {
+          for (const end of wireEndpoints(el)) {
+            if (nearHub(end)) near = true;
+          }
+          if (!near) {
+            const b = (el as SVGGraphicsElement).getBBox();
+            near = nearHub({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+          }
+        } catch {
+          near = false;
+        }
+        if (!near) continue;
+        applyStrokeHighlight(el, wireColor);
+        seen.add(el);
+        added.push(el);
+        waveAdded += 1;
+        for (const p of wireEndpoints(el)) hubs.push(p);
+        if (added.length >= 60) break;
+      }
+      if (added.length >= 60) break;
+    }
+    if (!waveAdded) break;
+  }
+  return added;
 }
 
 /**
@@ -1342,6 +1601,7 @@ export function highlightTarget(
   let guaranteedMarker = false;
   let lineHighlight = false;
   let markersPlaced = 0;
+  let primaryPlaced = false;
 
   const endsFromPayload = (): WireEndPayload[] => {
     if (Array.isArray(payload.ends) && payload.ends.length) {
@@ -1385,9 +1645,10 @@ export function highlightTarget(
           .filter(Boolean),
       ),
     ];
+    // Only this end's pinUid — never merge all resolveUids (that glued every card to one cavity)
     const endUids = [
       ...new Set(
-        [end.uid, ...resolveUids]
+        [end.uid]
           .map((u) => String(u ?? "").trim())
           .filter(Boolean),
       ),
@@ -1398,7 +1659,7 @@ export function highlightTarget(
       svg,
       pins[0] || "",
       code,
-      end.uid || systemUid,
+      end.uid || "",
       "",
       wireColor,
       pins,
@@ -1407,18 +1668,23 @@ export function highlightTarget(
     if (!resolved) return false;
     if (strictEnd && softModes.includes(resolved.mode)) return false;
     const label = pins[0] || code;
+    const isPrimary = isPrimaryMarkerRole(end.role);
     try {
       injectPinMarker(svg, resolved.at, label, wireColor, svg, {
         role: end.role || "end",
         code,
       });
       markersPlaced += 1;
-      if (!markerAt) markerAt = resolved.at;
-      anchorMode = resolved.mode;
-      anchors = resolved.anchors;
-      hostGroup = resolved.hostGroup || hostGroup;
-      scopeCount += resolved.scopeCount;
-      if (resolved.connectorScoped) connectorScoped = true;
+      // Recenter / primary markerAt only for Откуда — never promote Куда
+      if (isPrimary) {
+        markerAt = resolved.at;
+        primaryPlaced = true;
+        anchorMode = resolved.mode;
+        anchors = resolved.anchors;
+        hostGroup = resolved.hostGroup || hostGroup;
+        scopeCount += resolved.scopeCount;
+        if (resolved.connectorScoped) connectorScoped = true;
+      }
       return true;
     } catch (e) {
       errorMsg = e instanceof Error ? e.message : String(e);
@@ -1436,25 +1702,58 @@ export function highlightTarget(
     const ends = endsFromPayload();
     const endCodes = ends.map((e) => normalizeCodeLabel(e.code)).filter(Boolean);
 
-    // 1) Paint by wire UID (connectivity), then by on-sheet color label near Откуда/Куда
-    const paintSeeds = wireUids.length ? wireUids : resolveUids;
-    if (paintSeeds.length) {
+    // 1) Paint by wire UIDs (full path segments from server), never raw pin/resolve UIDs
+    if (wireUids.length) {
       try {
-        painted = paintWireUidPaths(root, svg, paintSeeds, wireColor);
+        painted = paintWireUidPaths(root, svg, wireUids, wireColor);
         if (painted.length) {
           hostGroup = painted[0]?.closest("g") || null;
-          reason = `wire-uid paint paths=${painted.length} seeds=${paintSeeds.length}`;
+          reason = `wire-uid paint paths=${painted.length} seeds=${wireUids.length}`;
         }
       } catch (e) {
         errorMsg = e instanceof Error ? e.message : String(e);
       }
     }
-    if (!painted.length && wireColor) {
+    // After UID paint: safe same-color extend along painted path (junction harness change).
+    if (painted.length && wireColor) {
       try {
-        painted = paintByWireColorLabel(root, svg, wireColor, endCodes);
-        if (painted.length) {
-          hostGroup = painted[0]?.closest("g") || null;
-          reason = `wire-color paint paths=${painted.length} color=${wireColor}`;
+        const more = extendPaintAlongPaintedPath(root, svg, wireColor, painted, endCodes);
+        if (more.length) {
+          painted.push(...more);
+          reason =
+            (reason ? `${reason} | ` : "") +
+            `path-color-extend paths=${more.length} color=${wireColor}`;
+        }
+      } catch (e) {
+        errorMsg = e instanceof Error ? e.message : String(e);
+      }
+    }
+    // Color-only fallback when no UID paint at all (never whole-sheet foreign branches)
+    const hasPinFocus = Boolean(pinNumber || pinCandidates.length);
+    const hasUidAnchor = Boolean(wireUids.length || pinUids.length);
+    const allowColor = allowWireColorFallback({
+      hasPinFocus,
+      hasUidAnchor,
+      wireUidsLength: wireUids.length,
+      paintedLength: painted.length,
+      wireColor,
+      endCodesLength: endCodes.length,
+    });
+    if (allowColor) {
+      try {
+        const more = paintByWireColorLabel(root, svg, wireColor, endCodes);
+        if (more.length) {
+          const seen = new Set(painted);
+          for (const el of more) {
+            if (!seen.has(el)) {
+              painted.push(el);
+              seen.add(el);
+            }
+          }
+          if (!hostGroup) hostGroup = painted[0]?.closest("g") || null;
+          reason =
+            (reason ? `${reason} | ` : "") +
+            `wire-color fallback paths=${more.length} color=${wireColor}`;
         }
       } catch (e) {
         errorMsg = e instanceof Error ? e.message : String(e);
@@ -1462,16 +1761,67 @@ export function highlightTarget(
     }
     lineHighlight = painted.length > 0;
 
-    // 2) Markers only on proven pin digits / wire-entry — never connector-frame fakes
-    for (const end of ends) placeEnd(end);
+    // 2) Markers: Откуда first. Куда/peer ONLY after primary succeeds (no orphan Куда circles).
+    const primaryEnds = orderEndsForMarker(ends, false);
+    for (const end of primaryEnds) placeEnd(end);
 
-    guaranteedMarker = markersPlaced > 0;
+    // Fallback: painted wire endpoint nearest Откуда connector (when pin-digit miss)
+    const primaryEnd = ends.find((e) => isPrimaryMarkerRole(e.role));
+    if (!primaryPlaced && primaryEnd && painted.length) {
+      const fromCode = normalizeCodeLabel(primaryEnd.code);
+      const fromScopes = findConnectorScopes(root, svg, fromCode, "", [
+        String(primaryEnd.uid || "").trim(),
+      ].filter(Boolean));
+      const at = nearestPaintedEndpointToScopes(painted, fromScopes);
+      if (at) {
+        const label =
+          String(primaryEnd.pin || "").trim() ||
+          (Array.isArray(primaryEnd.pinCandidates) && primaryEnd.pinCandidates[0]) ||
+          fromCode;
+        try {
+          injectPinMarker(svg, at, label, wireColor, svg, {
+            role: primaryEnd.role || "selected",
+            code: fromCode,
+          });
+          markersPlaced += 1;
+          markerAt = at;
+          primaryPlaced = true;
+          anchorMode = "wire-entry";
+          hostGroup = fromScopes[0] || hostGroup;
+          reason =
+            (reason ? `${reason} | ` : "") +
+            `from-wire-fallback pin=${label} code=${fromCode}`;
+        } catch (e) {
+          errorMsg = e instanceof Error ? e.message : String(e);
+        }
+      }
+    }
+
+    if (primaryPlaced) {
+      for (const end of orderEndsForMarker(ends, true).filter(
+        (e) => !isPrimaryMarkerRole(e.role),
+      )) {
+        placeEnd(end);
+      }
+    }
+
+    const primaryRequired = Boolean(
+      primaryEnd &&
+        (primaryEnd.pin ||
+          (Array.isArray(primaryEnd.pinCandidates) && primaryEnd.pinCandidates.length)),
+    );
+    // Success only when Откуда is marked — Куда-only must not suppress pin-miss
+    guaranteedMarker = primaryRequired ? primaryPlaced : markersPlaced > 0;
     reason =
       (reason ? `${reason} | ` : "") +
-      `ends=${ends.length} markers=${markersPlaced} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} peer=${peerCode || "—"}:${peerPin || "—"} uids=${resolveUids.length} wires=${wireUids.length}`;
+      `ends=${ends.length} markers=${markersPlaced} primary=${primaryPlaced ? "ok" : "miss"} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} peer=${peerCode || "—"}:${peerPin || "—"} uids=${resolveUids.length} wires=${wireUids.length}`;
 
-    // Wrong sheet / wrong branch: no color paint AND no pin markers → pin-miss (retry another sheet)
-    if (!guaranteedMarker && !lineHighlight) {
+    // Wrong sheet / wrong branch → pin-miss so client can retry.
+    // Missing Откуда marker is always a miss when from-pin was requested.
+    if (!guaranteedMarker && (hasPinFocus || primaryRequired)) {
+      stage = "none";
+      reason = `pin-miss ${reason}`;
+    } else if (!guaranteedMarker && !lineHighlight) {
       stage = "none";
       if (pinCandidates.length || pinNumber || wireColor) {
         reason = `pin-miss ${reason}`;
@@ -1490,9 +1840,10 @@ export function highlightTarget(
     stage = "none";
   }
 
-  if (lineHighlight && guaranteedMarker) stage = "pin-color";
-  else if (guaranteedMarker && !lineHighlight) stage = "marker-only";
-  else if (lineHighlight) stage = "pin-color";
+  // Color-only without marker stays "none" when a pin was requested (pin-miss retry).
+  if (guaranteedMarker && lineHighlight) stage = "pin-color";
+  else if (guaranteedMarker) stage = "marker-only";
+  else if (lineHighlight && !(pinNumber || pinCandidates.length)) stage = "pin-color";
   else stage = "none";
 
   console.log("[EWD Dynamic Trace]", {

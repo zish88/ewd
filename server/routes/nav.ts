@@ -15,6 +15,8 @@ import {
   type ZoneId,
 } from "../harnessZones.js";
 import { componentTypeRu, wireColorRu } from "../volvoStandards.js";
+import { enrichDetailWithName } from "../detailEnrich.js";
+import { lookupFacePins } from "./ewdCapital.js";
 
 type NavListItem = {
   code: string;
@@ -147,6 +149,69 @@ function formatDiagramButtonTitle(raw: string, page: number, componentCode: stri
   return `Схема (стр. ${page})`;
 }
 
+/** Semantic identity for wire cards (ignores wire_uid / row id — those spawn visual clones). */
+function navCardDedupeKey(card: {
+  match_role?: string;
+  subject_code?: string;
+  pin_number?: string;
+  wire_color?: string;
+  from_node?: string;
+  to_node?: string;
+  via_node?: string;
+  wire_gauge?: string;
+  from_detail?: string;
+  to_detail?: string;
+}): string {
+  const norm = (s: unknown) => String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
+  const color = norm(card.wire_color).replace(/\//g, "-");
+  return [
+    card.match_role || "",
+    norm(card.subject_code),
+    norm(card.pin_number),
+    color,
+    norm(card.from_node),
+    norm(card.to_node),
+    norm(card.via_node),
+    norm(card.wire_gauge),
+    norm(card.from_detail),
+    norm(card.to_detail),
+  ].join("|");
+}
+
+function navCardRichness(card: {
+  integrity_score?: number;
+  wire_uid?: string;
+  pin_uid?: string;
+  wire_gauge?: string;
+  from_detail?: string;
+  to_detail?: string;
+  wire_color?: string;
+}): number {
+  const detailLen =
+    String(card.from_detail || "").length + String(card.to_detail || "").length;
+  return (
+    (Number(card.integrity_score) || 0) * 100 +
+    (String(card.wire_uid || "").trim() ? 20 : 0) +
+    (String(card.pin_uid || "").trim() ? 10 : 0) +
+    (String(card.wire_gauge || "").trim() ? 5 : 0) +
+    (String(card.wire_color || "").trim() && card.wire_color !== "—" ? 5 : 0) +
+    Math.min(detailLen, 80)
+  );
+}
+
+/** Keep one card per pin+color+endpoints; prefer FaceView UIDs / richer details. */
+function dedupeNavWireCards<T extends Parameters<typeof navCardDedupeKey>[0] & Parameters<typeof navCardRichness>[0]>(
+  cards: T[],
+): T[] {
+  const best = new Map<string, T>();
+  for (const card of cards) {
+    const key = navCardDedupeKey(card);
+    const prev = best.get(key);
+    if (!prev || navCardRichness(card) > navCardRichness(prev)) best.set(key, card);
+  }
+  return [...best.values()];
+}
+
 function dedupeDiagrams(
   rows: Array<{ book_id: number; page_number: number; system_name: string }>,
   componentCode: string,
@@ -209,8 +274,7 @@ function rowToNavCard(
   const to_node = row.to_code || "—";
   const via_node = row.via_code || "—";
   const pin = normalizePin(row.pin_number) || "—";
-  const color = normalizeColor(row.wire_color_raw) || "—";
-  const colorRu = color !== "—" ? wireColorRu(color) : "—";
+  let color = normalizeColor(row.wire_color_raw) || "—";
   const page_type = (row.page_type || "connector") as PageType;
   const system_name = String(row.system_name || "").trim();
   const subject = String(row.subject_code || "").trim();
@@ -223,22 +287,40 @@ function rowToNavCard(
     fallbackDiagramPage || 0,
   );
   const page_number = diagram > 0 ? diagram : pinout;
-  const from_detail = localizeEngineeringText(String(row.from_detail || "").trim());
-  const to_detail = localizeEngineeringText(String(row.to_detail || "").trim());
+  const from_detail = enrichDetailWithName(
+    localizeEngineeringText(String(row.from_detail || "").trim()),
+    nameByCode,
+  );
+  const to_detail = enrichDetailWithName(
+    localizeEngineeringText(String(row.to_detail || "").trim()),
+    nameByCode,
+  );
   const description = localizeEngineeringText(pickDescription(row));
   const function_text = localizeEngineeringText(String(row.function_text || "").trim() || description);
   const harness_left = String(row.harness_left || "").trim();
   const harness_right = String(row.harness_right || "").trim();
   const sel = selectedCode.trim();
   const subjectName = (subject && nameByCode?.get(subject)) || "";
+  // Capital FaceView color when SQLite row has empty wire_color
+  if (color === "—" && (sel || subject) && pin !== "—") {
+    const face = lookupFacePins(sel || subject, pin)[0];
+    const faceColor = normalizeColor(String(face?.color || ""));
+    if (faceColor) color = faceColor;
+  }
+  const colorRu = color !== "—" ? wireColorRu(color) : "—";
   let card_title = "";
   if (matchRole === "transit" && sel && subject && subject !== sel) {
     const viaLabel = subjectName ? `${subject} — ${subjectName}` : subject;
     card_title = `${sel} · через ${viaLabel}${pin !== "—" ? `, контакт ${pin}` : ""}`;
-  } else if (matchRole === "owner" && subject) {
-    card_title = subjectName
-      ? `${subject} — ${subjectName}${pin !== "—" ? `, контакт ${pin}` : ""}`
-      : `Разъем ${subject}${pin !== "—" ? `, контакт ${pin}` : ""}`;
+  } else if (matchRole === "owner" && (sel || subject)) {
+    // Owner header = selected cavity (e.g. 74/508:10), not peer contact
+    const ownerCode = sel || subject;
+    card_title =
+      pin !== "—"
+        ? `${ownerCode}:${pin}`
+        : subjectName
+          ? `${ownerCode} — ${subjectName}`
+          : `Разъем ${ownerCode}`;
   }
   const part_number =
     (sel && partByCode.get(sel)) ||
@@ -757,34 +839,48 @@ export function createNavRouter(db: Database.Database) {
       return true;
     };
 
-    let owner_wires = ownerRows
-      .filter((r) => inZoneContext(r, "owner"))
-      .map((r) =>
-        rowToNavCard(
-          r,
-          code,
-          "owner",
-          partByCode,
-          pageMetaBySource,
-          allowedDiagramPages,
-          fallbackDiagramPage,
-          nameByCode,
+    let owner_wires = dedupeNavWireCards(
+      ownerRows
+        .filter((r) => inZoneContext(r, "owner"))
+        .map((r) =>
+          rowToNavCard(
+            r,
+            code,
+            "owner",
+            partByCode,
+            pageMetaBySource,
+            allowedDiagramPages,
+            fallbackDiagramPage,
+            nameByCode,
+          ),
         ),
-      );
-    let transit_wires = transitRows
-      .filter((r) => inZoneContext(r, "transit"))
-      .map((r) =>
-        rowToNavCard(
-          r,
-          code,
-          "transit",
-          partByCode,
-          pageMetaBySource,
-          allowedDiagramPages,
-          fallbackDiagramPage,
-          nameByCode,
+    );
+    let transit_wires = dedupeNavWireCards(
+      transitRows
+        .filter((r) => inZoneContext(r, "transit"))
+        .map((r) =>
+          rowToNavCard(
+            r,
+            code,
+            "transit",
+            partByCode,
+            pageMetaBySource,
+            allowedDiagramPages,
+            fallbackDiagramPage,
+            nameByCode,
+          ),
         ),
-      );
+    );
+    // Drop transit clones of an owner pin (same pin+color+ends under selected code)
+    const ownerKeys = new Set(
+      owner_wires.map((c) =>
+        navCardDedupeKey({ ...c, match_role: "owner", subject_code: code }),
+      ),
+    );
+    transit_wires = transit_wires.filter((c) => {
+      const asOwner = navCardDedupeKey({ ...c, match_role: "owner", subject_code: code });
+      return !ownerKeys.has(asOwner);
+    });
 
     const selected_part_number = partByCode.get(code) || "";
     const selected_part_mate = mateByCode.get(code) || "";

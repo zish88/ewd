@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { highlightTarget, syncPinMarkerScreenSize } from "./ewdHighlight.js";
+import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
+import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
 import {
   cardMatchesWireColorFilter,
@@ -10,6 +11,7 @@ import {
   wireColorChipStyle,
 } from "./wireColorFilter.js";
 import {
+  cardFocusContact,
   diagramHasCode,
   diagramsForPinProbe,
   extractSchemeContext,
@@ -54,6 +56,9 @@ type EwdDiagram = {
   systemName?: string;
   pathCount?: number;
   groups?: Array<{ schemClass: string; uids: string[]; pathCount: number }>;
+  wireHits?: number;
+  pinHits?: number;
+  onSheetUidCount?: number;
 };
 type EwdEndpoint = { from: string; to: string; color: string; wireName: string; pinFrom?: string; pinTo?: string };
 type WireEndFocus = {
@@ -61,7 +66,7 @@ type WireEndFocus = {
   pin?: string;
   pinCandidates?: string[];
   uid?: string;
-  role?: "from" | "to" | "selected" | "peer";
+  role?: "from" | "to" | "selected" | "peer" | "primary";
 };
 type WireFocus = {
   pin?: string;
@@ -74,6 +79,9 @@ type WireFocus = {
   fromCode?: string;
   toCode?: string;
   ends?: WireEndFocus[];
+  /** FaceView / SQLite UIDs from the clicked card — bind paint to this net. */
+  wireUid?: string;
+  pinUid?: string;
 };
 type ActiveSvg = {
   diagramUid: string;
@@ -91,6 +99,8 @@ type ActiveSvg = {
   fromCode?: string;
   toCode?: string;
   ends?: WireEndFocus[];
+  wireUid?: string;
+  pinUid?: string;
   /** Vehicle option tokens for Capital optionExpression filter */
   optionTokens?: string[];
   /** Increments on every «Показать на схеме» — forces marker re-inject + recenter (never toggle-off). */
@@ -161,11 +171,17 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
           Закрыть
         </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-auto p-2 bg-[var(--bg-card)]">
-        {loading ? <p className="text-xs text-[var(--text-muted)]">Загрузка…</p> : null}
-        {err ? <p className="text-xs text-red-600">{err}</p> : null}
+      <div
+        className={`flex-1 min-h-0 bg-[var(--bg-card)] ${
+          panel.kind === "location" ? "overflow-hidden p-0" : "overflow-auto p-2"
+        }`}
+      >
+        {panel.kind !== "location" && loading ? (
+          <p className="text-xs text-[var(--text-muted)] p-2">Загрузка…</p>
+        ) : null}
+        {panel.kind !== "location" && err ? <p className="text-xs text-red-600 p-2">{err}</p> : null}
         {pins.length > 0 ? (
-          <div className="mb-3 overflow-auto">
+          <div className="mb-3 overflow-auto p-2">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead>
                 <tr className="text-left text-[var(--text-muted)]">
@@ -191,12 +207,20 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
             </table>
           </div>
         ) : null}
-        {svg ? <div className="ewd-location-svg" dangerouslySetInnerHTML={{ __html: svg }} /> : null}
+        {panel.kind === "location" ? (
+          <SvgPanZoomHost
+            testId="location-svg-viewer"
+            markup={svg}
+            loading={loading}
+            error={err}
+            className="ewd-location-svg"
+          />
+        ) : null}
         {html && !pins.length ? (
           <iframe title={title} className="w-full min-h-[70vh] border-0 bg-white" srcDoc={html} />
         ) : null}
         {html && pins.length ? (
-          <details className="mt-2">
+          <details className="mt-2 px-2">
             <summary className="text-[11px] cursor-pointer text-[var(--text-muted)]">Исходный FaceView HTML</summary>
             <iframe title={title} className="w-full min-h-[40vh] border-0 bg-white mt-1" srcDoc={html} />
           </details>
@@ -367,588 +391,6 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 }
 
-function SvgDiagramViewer({
-  diagramUid,
-  searchCode,
-  objectIds = [],
-  pin = "",
-  pinCandidates = [],
-  wireColor = "",
-  peerCode = "",
-  peerPin = "",
-  zone = "",
-  pinFrom = "",
-  pinTo = "",
-  fromCode = "",
-  toCode = "",
-  ends = [],
-  optionTokens = [],
-  showSeq = 0,
-  onPinMiss,
-}: ActiveSvg & { onPinMiss?: (reason: string) => void }) {
-  const onPinMissRef = useRef(onPinMiss);
-  onPinMissRef.current = onPinMiss;
-  const [highlightReady, setHighlightReady] = useState(false);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const baseSizeRef = useRef<{ w: number; h: number } | null>(null);
-  const scaleRef = useRef(1);
-  const translateRef = useRef({ x: 40, y: 40 });
-  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
-  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinchRef = useRef<{
-    dist0: number;
-    scale0: number;
-    midX: number;
-    midY: number;
-    tx0: number;
-    ty0: number;
-  } | null>(null);
-  const lastMarkerAtRef = useRef<{ x: number; y: number } | null>(null);
-  const paintedKeyRef = useRef("");
-  const appliedMarkupRef = useRef("");
-  const initialFitDoneRef = useRef(false);
-  const [svgMarkup, setSvgMarkup] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resolveUids, setResolveUids] = useState<string[]>([]);
-  const [wireUids, setWireUids] = useState<string[]>([]);
-  const [pinUids, setPinUids] = useState<string[]>([]);
-  const [netPins, setNetPins] = useState<{
-    pinFrom?: string;
-    pinTo?: string;
-    fromUid?: string;
-    toUid?: string;
-  }>({});
-
-  const applyPanZoomDom = () => {
-    const pan = panRef.current;
-    const svg = contentRef.current?.querySelector("svg") as SVGSVGElement | null;
-    const base = baseSizeRef.current;
-    const t = translateRef.current;
-    const s = scaleRef.current;
-    // Free canvas: no contain/bounds clamp — user may drag anywhere at any zoom
-    if (pan) pan.style.transform = `translate(${t.x}px, ${t.y}px)`;
-    if (svg && base) {
-      svg.setAttribute("width", String(Math.max(1, base.w * s)));
-      svg.setAttribute("height", String(Math.max(1, base.h * s)));
-      svg.style.width = `${base.w * s}px`;
-      svg.style.height = `${base.h * s}px`;
-      svg.style.maxWidth = "none";
-      syncPinMarkerScreenSize(svg);
-    }
-  };
-
-  const zoomAt = (clientX: number, clientY: number, factor: number) => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const mx = clientX - rect.left;
-    const my = clientY - rect.top;
-    const prev = scaleRef.current;
-    const next = Math.min(6, Math.max(0.15, prev * factor));
-    const ratio = next / prev;
-    const t = translateRef.current;
-    scaleRef.current = next;
-    translateRef.current = {
-      x: mx - (mx - t.x) * ratio,
-      y: my - (my - t.y) * ratio,
-    };
-    applyPanZoomDom();
-  };
-
-  const fitComfortToMarker = () => {
-    const viewport = viewportRef.current;
-    const base = baseSizeRef.current;
-    const svg = contentRef.current?.querySelector("svg") as SVGSVGElement | null;
-    const at = lastMarkerAtRef.current;
-    if (!viewport || !base || !svg) return;
-    const comfortScale = 1.1;
-    scaleRef.current = comfortScale;
-    if (at) {
-      try {
-        const vb = svg.viewBox?.baseVal;
-        const vbW = vb?.width || base.w;
-        const vbH = vb?.height || base.h;
-        const vbX = vb?.x || 0;
-        const vbY = vb?.y || 0;
-        const sx = (base.w * comfortScale) / vbW;
-        const sy = (base.h * comfortScale) / vbH;
-        translateRef.current = {
-          x: viewport.clientWidth / 2 - (at.x - vbX) * sx,
-          y: viewport.clientHeight / 2 - (at.y - vbY) * sy,
-        };
-        initialFitDoneRef.current = true;
-      } catch {
-        translateRef.current = { x: 40, y: 40 };
-      }
-    } else {
-      translateRef.current = { x: 40, y: 40 };
-    }
-    applyPanZoomDom();
-  };
-
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    setError(null);
-    setSvgMarkup("");
-    setResolveUids([]);
-    setWireUids([]);
-    setPinUids([]);
-    scaleRef.current = 1;
-    translateRef.current = { x: 40, y: 40 };
-    baseSizeRef.current = null;
-    paintedKeyRef.current = "";
-    initialFitDoneRef.current = false;
-    fetch(`/api/ewd/svg?diagramUid=${encodeURIComponent(diagramUid)}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.text();
-      })
-      .then((text) => {
-        if (!alive) return;
-        const cleaned = text
-          .replace(/^\uFEFF?<\?xml[\s\S]*?\?>\s*/i, "")
-          .replace(/<!DOCTYPE[\s\S]*?>\s*/i, "")
-          .trim();
-        setSvgMarkup(cleaned);
-        setLoading(false);
-      })
-      .catch((e: Error) => {
-        if (!alive) return;
-        setError(e.message || "Не удалось загрузить SVG");
-        setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [diagramUid]);
-
-  useEffect(() => {
-    let alive = true;
-    setHighlightReady(false);
-    if (!pin && !pinCandidates.length && !wireColor && !peerCode) {
-      setResolveUids([]);
-      setWireUids([]);
-      setPinUids([]);
-      setNetPins({});
-      setHighlightReady(true);
-      return;
-    }
-    const params = new URLSearchParams({ code: searchCode, diagramUid });
-    const pinForApi = pin || pinCandidates[0] || "";
-    if (pinForApi) params.set("pin", pinForApi);
-    if (wireColor) params.set("color", wireColor);
-    if (peerCode) params.set("peer", peerCode);
-    if (zone && zone !== "all") params.set("zone", zone);
-    if (optionTokens.length) params.set("optionTokens", optionTokens.join(","));
-    fetch(`/api/ewd/highlight?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!alive) return;
-        const matchedList = Array.isArray(data.matched)
-          ? (data.matched as Array<{
-              from?: string;
-              to?: string;
-              pinFrom?: string;
-              pinTo?: string;
-              fromUid?: string;
-              toUid?: string;
-              wireUid?: string;
-            }>)
-          : [];
-        const peerN = normalizeCodeLabel(peerCode);
-        const codeN = normalizeCodeLabel(searchCode);
-        const pinSet = new Set(
-          [pin, ...pinCandidates, pinFrom, pinTo].map((p) => String(p || "").trim()).filter(Boolean),
-        );
-        // Prefer the single net that involves selected code + peer + any candidate pin
-        const preferred =
-          matchedList.find((m) => {
-            const blob = `${m.from || ""} ${m.to || ""}`;
-            const hasCode = !codeN || blob.includes(codeN);
-            const hasPeer = !peerN || blob.includes(peerN);
-            const hasPin =
-              !pinSet.size ||
-              pinSet.has(String(m.pinFrom || "").trim()) ||
-              pinSet.has(String(m.pinTo || "").trim());
-            return hasCode && hasPeer && hasPin;
-          }) || matchedList[0] || null;
-        const fromMatched = preferred
-          ? ([preferred.fromUid, preferred.toUid].filter(Boolean) as string[])
-          : [];
-        const apiUids = Array.isArray(data.uids) ? (data.uids as string[]) : [];
-        const apiWireUids = Array.isArray(data.wireUids) ? (data.wireUids as string[]) : [];
-        const apiPinUids = Array.isArray(data.pinUids) ? (data.pinUids as string[]) : [];
-        if (preferred?.wireUid) apiWireUids.unshift(preferred.wireUid);
-        // Prefer exact net endpoints; fall back to objectIds on this sheet
-        const uidPool = fromMatched.length
-          ? fromMatched
-          : apiPinUids.length
-            ? apiPinUids.slice(0, 8)
-            : apiUids.length
-              ? apiUids.slice(0, 8)
-              : (objectIds || []).slice(0, 8);
-        setResolveUids(uidPool);
-        setWireUids([...new Set(apiWireUids.filter(Boolean))].slice(0, 16));
-        setPinUids([...new Set([...apiPinUids, ...fromMatched].filter(Boolean))].slice(0, 16));
-        setNetPins({
-          pinFrom: String(preferred?.pinFrom || pinFrom || "").trim() || undefined,
-          pinTo: String(preferred?.pinTo || pinTo || "").trim() || undefined,
-          fromUid: String(preferred?.fromUid || "").trim() || undefined,
-          toUid: String(preferred?.toUid || "").trim() || undefined,
-        });
-        setHighlightReady(true);
-      })
-      .catch(() => {
-        if (alive) {
-          setResolveUids((objectIds || []).slice(0, 8));
-          setWireUids([]);
-          setPinUids([]);
-          setNetPins({});
-          setHighlightReady(true);
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, [diagramUid, searchCode, pin, pinCandidates, wireColor, peerCode, zone, pinFrom, pinTo, objectIds, optionTokens]);
-
-  // Apply SVG markup once per string — never via render dangerouslySetInnerHTML
-  // (React re-renders would wipe injected .pin-marker otherwise = false "toggle")
-  useEffect(() => {
-    const host = contentRef.current;
-    if (!host) return;
-    if (!svgMarkup) {
-      host.innerHTML = "";
-      appliedMarkupRef.current = "";
-      return;
-    }
-    if (appliedMarkupRef.current === svgMarkup && host.querySelector("svg")) return;
-    host.innerHTML = svgMarkup;
-    appliedMarkupRef.current = svgMarkup;
-
-    const svg = host.querySelector("svg");
-    if (!svg) return;
-    const vb = svg.viewBox?.baseVal;
-    let w = Number(svg.getAttribute("width")) || vb?.width || 0;
-    let h = Number(svg.getAttribute("height")) || vb?.height || 0;
-    if ((!w || !h) && vb?.width && vb?.height) {
-      w = vb.width;
-      h = vb.height;
-    }
-    if (!w || !h) {
-      try {
-        const box = svg.getBBox();
-        w = box.width || 1200;
-        h = box.height || 800;
-      } catch {
-        w = 1200;
-        h = 800;
-      }
-    }
-    const fit = Math.min(1, 900 / w);
-    baseSizeRef.current = { w: w * fit, h: h * fit };
-    if (!svg.getAttribute("viewBox") && w && h) {
-      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    }
-    scaleRef.current = 1;
-    translateRef.current = { x: 40, y: 40 };
-    initialFitDoneRef.current = false;
-    paintedKeyRef.current = "";
-    applyPanZoomDom();
-  }, [svgMarkup]);
-
-  // Marker inject on showSeq / focus change. Strict pin: no frame/viewBox retry.
-  // Wait for /api/ewd/highlight so UID + net pins can drive placement (site-wide pin-miss fix).
-  useEffect(() => {
-    if (!svgMarkup || !contentRef.current) return;
-    if (!pin && !pinCandidates.length && !wireColor && !searchCode) return;
-    if (!highlightReady) return;
-    const root = contentRef.current;
-    const svg = root.querySelector("svg") as SVGSVGElement | null;
-    if (!svg) return;
-
-    const selectedPins = [
-      ...new Set(
-        [pin, ...pinCandidates].map((p) => String(p || "").trim()).filter(Boolean),
-      ),
-    ];
-    const endFromCode = normalizeCodeLabel(fromCode);
-    const endToCode = normalizeCodeLabel(toCode);
-    const wireEnds: WireEndFocus[] =
-      Array.isArray(ends) && ends.length
-        ? ends
-        : [
-            ...(endFromCode
-              ? [
-                  {
-                    code: endFromCode,
-                    pin: String(netPins.pinFrom || pinFrom || "").trim(),
-                    pinCandidates: [netPins.pinFrom || pinFrom || ""].filter(Boolean),
-                    uid: netPins.fromUid,
-                    role: "from" as const,
-                  },
-                ]
-              : []),
-            ...(endToCode && endToCode !== endFromCode
-              ? [
-                  {
-                    code: endToCode,
-                    pin: String(netPins.pinTo || pinTo || peerPin || "").trim(),
-                    pinCandidates: [netPins.pinTo || pinTo || peerPin || ""].filter(Boolean),
-                    uid: netPins.toUid,
-                    role: "to" as const,
-                  },
-                ]
-              : []),
-          ];
-    // Fallback: selected node + peer when card ends missing
-    if (!wireEnds.length) {
-      wireEnds.push({
-        code: normalizeCodeLabel(searchCode),
-        pin: selectedPins[0] || "",
-        pinCandidates: selectedPins,
-        role: "selected",
-      });
-      if (peerCode && normalizeCodeLabel(peerCode) !== normalizeCodeLabel(searchCode)) {
-        wireEnds.push({
-          code: normalizeCodeLabel(peerCode),
-          pin: peerPin || pinTo || "",
-          pinCandidates: [peerPin || pinTo || ""].filter(Boolean),
-          role: "peer",
-        });
-      }
-    }
-    const focusKey = `${diagramUid}|${normalizeCodeLabel(searchCode)}|${wireEnds.map((e) => `${e.code}:${e.pin || ""}`).join("/")}|${wireColor}|${showSeq}|${resolveUids.join(",")}|${wireUids.join(",")}`;
-
-    const result = highlightTarget(root, svg, {
-      connectorCode: searchCode,
-      pinNumber: selectedPins[0] || pin,
-      pinCandidates: selectedPins,
-      wireColor,
-      systemUid: resolveUids[0],
-      resolveUids,
-      wireUids,
-      pinUids,
-      diagramUid,
-      peerCode,
-      peerPin: peerPin || pinTo || netPins.pinTo,
-      ends: wireEnds,
-    });
-    syncPinMarkerScreenSize(svg);
-
-    paintedKeyRef.current = focusKey;
-
-    // Only flip sheets when nothing useful was drawn (no wire paint AND no markers).
-    if (selectedPins.length && result.stage === "none") {
-      onPinMissRef.current?.(result.reason || "pin-miss");
-      applyPanZoomDom();
-      return;
-    }
-
-    if (result.markerAt) lastMarkerAtRef.current = result.markerAt;
-    if (viewportRef.current && baseSizeRef.current && result.markerAt) {
-      fitComfortToMarker();
-    } else {
-      applyPanZoomDom();
-    }
-  }, [
-    svgMarkup,
-    searchCode,
-    diagramUid,
-    resolveUids,
-    wireUids,
-    pinUids,
-    pin,
-    pinCandidates,
-    wireColor,
-    peerCode,
-    peerPin,
-    pinFrom,
-    pinTo,
-    fromCode,
-    toCode,
-    ends,
-    showSeq,
-    netPins.pinFrom,
-    netPins.pinTo,
-    netPins.fromUid,
-    netPins.toUid,
-    highlightReady,
-  ]);
-
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.9 : 1.1);
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length >= 2) e.preventDefault();
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchmove", onTouchMove);
-    };
-  }, []);
-
-  const pointerDistance = () => {
-    const pts = [...pointersRef.current.values()];
-    if (pts.length < 2) return 0;
-    return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-  };
-  const pointerMidpoint = () => {
-    const pts = [...pointersRef.current.values()];
-    if (pts.length < 2) return { x: 0, y: 0 };
-    return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-  };
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-    // Ignore FAB / UI controls inside viewport
-    if ((e.target as Element).closest?.("[data-testid='svg-zoom-fab']")) return;
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointersRef.current.size >= 2) {
-      dragRef.current = null;
-      const el = viewportRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const mid = pointerMidpoint();
-      const dist = pointerDistance();
-      if (dist > 0) {
-        pinchRef.current = {
-          dist0: dist,
-          scale0: scaleRef.current,
-          midX: mid.x - rect.left,
-          midY: mid.y - rect.top,
-          tx0: translateRef.current.x,
-          ty0: translateRef.current.y,
-        };
-      }
-      return;
-    }
-    pinchRef.current = null;
-    const t = translateRef.current;
-    dragRef.current = { x: e.clientX, y: e.clientY, tx: t.x, ty: t.y };
-  };
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!pointersRef.current.has(e.pointerId)) return;
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pointersRef.current.size >= 2 && pinchRef.current) {
-      const el = viewportRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const mid = pointerMidpoint();
-      const dist = pointerDistance();
-      const p = pinchRef.current;
-      if (!(dist > 0) || !(p.dist0 > 0)) return;
-      const next = Math.min(6, Math.max(0.15, p.scale0 * (dist / p.dist0)));
-      const ratio = next / p.scale0;
-      const mx = mid.x - rect.left;
-      const my = mid.y - rect.top;
-      // Keep content under the pinch midpoint stable
-      scaleRef.current = next;
-      translateRef.current = {
-        x: mx - (p.midX - p.tx0) * ratio,
-        y: my - (p.midY - p.ty0) * ratio,
-      };
-      applyPanZoomDom();
-      return;
-    }
-
-    const d = dragRef.current;
-    if (!d) return;
-    translateRef.current = { x: d.tx + (e.clientX - d.x), y: d.ty + (e.clientY - d.y) };
-    applyPanZoomDom();
-  };
-  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchRef.current = null;
-    if (pointersRef.current.size === 1) {
-      const [pt] = pointersRef.current.values();
-      const t = translateRef.current;
-      dragRef.current = { x: pt.x, y: pt.y, tx: t.x, ty: t.y };
-    } else {
-      dragRef.current = null;
-    }
-  };
-
-  return (
-    <div
-      ref={viewportRef}
-      data-testid="svg-viewer"
-      className="svg-viewer w-full h-full bg-[var(--input-bg)] overflow-hidden relative cursor-grab active:cursor-grabbing"
-      style={{ touchAction: "none" }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onPointerLeave={(e) => {
-        if (e.pointerType === "mouse") onPointerUp(e);
-      }}
-    >
-      {loading && (
-        <div data-testid="svg-loading" className="absolute inset-0 z-50 bg-[var(--bg-card)]/70 flex items-center justify-center text-xs font-mono text-emerald-700">
-          <span className="animate-pulse">Загрузка SVG…</span>
-        </div>
-      )}
-      {error && (
-        <div data-testid="svg-error" className="absolute inset-0 z-40 flex items-center justify-center text-sm text-rose-600 px-4 text-center">
-          {error}
-        </div>
-      )}
-      {/* Pan layer — transform via ref; SVG host must not re-render on drag */}
-      <div ref={panRef} className="origin-top-left will-change-transform" style={{ transform: "translate(40px, 40px)" }}>
-        <div ref={contentRef} data-testid="svg-canvas" className="ewd-svg-root" />
-      </div>
-      <div data-testid="svg-zoom-fab" className="svg-zoom-fab" onPointerDown={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          aria-label="Увеличить"
-          className="svg-zoom-fab__btn"
-          onClick={() => {
-            const el = viewportRef.current;
-            if (!el) return;
-            const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.1);
-          }}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          aria-label="Уменьшить"
-          className="svg-zoom-fab__btn"
-          onClick={() => {
-            const el = viewportRef.current;
-            if (!el) return;
-            const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 0.9);
-          }}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          aria-label="Сброс масштаба"
-          className="svg-zoom-fab__btn svg-zoom-fab__btn--reset"
-          onClick={() => fitComfortToMarker()}
-        >
-          Сброс
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function renderWireCard(
   item: Result,
   index: number,
@@ -986,45 +428,66 @@ function renderWireCard(
       if (m?.[1]) cardPin = String(m[1]);
     }
     const resolved = resolveHighlightPin(item, code, cardPin);
-    const pin = resolved.pin || cardPin;
+    // Primary marker = Откуда (from_detail), never Куда
+    const focus = cardFocusContact(item, code);
+    const focusCode = normalizeCodeLabel(focus.code || resolved.fromCode || code);
+    const focusPin = String(focus.pin || resolved.pinFrom || cardPin || "").trim();
+    const fromCode = normalizeCodeLabel(resolved.fromCode || focusCode);
+    const toCode = normalizeCodeLabel(resolved.toCode || "");
+    const pinFrom = String(resolved.pinFrom || focusPin || "").trim();
+    const pinTo = String(resolved.pinTo || "").trim();
+    const cardPinUid = String(item.pin_uid || "").trim();
     const wireEnds: WireEndFocus[] = [];
-    if (resolved.fromCode) {
+    wireEnds.push({
+      code: fromCode || focusCode,
+      pin: pinFrom || focusPin || undefined,
+      pinCandidates: (pinFrom || focusPin) ? [pinFrom || focusPin] : undefined,
+      uid: cardPinUid || undefined,
+      role: "selected",
+    });
+    if (toCode && toCode !== (fromCode || focusCode)) {
       wireEnds.push({
-        code: resolved.fromCode,
-        pin: resolved.pinFrom || undefined,
-        pinCandidates: resolved.pinFrom ? [resolved.pinFrom] : undefined,
-        role: "from",
-      });
-    }
-    if (resolved.toCode && resolved.toCode !== resolved.fromCode) {
-      wireEnds.push({
-        code: resolved.toCode,
-        pin: resolved.pinTo || undefined,
-        pinCandidates: resolved.pinTo ? [resolved.pinTo] : undefined,
+        code: toCode,
+        pin: pinTo || undefined,
+        pinCandidates: pinTo ? [pinTo] : undefined,
         role: "to",
       });
     }
     // Persist selection strictly on click — never tied to hover/mouseleave
     setSelectedPinState({
       id: itemId,
-      code,
+      code: fromCode || focusCode || code,
       color: wireCode !== "—" ? wireCode : "",
-      pin,
+      pin: pinFrom || focusPin,
     });
+    // pinCandidates = Откуда only (do not put Куда pin at head)
+    const pinCandidates = [
+      ...new Set(
+        [pinFrom, focusPin, cardPin]
+          .map((p) => String(p || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    const peerForPick =
+      toCode && toCode !== (fromCode || focusCode)
+        ? toCode
+        : resolved.peerCode || peerCodeFromCard(item, code) || undefined;
     onOpenDiagram(
       code,
       undefined,
       {
-        pin: pin || undefined,
-        pinCandidates: resolved.pinCandidates.length ? resolved.pinCandidates : undefined,
-        pinFrom: resolved.pinFrom || undefined,
-        pinTo: resolved.pinTo || undefined,
-        fromCode: resolved.fromCode || undefined,
-        toCode: resolved.toCode || undefined,
-        peerCode: resolved.peerCode || peerCodeFromCard(item, code) || undefined,
-        peerPin: resolved.peerPin || undefined,
+        pin: pinFrom || focusPin || undefined,
+        pinCandidates: pinCandidates.length ? pinCandidates : undefined,
+        pinFrom: pinFrom || undefined,
+        pinTo: pinTo || undefined,
+        fromCode: fromCode || undefined,
+        toCode: toCode || undefined,
+        peerCode: peerForPick,
+        peerPin: pinTo || resolved.peerPin || undefined,
         wireColor: wireCode !== "—" ? wireCode : undefined,
         ends: wireEnds.length ? wireEnds : undefined,
+        wireUid: String(item.wire_uid || "").trim() || undefined,
+        pinUid: cardPinUid || undefined,
       },
       item,
     );
@@ -1050,7 +513,16 @@ function renderWireCard(
     setActiveSvg(null);
     setCapitalPanel({ kind: "location", code: faceCode });
   };
-  const connectorTitle = item.card_title || item.system_name || "Контакт";
+  const titleFocus = cardFocusContact(item, selectedCode);
+  const ownerTitle =
+    String(item.match_role || "") === "owner" && titleFocus.pin
+      ? `${titleFocus.code}:${titleFocus.pin}`
+      : "";
+  const connectorTitle =
+    ownerTitle ||
+    item.card_title ||
+    item.system_name ||
+    (titleFocus.pin ? `${titleFocus.code}:${titleFocus.pin}` : "Контакт");
   const steering = item.steering_side === "LHD" || item.steering_side === "RHD" ? item.steering_side : "";
   const fromLabel =
     (item.from_detail && String(item.from_detail).trim()) ||
@@ -1268,6 +740,10 @@ function App() {
   const [transitWires, setTransitWires] = useState<Result[]>([]);
   const [ewdDiagrams, setEwdDiagrams] = useState<EwdDiagram[]>([]);
   const [ewdObjectIds, setEwdObjectIds] = useState<string[]>([]);
+  /** Sheets with wireHits>0 for the last card pick — picker default list. */
+  const [cardViableDiagrams, setCardViableDiagrams] = useState<EwdDiagram[]>([]);
+  const [pickBestUid, setPickBestUid] = useState("");
+  const [showAllNodeDiagrams, setShowAllNodeDiagrams] = useState(false);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -1281,6 +757,8 @@ function App() {
   const pinViableUidsRef = useRef<string[]>([]);
   /** Auto pin-miss retries left (card open only; manual picker = 0). */
   const pinMissBudgetRef = useRef(0);
+  /** Last card wire focus — systems tree / picker re-use anchors. */
+  const lastWireFocusRef = useRef<WireFocus | null>(null);
   const [zoom, setZoom] = useState(80);
   const [selectedPinState, setSelectedPinState] = useState<{
     id: string | number;
@@ -1385,12 +863,18 @@ function App() {
 
   const rankedDiagrams = useMemo(() => {
     const ctx = schemeContext || extractSchemeContext(null, selectedCode);
-    return rankDiagramsForContext(ewdDiagrams, ctx);
-  }, [ewdDiagrams, schemeContext, selectedCode]);
+    const pool =
+      !showAllNodeDiagrams && cardViableDiagrams.length
+        ? cardViableDiagrams
+        : ewdDiagrams;
+    return rankDiagramsForContext(pool, ctx);
+  }, [ewdDiagrams, cardViableDiagrams, showAllNodeDiagrams, schemeContext, selectedCode]);
   const bestDiagramUid =
-    rankedDiagrams[0] && rankedDiagrams[0].score >= 50
+    pickBestUid ||
+    (rankedDiagrams[0] &&
+    ((Number(rankedDiagrams[0].diagram.wireHits) || 0) > 0 || rankedDiagrams[0].score >= 50)
       ? rankedDiagrams[0].diagram.diagramUid
-      : "";
+      : "");
 
   useEffect(() => {
     if (!diagramPickerOpen) return;
@@ -1687,21 +1171,34 @@ function App() {
     const resolved = card
       ? resolveHighlightPin(card, code, wire?.pin || "")
       : null;
+    const cardFrom = card ? cardFocusContact(card, code) : null;
+    const fromCode =
+      wire?.fromCode ||
+      resolved?.fromCode ||
+      cardFrom?.code ||
+      "";
+    const toCode = wire?.toCode || resolved?.toCode || "";
+    const pinFrom =
+      wire?.pinFrom ||
+      resolved?.pinFrom ||
+      cardFrom?.pin ||
+      wire?.pin ||
+      "";
+    const pinTo = wire?.pinTo || resolved?.pinTo || "";
+    const peerPin = wire?.peerPin || pinTo || resolved?.peerPin || "";
+    // Откуда pins only for pick/marker focus — never lead with Куда
     const pinCandidates = [
       ...new Set(
         [
           ...(wire?.pinCandidates || []),
-          ...(resolved?.pinCandidates || []),
+          pinFrom,
           wire?.pin,
-          resolved?.pin,
+          cardFrom?.pin,
         ]
           .map((p) => String(p || "").trim())
           .filter(Boolean),
       ),
     ];
-    const fromCode = wire?.fromCode || resolved?.fromCode || "";
-    const toCode = wire?.toCode || resolved?.toCode || "";
-    const peerPin = wire?.peerPin || resolved?.peerPin || "";
     const wireEnds: WireEndFocus[] =
       wire?.ends?.length
         ? wire.ends
@@ -1710,9 +1207,9 @@ function App() {
               ? [
                   {
                     code: fromCode,
-                    pin: wire?.pinFrom || resolved?.pinFrom || undefined,
-                    pinCandidates: [wire?.pinFrom || resolved?.pinFrom || ""].filter(Boolean),
-                    role: "from" as const,
+                    pin: pinFrom || undefined,
+                    pinCandidates: pinFrom ? [pinFrom] : undefined,
+                    role: "selected" as const,
                   },
                 ]
               : []),
@@ -1720,8 +1217,8 @@ function App() {
               ? [
                   {
                     code: toCode,
-                    pin: wire?.pinTo || resolved?.pinTo || undefined,
-                    pinCandidates: [wire?.pinTo || resolved?.pinTo || ""].filter(Boolean),
+                    pin: pinTo || undefined,
+                    pinCandidates: pinTo ? [pinTo] : undefined,
                     role: "to" as const,
                   },
                 ]
@@ -1729,112 +1226,252 @@ function App() {
           ];
     const hasPinFocus = pinCandidates.length > 0 || !!wire?.pin || wireEnds.some((e) => e.pin);
 
+    const boundWireUid =
+      wire?.wireUid || String(card?.wire_uid || "").trim() || undefined;
+    const boundPinUid =
+      wire?.pinUid || String(card?.pin_uid || "").trim() || undefined;
+    if (wire || boundWireUid || boundPinUid) {
+      lastWireFocusRef.current = {
+        ...(wire || {}),
+        wireUid: boundWireUid,
+        pinUid: boundPinUid,
+        pin: pinFrom || wire?.pin || pinCandidates[0],
+        pinFrom: pinFrom || wire?.pinFrom,
+        pinTo: pinTo || wire?.pinTo,
+        fromCode: fromCode || wire?.fromCode,
+        toCode: toCode || wire?.toCode,
+        pinCandidates,
+        wireColor: wire?.wireColor,
+        peerCode: toCode || wire?.peerCode || resolved?.peerCode || ctx.peerCode,
+        peerPin: peerPin || pinTo || undefined,
+        ends: wireEnds.length ? wireEnds : wire?.ends,
+      };
+    }
+
     // Fresh card click resets pin-miss state; retries / manual keep their own budget.
     if (!preferredUid && !opts?.fromPinMissRetry) {
       pinMissTriedRef.current = new Set();
       pinViableUidsRef.current = [];
       pinMissBudgetRef.current = hasPinFocus ? 2 : 0;
+      setShowAllNodeDiagrams(false);
     }
     if (opts?.manualPick) {
       pinMissBudgetRef.current = 0;
-      pinViableUidsRef.current = [];
     }
 
-    // Explicit list UID = manual / pin-miss retry; otherwise pick by pin viability then score.
-    let preferred =
-      (preferredUid && ewdDiagrams.find((d) => d.diagramUid === preferredUid)) || null;
+    // Explicit list UID = manual / pin-miss retry; otherwise pick by card wireUid on sheet.
+    let preferred: EwdDiagram | null =
+      (preferredUid && ewdDiagrams.find((d) => d.diagramUid === preferredUid)) ||
+      (preferredUid
+        ? {
+            diagramUid: preferredUid,
+            title: preferredUid,
+            textCodes: [code],
+            designFolder: "",
+            pathCount: 0,
+          }
+        : null);
+
+    const applyPickRanked = (pickRes: {
+      diagramUid?: string;
+      viable?: string[];
+      ranked?: Array<{
+        diagramUid: string;
+        wireHits?: number;
+        pinHits?: number;
+        onSheetUidCount?: number;
+      }>;
+      hard?: boolean;
+      wireHits?: number;
+    }): { pickUid: string; viableDiags: EwdDiagram[] } => {
+      const viable = Array.isArray(pickRes.viable)
+        ? (pickRes.viable as string[]).filter(Boolean)
+        : [];
+      pinViableUidsRef.current = viable;
+      const rankedRows = Array.isArray(pickRes.ranked) ? pickRes.ranked : [];
+      const byUid = new Map(rankedRows.map((r) => [r.diagramUid, r]));
+      setEwdDiagrams((prev) =>
+        prev.map((d) => {
+          const r = byUid.get(d.diagramUid);
+          if (!r) return { ...d, wireHits: d.wireHits, pinHits: d.pinHits };
+          return {
+            ...d,
+            wireHits: Number(r.wireHits) || 0,
+            pinHits: Number(r.pinHits) || 0,
+            onSheetUidCount: Number(r.onSheetUidCount) || 0,
+          };
+        }),
+      );
+      const viableDiags: EwdDiagram[] = viable.map((uid) => {
+        const hit = ewdDiagrams.find((d) => d.diagramUid === uid);
+        const r = byUid.get(uid);
+        return {
+          ...(hit || {
+            diagramUid: uid,
+            title: uid,
+            textCodes: [code],
+            designFolder: "",
+            pathCount: 0,
+          }),
+          wireHits: Number(r?.wireHits) || 0,
+          pinHits: Number(r?.pinHits) || 0,
+          onSheetUidCount: Number(r?.onSheetUidCount) || 0,
+        };
+      });
+      setCardViableDiagrams(viableDiags);
+      const pickUid = String(pickRes.diagramUid || "");
+      setPickBestUid(pickUid);
+      return { pickUid, viableDiags };
+    };
 
     if (!preferred && hasPinFocus && !opts?.manualPick) {
-      setNotice("Подбираем схему, где есть этот контакт…");
-      const probe = diagramsForPinProbe(ewdDiagrams, ctx, 18).filter(
+      setNotice("Подбираем схему с этим проводом…");
+      const fromCodeN = normalizeCodeLabel(fromCode);
+      const probeRaw = diagramsForPinProbe(ewdDiagrams, ctx, 18).filter(
         (r) => !pinMissTriedRef.current.has(r.diagram.diagramUid),
       );
+      // Prefer sheets that mention Откуда code (not only Куда module)
+      const probe = [...probeRaw].sort((a, b) => {
+        if (!fromCodeN || fromCodeN === code) return 0;
+        const aHas = diagramHasCode(a.diagram, fromCodeN) ? 1 : 0;
+        const bHas = diagramHasCode(b.diagram, fromCodeN) ? 1 : 0;
+        return bHas - aHas;
+      });
       try {
         const qs = new URLSearchParams({ code });
-        if (pinCandidates.length) qs.set("pins", pinCandidates.join(","));
+        // Pick by Откуда pin; peer = Куда (not the other way around)
+        const fromPins = [pinFrom, ...pinCandidates].filter(Boolean);
+        if (fromPins.length) qs.set("pins", [...new Set(fromPins)].join(","));
         if (wire?.wireColor) qs.set("color", wire.wireColor);
-        const peer = wire?.peerCode || resolved?.peerCode || ctx.peerCode || "";
+        const peer =
+          toCode ||
+          wire?.peerCode ||
+          resolved?.peerCode ||
+          ctx.peerCode ||
+          "";
         if (peer) qs.set("peer", peer);
+        if (boundWireUid) qs.set("wireUid", boundWireUid);
+        if (boundPinUid) qs.set("pinUid", boundPinUid);
         if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
         if (optionTokens.length) qs.set("optionTokens", optionTokens.join(","));
+        // Probe is additive on server (netOwned ∪ requested) — never replaces netOwned
         if (probe.length) {
           qs.set("diagramUids", probe.map((r) => r.diagram.diagramUid).join(","));
         }
         const pickRes = await fetch(`/api/ewd/pick-diagram?${qs}`).then((r) => r.json());
-        // Server ranks by matched net + UIDs present on that SVG sheet — trust that order.
-        const viable = Array.isArray(pickRes.viable)
-          ? (pickRes.viable as string[]).filter(Boolean)
-          : [];
-        pinViableUidsRef.current = viable;
-        const pickUid = String(pickRes.diagramUid || "");
+        const { pickUid, viableDiags } = applyPickRanked(pickRes);
+        const preferFromSheet = (d: EwdDiagram | null): EwdDiagram | null => {
+          if (!d || !fromCodeN || fromCodeN === code) return d;
+          if (diagramHasCode(d, fromCodeN)) return d;
+          const better =
+            viableDiags.find(
+              (v) =>
+                diagramHasCode(v, fromCodeN) && (Number(v.wireHits) || 0) > 0,
+            ) ||
+            viableDiags.find((v) => diagramHasCode(v, fromCodeN));
+          return better || d;
+        };
         const resolveUid = (uid: string): EwdDiagram | null => {
           if (!uid) return null;
           return (
+            viableDiags.find((d) => d.diagramUid === uid) ||
             ewdDiagrams.find((d) => d.diagramUid === uid) || {
               diagramUid: uid,
               title: uid,
               textCodes: [code],
               designFolder: "",
               pathCount: 0,
+              wireHits: Number(pickRes.wireHits) || 0,
             }
           );
         };
-        preferred = resolveUid(pickUid) || resolveUid(viable[0] || "") || null;
-        if (preferred && Number(pickRes.matchedCount) > 0) {
-          // Prefer server-chosen pin when it found a stronger cavity match.
-          const serverPin = String(pickRes.pin || "").trim();
-          if (serverPin && !pinCandidates.includes(serverPin)) {
-            pinCandidates.unshift(serverPin);
+        // Hard only when card has wireUid
+        if (boundWireUid) {
+          if (pickRes.hard && Number(pickRes.wireHits) > 0 && pickUid) {
+            preferred = preferFromSheet(resolveUid(pickUid));
+          } else {
+            setNotice(
+              "Нет схемы, где этот провод есть на листе. Откройте «Разъём» или выберите лист вручную из списка цепи.",
+            );
+            return;
           }
+        } else {
+          preferred = preferFromSheet(
+            (Number(pickRes.wireHits) > 0 ? resolveUid(pickUid) : null) ||
+              resolveUid(String(pickRes.viable?.[0] || "")) ||
+              null,
+          );
         }
       } catch {
-        /* fall through to score-based open — never block the button */
+        if (boundWireUid) {
+          setNotice("Не удалось подобрать схему для этого провода.");
+          return;
+        }
       }
     }
 
-    // Always open a sheet: pick-diagram is best-effort; never block «Показать на схеме».
-    if (!preferred) {
+    // Without card wireUid: score-based only; never ewdDiagrams[0] blind.
+    if (!preferred && !boundWireUid) {
       const picked = pickBestDiagram(ewdDiagrams, ctx);
       preferred = picked.diagram;
       if (!preferred) {
         const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
         preferred =
-          ranked.find((r) => diagramHasCode(r.diagram, code))?.diagram ||
-          ranked[0]?.diagram ||
-          ewdDiagrams[0] ||
+          ranked.find((r) => r.score > 0 && diagramHasCode(r.diagram, code))?.diagram ||
+          ranked.find((r) => r.score > 0)?.diagram ||
           null;
       }
-      if (preferred && hasPinFocus) {
-        setNotice("Точный лист по контакту/цвету не найден — открыта ближайшая схема узла.");
+      if (!preferred && hasPinFocus) {
+        setNotice(
+          "Нет схемы с этим контактом/цветом на листе. Выберите схему вручную или откройте «Разъём».",
+        );
+        return;
       }
     }
     if (!preferred) {
-      setNotice("Графическая схема EWD для этого узла не найдена.");
+      setNotice(
+        boundWireUid
+          ? "Нет схемы с этим проводом на листе. Откройте «Разъём» или выберите лист из списка цепи."
+          : "Графическая схема EWD для этого узла не найдена.",
+      );
       return;
     }
+    setPickBestUid(preferred.diagramUid);
     setCapitalPanel(null);
     // Always-on marker: bump showSeq on every click so repeat clicks re-inject + recenter
     showSeqRef.current += 1;
+    // Focus pin = Откуда — never let server/Куда override
+    const focusPin = pinFrom || wire?.pin || pinCandidates[0] || undefined;
+    const peerTo =
+      toCode ||
+      wire?.peerCode ||
+      resolved?.peerCode ||
+      ctx.peerCode ||
+      undefined;
     setActiveSvg({
       diagramUid: preferred.diagramUid,
       searchCode: code,
       objectIds: diagramScopedUids(preferred, ewdObjectIds),
-      pin: pinCandidates[0] || wire?.pin,
-      pinCandidates,
-      pinFrom: wire?.pinFrom || resolved?.pinFrom,
-      pinTo: wire?.pinTo || resolved?.pinTo,
+      pin: focusPin,
+      pinCandidates: focusPin
+        ? [focusPin, ...pinCandidates.filter((p) => p !== focusPin)]
+        : pinCandidates,
+      pinFrom: pinFrom || wire?.pinFrom || resolved?.pinFrom,
+      pinTo: pinTo || wire?.pinTo || resolved?.pinTo,
       fromCode: fromCode || undefined,
       toCode: toCode || undefined,
       ends: wireEnds.length ? wireEnds : undefined,
       wireColor: wire?.wireColor,
-      peerCode: wire?.peerCode || resolved?.peerCode || ctx.peerCode || undefined,
-      peerPin: peerPin || undefined,
+      wireUid: boundWireUid,
+      pinUid: boundPinUid,
+      peerCode: peerTo,
+      peerPin: peerPin || pinTo || undefined,
       zone: selectedZone && selectedZone !== "all" ? selectedZone : undefined,
       optionTokens,
       showSeq: showSeqRef.current,
     });
-    // Signal tracer: resolve GlobalSignals siblings for this pin
-    const pinForTrace = pinCandidates[0] || wire?.pin || "";
+    // Signal tracer: resolve GlobalSignals siblings for Откуда pin
+    const pinForTrace = focusPin || pinCandidates[0] || "";
     if (pinForTrace) {
       const tqs = new URLSearchParams({ code, pin: pinForTrace });
       if (optionTokens.length) tqs.set("optionTokens", optionTokens.join(","));
@@ -1924,6 +1561,10 @@ function App() {
       setTransitWires(mergeEwdEndpoints(transitRaw, endpoints, code));
       setEwdDiagrams(ewdDiags);
       setEwdObjectIds(objectIds);
+      setCardViableDiagrams([]);
+      setPickBestUid("");
+      setShowAllNodeDiagrams(false);
+      lastWireFocusRef.current = null;
       const pinCount = infoSource.pin_count || {
         owner: ownerRaw.length,
         transit: transitRaw.length,
@@ -1995,13 +1636,6 @@ function App() {
     >
       <div className="app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]">
         <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0">Volvo EWD</span>
-        {selectedModel && selectedYear ? (
-          <span className="md-chip md-chip--accent truncate max-w-[55%] sm:max-w-none">
-            {[selectedModel, selectedYear, selectedEngine].filter(Boolean).join(" · ")}
-          </span>
-        ) : (
-          <span className="text-[11px] text-[var(--text-muted)] truncate">Выберите авто</span>
-        )}
         <button
           type="button"
           className="mobile-filters-toggle md-btn md-btn--tonal ml-auto"
@@ -2341,12 +1975,13 @@ function App() {
       <div
         data-testid="cards-column"
         data-mobile-scroll
-        className={`mobile-pane mobile-pane--cards ${rightOpen ? "lg:col-span-5" : "max-w-3xl mx-auto w-full"} space-y-3 overflow-y-auto min-h-0 pr-1${
+        className={`mobile-pane mobile-pane--cards cards-column ${rightOpen ? "lg:col-span-5" : "max-w-3xl mx-auto w-full"} flex flex-col min-h-0 overflow-hidden pr-1${
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
+      <div data-testid="cards-column-sticky" className="cards-column__sticky shrink-0 space-y-2">
       {nodeInfo ? (
-        <aside data-testid="node-info-banner" className="md-info-banner app-card border rounded-xl px-3 py-2.5 space-y-1.5 shrink-0">
+        <aside data-testid="node-info-banner" className="md-info-banner app-card border rounded-xl px-3 py-2.5 space-y-1.5">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="font-mono font-semibold text-[var(--accent)] text-sm">{nodeInfo.code}</span>
             {nodeInfo.name_ru ? (
@@ -2418,15 +2053,59 @@ function App() {
                       data-testid="systems-tree-item"
                       className="diagram-picker__item"
                       onClick={() => {
-                        const uid = (s.diagramUids || [])[0];
+                        const uids = (s.diagramUids || []).filter(Boolean);
                         setSystemsOpen(false);
-                        if (uid) {
-                          void openEwdDiagram(selectedCode, uid, undefined, undefined, {
+                        if (!uids.length) {
+                          setNotice(`Система «${s.name}» без доступных листов SVG.`);
+                          return;
+                        }
+                        const focus = lastWireFocusRef.current;
+                        const viableHit = [...cardViableDiagrams]
+                          .filter((d) => uids.includes(d.diagramUid))
+                          .sort(
+                            (a, b) =>
+                              (Number(b.wireHits) || 0) - (Number(a.wireHits) || 0) ||
+                              (Number(b.onSheetUidCount) || 0) - (Number(a.onSheetUidCount) || 0),
+                          )[0];
+                        if (viableHit) {
+                          void openEwdDiagram(selectedCode, viableHit.diagramUid, focus || undefined, undefined, {
                             manualPick: true,
                           });
-                        } else {
-                          setNotice(`Система «${s.name}» без доступных листов SVG.`);
+                          return;
                         }
+                        void (async () => {
+                          try {
+                            const qs = new URLSearchParams({
+                              code: selectedCode,
+                              diagramUids: uids.join(","),
+                            });
+                            if (focus?.pin) qs.set("pins", focus.pin);
+                            if (focus?.wireColor) qs.set("color", focus.wireColor);
+                            if (focus?.peerCode) qs.set("peer", focus.peerCode);
+                            if (focus?.wireUid) qs.set("wireUid", focus.wireUid);
+                            if (focus?.pinUid) qs.set("pinUid", focus.pinUid);
+                            if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
+                            const pickRes = await fetch(`/api/ewd/pick-diagram?${qs}`).then((r) =>
+                              r.json(),
+                            );
+                            const pickUid = String(pickRes.diagramUid || "");
+                            if (pickUid && (Number(pickRes.wireHits) > 0 || !focus?.wireUid)) {
+                              void openEwdDiagram(
+                                selectedCode,
+                                pickUid,
+                                focus || undefined,
+                                undefined,
+                                { manualPick: true },
+                              );
+                            } else {
+                              setNotice(
+                                `Система «${s.name}»: нет листа с этим проводом. Сначала откройте карточку цепи.`,
+                              );
+                            }
+                          } catch {
+                            setNotice(`Система «${s.name}»: не удалось подобрать лист.`);
+                          }
+                        })();
                       }}
                     >
                       <span className="diagram-picker__item-title">{s.name || s.systemUid}</span>
@@ -2439,7 +2118,7 @@ function App() {
               ) : null}
             </div>
           ) : null}
-          {ewdDiagrams.length > 0 ? (
+          {ewdDiagrams.length > 0 || cardViableDiagrams.length > 0 ? (
             <div ref={diagramPickerRef} className="diagram-picker relative">
               <button
                 type="button"
@@ -2449,7 +2128,11 @@ function App() {
                 aria-expanded={diagramPickerOpen}
                 onClick={() => setDiagramPickerOpen((v) => !v)}
               >
-                🗺️ Выбрать схему ({ewdDiagrams.length})
+                🗺️ Выбрать схему (
+                {cardViableDiagrams.length > 0 && !showAllNodeDiagrams
+                  ? cardViableDiagrams.length
+                  : ewdDiagrams.length}
+                )
               </button>
               {diagramPickerOpen ? (
                 <div
@@ -2458,10 +2141,29 @@ function App() {
                   role="listbox"
                   aria-label="Доступные схемы EWD"
                 >
+                  {cardViableDiagrams.length > 0 ? (
+                    <button
+                      type="button"
+                      className="diagram-picker__item diagram-picker__item--toggle"
+                      data-testid="diagram-picker-toggle-all"
+                      onClick={() => setShowAllNodeDiagrams((v) => !v)}
+                    >
+                      <span className="diagram-picker__title">
+                        {showAllNodeDiagrams
+                          ? `Только по этой цепи (${cardViableDiagrams.length})`
+                          : `Все листы узла (${ewdDiagrams.length})`}
+                      </span>
+                    </button>
+                  ) : null}
                   {rankedDiagrams.map(({ diagram: d, score }) => {
                     const label = String(d.title || d.systemName || d.designFolder || "").trim();
                     const isOpen = activeSvg?.diagramUid === d.diagramUid;
-                    const isBest = !!bestDiagramUid && d.diagramUid === bestDiagramUid && score >= 50;
+                    const bestUid = pickBestUid || bestDiagramUid;
+                    const isBest =
+                      !!bestUid &&
+                      d.diagramUid === bestUid &&
+                      (cardViableDiagrams.length > 0 || score >= 50);
+                    const focus = lastWireFocusRef.current;
                     return (
                       <button
                         key={d.diagramUid}
@@ -2475,7 +2177,7 @@ function App() {
                           void openEwdDiagram(
                             selectedCode,
                             d.diagramUid,
-                            {
+                            focus || {
                               pin: activeSvg?.pin || selectedPinState?.pin,
                               pinCandidates: activeSvg?.pinCandidates,
                               pinFrom: activeSvg?.pinFrom,
@@ -2484,6 +2186,8 @@ function App() {
                               toCode: activeSvg?.toCode,
                               ends: activeSvg?.ends,
                               wireColor: activeSvg?.wireColor || selectedPinState?.color,
+                              wireUid: activeSvg?.wireUid,
+                              pinUid: activeSvg?.pinUid,
                               peerCode: activeSvg?.peerCode,
                               peerPin: activeSvg?.peerPin,
                             },
@@ -2542,6 +2246,9 @@ function App() {
             })}
           </div>
         ) : null}
+      </div>
+      </div>
+      <div data-testid="cards-column-scroll" className="cards-column__scroll flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
@@ -2620,10 +2327,15 @@ function App() {
             </button>
           </div>
           {selectedPinState && (
-            <div className="ewd-scheme-status shrink-0 bg-[var(--input-bg)] border-b border-[var(--border-color)] px-3 py-1 text-xs text-center text-[var(--text-main)]">
-              Контакт <strong className="ewd-data font-mono">{selectedPinState.pin || "—"}</strong>
-              {" · "}
-              <strong className="ewd-data font-mono">{selectedPinState.code}</strong>
+            <div
+              data-testid="ewd-selected-contact"
+              className="ewd-scheme-status shrink-0 bg-[var(--input-bg)] border-b border-[var(--border-color)] px-3 py-1 text-xs text-center text-[var(--text-main)]"
+            >
+              Контакт{" "}
+              <strong className="ewd-data font-mono">
+                {selectedPinState.code}
+                {selectedPinState.pin ? `:${selectedPinState.pin}` : ""}
+              </strong>
               {selectedPinState.color ? (
                 <>
                   {" · "}
@@ -2646,6 +2358,8 @@ function App() {
               toCode={activeSvg.toCode}
               ends={activeSvg.ends}
               wireColor={activeSvg.wireColor}
+              wireUid={activeSvg.wireUid}
+              pinUid={activeSvg.pinUid}
               peerCode={activeSvg.peerCode}
               peerPin={activeSvg.peerPin}
               zone={activeSvg.zone}
@@ -2685,6 +2399,8 @@ function App() {
                     toCode: activeSvg.toCode,
                     ends: activeSvg.ends,
                     wireColor: activeSvg.wireColor,
+                    wireUid: activeSvg.wireUid,
+                    pinUid: activeSvg.pinUid,
                     peerCode: activeSvg.peerCode,
                     peerPin: activeSvg.peerPin,
                   },

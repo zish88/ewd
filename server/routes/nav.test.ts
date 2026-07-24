@@ -362,6 +362,16 @@ test("nav wires 74/507 returns owner pins", async () => {
   assert.ok(res.body.owner_wires.length >= 2);
   assert.equal(res.body.owner_wires[0].match_role, "owner");
   assert.ok(res.body.owner_wires.every((w: { subject_code: string }) => w.subject_code === "74/507"));
+  const titled = res.body.owner_wires.find(
+    (w: { card_title?: string; pin_number?: string }) => w.pin_number && w.card_title,
+  );
+  if (titled) {
+    assert.match(
+      String(titled.card_title),
+      new RegExp(`^74/507:${titled.pin_number}`),
+      "owner title must be selectedCode:cavity",
+    );
+  }
 });
 
 test("nav wires 3/74 returns transit + diagrams", async () => {
@@ -629,4 +639,175 @@ test("nav components Capital harness ids: rear_doors non-empty, no engine ECM pe
   );
   assert.ok(engCodes.includes("4/46"), `engine empty or missing 4/46: ${engCodes}`);
   assert.ok(!engCodes.includes("3/128"));
+});
+
+test("nav wires dedupe identical transit cards (same pin+color+ends)", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const connPage = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 11, "Connector 74/508", "connector").lastInsertRowid,
+  );
+  const door = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, name_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("74/508", "Разъём", "Разъём двери", "Door")
+      .lastInsertRowid,
+  );
+  const spk = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, name_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("16/3", "Динамик", "Динамик двери", "Speaker")
+      .lastInsertRowid,
+  );
+  const insert = db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page, wire_uid, pin_uid, wire_gauge)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  // Two SQLite rows — same logical wire, different wire_uid (Capital clone)
+  insert.run(
+    connPage,
+    "22",
+    "VT-BK",
+    "",
+    "",
+    "16/3:1 — Динамик",
+    "74/508:22 — Разъём",
+    "16/3:1",
+    "74/508:22",
+    "LHD",
+    "16/3",
+    "connector_pinout",
+    1,
+    0,
+    90,
+    spk,
+    door,
+    null,
+    "Harness front door",
+    "",
+    null,
+    0,
+    "UID-WIRE-A",
+    "UID-PIN-A",
+    "1.5",
+  );
+  insert.run(
+    connPage,
+    "22",
+    "VT-BK",
+    "",
+    "",
+    "16/3:1 — Динамик",
+    "74/508:22 — Разъём",
+    "16/3:1",
+    "74/508:22",
+    "LHD",
+    "16/3",
+    "connector_pinout",
+    1,
+    0,
+    80,
+    spk,
+    door,
+    null,
+    "Harness front door",
+    "",
+    null,
+    0,
+    "UID-WIRE-B",
+    "UID-PIN-B",
+    "1.5",
+  );
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/wires?code=74%2F508");
+  assert.equal(res.status, 200);
+  const transit = res.body.transit_wires || [];
+  const vtBk22 = transit.filter(
+    (c: { pin_number?: string; wire_color?: string }) =>
+      String(c.pin_number) === "22" && String(c.wire_color).toUpperCase() === "VT-BK",
+  );
+  assert.equal(vtBk22.length, 1, `expected 1 VT-BK:22 card, got ${vtBk22.length}`);
+  assert.equal(String(vtBk22[0].wire_uid), "UID-WIRE-A", "keep richer / higher integrity row");
+});
+
+test("nav wires enrich bare from_detail/to_detail with name_ru", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const connPage = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 10, "Connector 74/508", "connector").lastInsertRowid,
+  );
+  const a = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, name_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("74/508", "Разъём", "Разъём жгута двери RL", "Conn")
+      .lastInsertRowid,
+  );
+  const b = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, name_ru, description_en) VALUES (?, ?, ?, ?)",
+      )
+      .run("3/128", "Модуль", "Модуль двери RL", "Door")
+      .lastInsertRowid,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    connPage,
+    "2",
+    "",
+    "",
+    "",
+    "74/508:2",
+    "3/128:5",
+    "74/508:2",
+    "3/128:5",
+    "LHD",
+    "74/508",
+    "connector_pinout",
+    1,
+    0,
+    100,
+    a,
+    b,
+    null,
+    "14240_RL",
+    "",
+    null,
+    0,
+  );
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const res = await request(app).get("/api/nav/wires?code=74%2F508");
+  assert.equal(res.status, 200);
+  const card = (res.body.owner_wires || [])[0];
+  assert.ok(card, "expected owner wire");
+  assert.match(String(card.from_detail || ""), /74\/508:2 — Разъём жгута двери RL/);
+  assert.match(String(card.to_detail || ""), /3\/128:5 — Модуль двери RL/);
 });

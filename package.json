@@ -12,7 +12,7 @@
     "start": "tsx server/index.ts",
     "start:full": "node scripts/bootstrap.js",
     "import:manual": "tsx scripts/import-wiring-manual.ts",
-    "test": "tsx --test server/**/*.test.ts",
+    "test": "tsx --test server/**/*.test.ts server/*.test.ts client/src/**/*.test.ts",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
