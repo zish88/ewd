@@ -14,6 +14,14 @@ type Settings = {
   updatedAt?: string;
 };
 
+type VisitStats = {
+  day: number;
+  week: number;
+  month: number;
+  total: number;
+  recent: Array<{ id: number; visitedAt: string; path: string }>;
+};
+
 const FEATURE_LABELS: Record<keyof Features, string> = {
   suggestions: "Предложения правок с карточек (почта)",
   ewdDiagrams: "Графические схемы EWD",
@@ -24,12 +32,27 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
 
+function formatVisitAt(isoLike: string): string {
+  // SQLite datetime('now') → "YYYY-MM-DD HH:MM:SS" UTC
+  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(isoLike) ? isoLike : `${isoLike.replace(" ", "T")}Z`;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return isoLike;
+  return d.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function AdminPage() {
   const [configured, setConfigured] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [visits, setVisits] = useState<VisitStats | null>(null);
   const [form, setForm] = useState({
     subject_code: "",
     pin_number: "",
@@ -56,6 +79,13 @@ export function AdminPage() {
     setSettings(d as Settings);
   }
 
+  async function loadVisits() {
+    const r = await fetch("/api/admin/visits", { credentials: "include" });
+    if (!r.ok) return;
+    const d = (await r.json()) as VisitStats;
+    setVisits(d);
+  }
+
   async function logoutServer() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     try {
@@ -65,6 +95,7 @@ export function AdminPage() {
     }
     setAdmin(false);
     setSettings(null);
+    setVisits(null);
   }
 
   useEffect(() => {
@@ -85,8 +116,10 @@ export function AdminPage() {
         return;
       }
       const ok = await refreshMe();
-      if (ok) await loadSettings();
-      else {
+      if (ok) {
+        await loadSettings();
+        await loadVisits();
+      } else {
         try {
           sessionStorage.removeItem(ADMIN_UI_SESSION_KEY);
         } catch {
@@ -119,6 +152,7 @@ export function AdminPage() {
     setAdmin(true);
     setNotice("Вход выполнен");
     await loadSettings();
+    await loadVisits();
   }
 
   async function saveSettings(next: Settings) {
@@ -174,6 +208,56 @@ export function AdminPage() {
           </form>
         ) : (
           <>
+            <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Посещения</h2>
+                <button
+                  type="button"
+                  className="text-xs text-emerald-500 hover:underline"
+                  onClick={() => void loadVisits()}
+                >
+                  Обновить
+                </button>
+              </div>
+              {visits ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(
+                      [
+                        ["Сутки", visits.day],
+                        ["Неделя", visits.week],
+                        ["Месяц", visits.month],
+                        ["Всего", visits.total],
+                      ] as const
+                    ).map(([label, n]) => (
+                      <div key={label} className="rounded-lg border border-[var(--border-color)] px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
+                        <div className="text-xl font-semibold tabular-nums text-[var(--accent)]">{n}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Одна сессия браузера = одно посещение (повтор в течение 30 мин не считается). Админка не учитывается.
+                  </p>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-1">Когда заходили</h3>
+                  {visits.recent.length === 0 ? (
+                    <p className="text-sm text-[var(--text-muted)]">Пока нет записей.</p>
+                  ) : (
+                    <ul className="max-h-64 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                      {visits.recent.map((v) => (
+                        <li key={v.id} className="flex items-baseline justify-between gap-3 py-1.5">
+                          <span className="tabular-nums text-[var(--text-main)]">{formatVisitAt(v.visitedAt)}</span>
+                          <span className="truncate text-[var(--text-muted)] font-mono text-xs">{v.path || "/"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">Загрузка…</p>
+              )}
+            </section>
+
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Доступность сайта</h2>
               {settings ? (

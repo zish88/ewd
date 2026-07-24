@@ -26,6 +26,8 @@ dist-upload/
 
 # SQLite WAL sidecars & page caches (keep wiring.sqlite via exception below)
 data/*.sqlite-*
+# Runtime visit counters (separate from wiring.sqlite; survive deploy)
+data/visits.sqlite
 data/pages/
 data/_wiring_*.sqlite
 data/overrides/

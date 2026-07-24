@@ -11,9 +11,14 @@ import {
 } from "../adminAuth.js";
 import { readSiteSettings, writeSiteSettings, type SiteSettings } from "../siteSettings.js";
 import { sendModeratorMail, smtpPublicStatus } from "../smtpMail.js";
+import { getVisitStats } from "../visits.js";
 
 export function createAdminRouter(db: Database.Database) {
   const router = Router();
+
+  router.get("/visits", requireAdmin, (_req, res) => {
+    res.json(getVisitStats(50));
+  });
 
   router.get("/me", (req, res) => {
     const configured = adminConfigured();

@@ -23,10 +23,12 @@ import {
 } from "./ticketGuard.js";
 import { resolveFilters } from "./vehicleMatrix.js";
 import { decodeVolvoVin } from "./vinDecoder.js";
+import { ensureVisitsStore, recordVisit } from "./visits.js";
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
+ensureVisitsStore();
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
 const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelop@gmail.com";
 
@@ -34,6 +36,21 @@ app.use(express.json());
 
 app.get("/api/site-status", (_req, res) => {
   res.json(publicSiteStatus());
+});
+
+/** Public visit beacon (once per session; allowlisted when site is closed). */
+app.post("/api/visit", (req, res) => {
+  const body = (req.body || {}) as { sessionId?: string; path?: string };
+  const result = recordVisit({
+    sessionId: body.sessionId,
+    path: body.path,
+    ip: clientIp(req),
+  });
+  if (!result.ok) {
+    res.status(400).json({ ok: false, error: result.error });
+    return;
+  }
+  res.json({ ok: true, recorded: result.recorded });
 });
 
 app.use("/api/admin", createAdminRouter(db));
@@ -44,6 +61,7 @@ app.use("/api", (req, res, next) => {
   if (
     path === "/health" ||
     path === "/site-status" ||
+    path === "/visit" ||
     path.startsWith("/admin")
   ) {
     next();

@@ -25,6 +25,7 @@ import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
+import { trackVisitOnce } from "./visitBeacon.js";
 
 type CardParts = {
   code?: string;
@@ -1094,6 +1095,7 @@ function App() {
         if (d.features) setFeatures((f) => ({ ...f, ...d.features }));
       })
       .catch(() => setSiteOpen(false));
+    trackVisitOnce();
   }, []);
 
   // Restore filters: URL query > localStorage (survives F5). Lazy-init already applied state;
