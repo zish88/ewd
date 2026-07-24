@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Fill components.part_number_mate from data/vida_connector_parts.json."""
+"""Fill components.part_number_mate from data/vida_connector_parts.json.
+
+These fields are connector/housing EPC ItemNumbers for a wiring code, not the
+consumer device (speaker, module, etc.).
+"""
 from __future__ import annotations
 
 import json

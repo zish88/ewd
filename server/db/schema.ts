@@ -43,6 +43,7 @@ const CORE_DDL = `
     description_ru TEXT NOT NULL DEFAULT '',
     description_en TEXT NOT NULL DEFAULT '',
     name_ru TEXT NOT NULL DEFAULT '',
+    -- EPC ItemNumbers for the wiring designation (connector housing / mate), not the consumer device
     part_number TEXT NOT NULL DEFAULT '',
     part_number_mate TEXT NOT NULL DEFAULT '',
     home_zone TEXT NOT NULL DEFAULT ''

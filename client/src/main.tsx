@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
@@ -26,6 +26,14 @@ import { AdminPage } from "./AdminPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 
+type CardParts = {
+  code?: string;
+  device?: string;
+  housing?: string;
+  mate?: string;
+  terminals?: Array<{ part_number: string; name_en?: string; name_ru?: string }>;
+};
+
 type Result = {
   id?: number; bookId?: number; book_id?: number; manualId?: number;
   page_number?: number; pinout_page_number?: number; diagram_page_number?: number;
@@ -42,6 +50,7 @@ type Result = {
   source_code?: string; destination_code?: string; raw_line?: string;
   match_role?: "owner" | "transit"; card_title?: string; part_number?: string;
   voltage?: string; wire_gauge?: string;
+  parts?: CardParts;
 };
 
 type CapitalPanel =
@@ -57,6 +66,8 @@ type EwdDiagram = {
   systemName?: string;
   pathCount?: number;
   groups?: Array<{ schemClass: string; uids: string[]; pathCount: number }>;
+  /** All UIDs on this SVG (when provided by /api/ewd/diagrams). */
+  onSheetUids?: string[];
   wireHits?: number;
   pinHits?: number;
   onSheetUidCount?: number;
@@ -215,6 +226,7 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
             loading={loading}
             error={err}
             className="ewd-location-svg"
+            fitMode="contain"
           />
         ) : null}
         {html && !pins.length ? (
@@ -392,10 +404,35 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 }
 
+function CopyIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M5 15V5a2 2 0 0 1 2-2h10"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+async function copyPartNumber(pn: string, setNotice: (v: string) => void) {
+  const text = String(pn || "").trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    setNotice(`Скопировано: ${text}`);
+  } catch {
+    setNotice("Не удалось скопировать партномер");
+  }
+}
+
 function renderWireCard(
   item: Result,
   index: number,
-  hasEwdDiagram: boolean,
+  canShowOnDiagram: boolean,
   selectedCode: string,
   setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string } | null) => void,
   selectedPinState: { id: string | number; code: string; color: string; pin: string } | null,
@@ -412,8 +449,8 @@ function renderWireCard(
   const wireRu = item.wire_color_ru || decodeWireColor(item.wire_color).replace(/\s*\([^)]*\)\s*$/, "") || "—";
   const wireCode = item.wire_color && item.wire_color !== "—" ? item.wire_color : "—";
   const openDiagram = () => {
-    if (!hasEwdDiagram) {
-      setNotice("Графическая схема EWD для этого узла не найдена. Откройте «Разъём» (FaceView).");
+    if (!canShowOnDiagram) {
+      setNotice("Графическая схема EWD для этого провода недоступна. Откройте «Разъём» (FaceView).");
       return;
     }
     const code = String(selectedCode || item.search_target || item.from_node || "").trim();
@@ -548,25 +585,15 @@ function renderWireCard(
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
           <h3 className="ewd-data text-sm font-semibold text-[var(--text-main)] leading-snug">{connectorTitle}</h3>
-          {item.part_number ? (
-            <span
-              data-testid="part-number-badge"
-              className="ewd-light-badge inline-flex items-baseline gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-300 shrink-0"
-              title="Парт-номер корпуса разъёма (не контакта)"
-            >
-              <span className="text-[10px] font-sans">Корпус разъёма:</span>
-              <span className="text-xs font-mono font-bold tracking-wide">{item.part_number}</span>
-            </span>
-          ) : null}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           {steering ? (
             <span className="ewd-light-badge text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border bg-sky-50 border-sky-300">{steering}</span>
           ) : null}
-          {item.is_verified ? (
+          {import.meta.env.DEV && item.is_verified ? (
             <span className="ewd-light-badge text-[10px] font-mono px-1.5 py-0.5 rounded border bg-emerald-50 border-emerald-300">verified</span>
           ) : null}
-          {score !== null ? (
+          {import.meta.env.DEV && score !== null ? (
             <span
               className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                 score >= 100
@@ -604,14 +631,89 @@ function renderWireCard(
             <span>Сечение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.wire_gauge} мм²</span></span>
           </div>
         ) : null}
+        {item.parts && (item.parts.device || item.parts.housing || item.parts.mate || item.parts.terminals?.length) ? (
+          <ul className="parts-catalog parts-catalog--card" data-testid="card-parts">
+            {item.parts.device ? (
+              <li>
+                <span className="parts-catalog__role">Деталь</span>
+                <span className="parts-catalog__pn-row">
+                  <span className="parts-catalog__pn font-mono">{item.parts.device}</span>
+                  <button
+                    type="button"
+                    className="parts-catalog__copy"
+                    title="Скопировать"
+                    aria-label={`Скопировать ${item.parts.device}`}
+                    onClick={() => void copyPartNumber(item.parts!.device!, setNotice)}
+                  >
+                    <CopyIcon />
+                  </button>
+                </span>
+              </li>
+            ) : null}
+            {item.parts.housing ? (
+              <li>
+                <span className="parts-catalog__role">Корпус</span>
+                <span className="parts-catalog__pn-row">
+                  <span className="parts-catalog__pn font-mono">{item.parts.housing}</span>
+                  <button
+                    type="button"
+                    className="parts-catalog__copy"
+                    title="Скопировать"
+                    aria-label={`Скопировать ${item.parts.housing}`}
+                    onClick={() => void copyPartNumber(item.parts!.housing!, setNotice)}
+                  >
+                    <CopyIcon />
+                  </button>
+                </span>
+              </li>
+            ) : null}
+            {item.parts.mate ? (
+              <li>
+                <span className="parts-catalog__role">Ответная</span>
+                <span className="parts-catalog__pn-row">
+                  <span className="parts-catalog__pn font-mono">{item.parts.mate}</span>
+                  <button
+                    type="button"
+                    className="parts-catalog__copy"
+                    title="Скопировать"
+                    aria-label={`Скопировать ${item.parts.mate}`}
+                    onClick={() => void copyPartNumber(item.parts!.mate!, setNotice)}
+                  >
+                    <CopyIcon />
+                  </button>
+                </span>
+              </li>
+            ) : null}
+            {(item.parts.terminals || []).map((t) => (
+              <li key={t.part_number}>
+                <span className="parts-catalog__role">Клемма</span>
+                <span className="parts-catalog__pn-row">
+                  <span className="parts-catalog__pn font-mono">{t.part_number}</span>
+                  <button
+                    type="button"
+                    className="parts-catalog__copy"
+                    title="Скопировать"
+                    aria-label={`Скопировать ${t.part_number}`}
+                    onClick={() => void copyPartNumber(t.part_number, setNotice)}
+                  >
+                    <CopyIcon />
+                  </button>
+                </span>
+                {t.name_ru || t.name_en ? (
+                  <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
       <div className="flex gap-2 mt-0.5">
-        {hasEwdDiagram ? (
+        {canShowOnDiagram ? (
           <button type="button" data-testid="show-on-diagram" onClick={openDiagram} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 rounded font-medium">
             Показать на схеме
           </button>
         ) : null}
-        <button type="button" data-testid="show-faceview" onClick={openFaceView} className={`${hasEwdDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
+        <button type="button" data-testid="show-faceview" onClick={openFaceView} className={`${canShowOnDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
           Разъём
         </button>
         <button type="button" data-testid="show-location" onClick={openLocation} className="px-2 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
@@ -730,8 +832,6 @@ function App() {
   type NodeInfo = {
     code: string;
     name_ru: string;
-    part_number: string;
-    part_number_mate: string;
     pin_count: { owner: number; transit: number; total: number };
     wire_gauges: string[];
     zoneEmptyFallback?: boolean;
@@ -741,6 +841,8 @@ function App() {
   const [transitWires, setTransitWires] = useState<Result[]>([]);
   const [ewdDiagrams, setEwdDiagrams] = useState<EwdDiagram[]>([]);
   const [ewdObjectIds, setEwdObjectIds] = useState<string[]>([]);
+  /** UIDs present on available SVG sheets for the current node (from /diagrams). */
+  const [ewdSheetUids, setEwdSheetUids] = useState<Set<string>>(() => new Set());
   /** Sheets with wireHits>0 for the last card pick — picker default list. */
   const [cardViableDiagrams, setCardViableDiagrams] = useState<EwdDiagram[]>([]);
   const [pickBestUid, setPickBestUid] = useState("");
@@ -787,6 +889,9 @@ function App() {
   );
   const headerRef = useRef<HTMLElement | null>(null);
   const filtersSheetRef = useRef<HTMLDivElement | null>(null);
+  const filtersSheetBodyRef = useRef<HTMLDivElement | null>(null);
+  const sheetSwipeRef = useRef<{ y: number } | null>(null);
+  const pullGuardRef = useRef<{ y: number } | null>(null);
   const filtersToggleRef = useRef<HTMLButtonElement | null>(null);
   const deepWireIdRef = useRef<string>("");
   const filtersHydratedRef = useRef(Boolean(persisted0.model || persisted0.year || persisted0.engine));
@@ -818,6 +923,14 @@ function App() {
   };
   const rightOpen = Boolean(activeSvg || capitalPanel);
   const hasEwdDiagram = ewdDiagrams.length > 0;
+  const cardCanShowOnDiagram = (item: Result): boolean => {
+    if (!features.ewdDiagrams || !hasEwdDiagram) return false;
+    const wu = String(item.wire_uid || "").trim();
+    // Known wire UID must exist on an available (on-disk) sheet — else hide the button.
+    if (wu) return ewdSheetUids.has(wu);
+    // No UID: allow soft pick among node sheets
+    return true;
+  };
 
   const availableWireColors = useMemo(
     () => collectUniqueWireColors([...ownerWires, ...transitWires]),
@@ -1037,27 +1150,78 @@ function App() {
     });
   }, [ownerWires, transitWires, selectedCode]);
 
-  // Mobile filter sheet: body scroll-lock + Escape to close
+  // Mobile filter sheet: scroll-lock, Escape, pull-to-refresh guard, focus
   useEffect(() => {
     if (!filtersSheetOpen) return;
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.classList.add("is-filters-sheet-open");
+    document.body.classList.add("is-filters-sheet-open");
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFiltersSheetOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    // Focus first focusable in sheet
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      pullGuardRef.current = { y: t.clientY };
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      const start = pullGuardRef.current;
+      if (!t || !start) return;
+      const dy = t.clientY - start.y;
+      const body = filtersSheetBodyRef.current;
+      const atTop = !body || body.scrollTop <= 0;
+      // Block browser pull-to-refresh while sheet is open and user pulls down at top
+      if (atTop && dy > 0) {
+        e.preventDefault();
+      }
+    };
+    const onTouchEnd = () => {
+      pullGuardRef.current = null;
+    };
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
     const root = filtersSheetRef.current;
     const focusable = root?.querySelector<HTMLElement>(
       "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
     );
     focusable?.focus();
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.classList.remove("is-filters-sheet-open");
+      document.body.classList.remove("is-filters-sheet-open");
       window.removeEventListener("keydown", onKey);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchEnd);
       filtersToggleRef.current?.focus();
     };
   }, [filtersSheetOpen]);
+
+  const onSheetSwipeStart = (e: ReactTouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return;
+    sheetSwipeRef.current = { y: t.clientY };
+  };
+  const onSheetSwipeEnd = (e: ReactTouchEvent) => {
+    const start = sheetSwipeRef.current;
+    sheetSwipeRef.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dy = t.clientY - start.y;
+    const body = filtersSheetBodyRef.current;
+    const atTop = !body || body.scrollTop <= 0;
+    if (atTop && dy > 64) setFiltersSheetOpen(false);
+  };
 
   const clear = () => {
     setMode(null);
@@ -1065,6 +1229,7 @@ function App() {
     setTransitWires([]);
     setEwdDiagrams([]);
     setEwdObjectIds([]);
+    setEwdSheetUids(new Set());
     setNotice("");
     setLoading(false);
     setSelectedCode("");
@@ -1518,6 +1683,7 @@ function App() {
     setTransitWires([]);
     setEwdDiagrams([]);
     setEwdObjectIds([]);
+    setEwdSheetUids(new Set());
     setEwdSystems([]);
     setTraceInfo(null);
     setSystemsOpen(false);
@@ -1539,7 +1705,7 @@ function App() {
       if (useZone && useZone !== "all") sysQs.set("zone", useZone);
       const [data, ewdData, sysData] = await Promise.all([
         fetch(`/api/nav/wires?${params}`).then((r) => r.json()),
-        fetch(`/api/ewd/diagrams?${ewdQs}`).then((r) => r.json()).catch(() => ({ diagrams: [], objectIds: [] })),
+        fetch(`/api/ewd/diagrams?${ewdQs}`).then((r) => r.json()).catch(() => ({ diagrams: [], objectIds: [], sheetUids: [] })),
         fetch(`/api/ewd/systems?${sysQs}`).then((r) => r.json()).catch(() => ({ systems: [] })),
       ]);
       setEwdSystems(Array.isArray(sysData.systems) ? (sysData.systems as EwdSystemRow[]) : []);
@@ -1559,6 +1725,15 @@ function App() {
       }
       const ewdDiags = Array.isArray(ewdData.diagrams) ? (ewdData.diagrams as EwdDiagram[]) : [];
       const objectIds = Array.isArray(ewdData.objectIds) ? (ewdData.objectIds as string[]) : [];
+      const sheetFromApi = Array.isArray(ewdData.sheetUids) ? (ewdData.sheetUids as string[]) : [];
+      const sheetSet = new Set<string>(sheetFromApi.filter(Boolean));
+      if (!sheetSet.size) {
+        for (const d of ewdDiags) {
+          for (const u of d.onSheetUids || []) if (u) sheetSet.add(u);
+          for (const g of d.groups || []) for (const u of g.uids || []) if (u) sheetSet.add(u);
+        }
+      }
+      setEwdSheetUids(sheetSet);
       const codeCtx = extractSchemeContext(null, code);
       const preferredDiagram = pickBestDiagram(ewdDiags, codeCtx).diagram;
       const epQs = new URLSearchParams({ code });
@@ -1585,8 +1760,6 @@ function App() {
       setNodeInfo({
         code,
         name_ru: String(infoSource.name_ru || ""),
-        part_number: String(infoSource.part_number || ""),
-        part_number_mate: String(infoSource.part_number_mate || ""),
         pin_count: {
           owner: Number(pinCount.owner) || ownerRaw.length,
           transit: Number(pinCount.transit) || transitRaw.length,
@@ -1598,15 +1771,17 @@ function App() {
         zoneEmptyFallback,
       });
       const n = ownerRaw.length + transitRaw.length;
+      const nameRu = String(infoSource.name_ru || "").trim();
+      const codeLabel = nameRu ? `${code} — ${nameRu}` : code;
       if (zoneEmptyFallback) {
         setNotice(
-          `Нет контактов в выбранной зоне для ${code}. Есть данные вне зоны — нажмите «Показать во всех зонах».`,
+          `Нет контактов в выбранной зоне для ${codeLabel}. Есть данные вне зоны — нажмите «Показать во всех зонах».`,
         );
       } else {
         setNotice(
           n || ewdDiags.length
-            ? `${code}: ${ewdDiags.length} схем EWD · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
-            : `Для ${code} ничего не найдено`,
+            ? `${codeLabel}: ${ewdDiags.length} схем EWD · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
+            : `Для ${codeLabel} ничего не найдено`,
         );
       }
     } catch {
@@ -1614,6 +1789,7 @@ function App() {
       setTransitWires([]);
       setEwdDiagrams([]);
       setEwdObjectIds([]);
+      setEwdSheetUids(new Set());
       setNodeInfo(null);
       setNotice("Ошибка загрузки контактов");
     } finally {
@@ -1664,6 +1840,7 @@ function App() {
     setTransitWires([]);
     setEwdDiagrams([]);
     setEwdObjectIds([]);
+    setEwdSheetUids(new Set());
     setNodeInfo(null);
     setMode(null);
     setCapitalPanel(null);
@@ -1921,6 +2098,14 @@ function App() {
   );
 
   return <main className={`app-shell h-screen overflow-hidden flex flex-col${filtersSheetOpen ? " is-filters-sheet-open" : ""}`}>
+    <div className="desktop-bg-art" aria-hidden="true">
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--b" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--c" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--d" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--e" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--f" />
+    </div>
     <header
       ref={headerRef}
       className="app-panel app-bar shrink-0 border-b px-3 py-2"
@@ -1976,6 +2161,12 @@ function App() {
       className={`filters-host${filtersSheetOpen ? " is-sheet-open" : ""}`}
       data-testid="filters-host"
     >
+      <div className="filters-bg-art" aria-hidden="true">
+        <div className="filters-bg-art__piece filters-bg-art__piece--a" />
+        <div className="filters-bg-art__piece filters-bg-art__piece--b" />
+        <div className="filters-bg-art__piece filters-bg-art__piece--c" />
+        <div className="filters-bg-art__piece filters-bg-art__piece--d" />
+      </div>
       <button
         type="button"
         className="filters-sheet__backdrop"
@@ -1992,8 +2183,18 @@ function App() {
         aria-labelledby="filters-sheet-title"
         data-testid="filters-sheet"
       >
-        <div className="filters-sheet__handle" aria-hidden="true" />
-        <div className="filters-sheet__header">
+        <div
+          className="filters-sheet__handle"
+          aria-hidden="true"
+          data-testid="filters-sheet-handle"
+          onTouchStart={onSheetSwipeStart}
+          onTouchEnd={onSheetSwipeEnd}
+        />
+        <div
+          className="filters-sheet__header"
+          onTouchStart={onSheetSwipeStart}
+          onTouchEnd={onSheetSwipeEnd}
+        >
           <h2 id="filters-sheet-title" className="filters-sheet__title">Параметры поиска</h2>
           <button
             type="button"
@@ -2005,7 +2206,10 @@ function App() {
             ✕
           </button>
         </div>
-        <div className="filters-sheet__body app-panel__filters flex flex-col gap-2">
+        <div
+          ref={filtersSheetBodyRef}
+          className="filters-sheet__body app-panel__filters flex flex-col gap-2"
+        >
           {filterControls}
         </div>
         <div className="filters-sheet__footer">
@@ -2123,16 +2327,10 @@ function App() {
               <span className="text-xs text-[var(--text-main)]">{nodeInfo.name_ru}</span>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
-            {nodeInfo.part_number ? (
-              <span>Корпус: <span className="font-mono text-[var(--text-main)]">{nodeInfo.part_number}</span></span>
-            ) : null}
-            {nodeInfo.part_number_mate ? (
-              <span>Ответная часть: <span className="font-mono text-[var(--text-main)]">{nodeInfo.part_number_mate}</span></span>
-            ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
             <span>
               Контакты: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.owner}</span>
-              {nodeInfo.pin_count.transit ? (
+              {import.meta.env.DEV && nodeInfo.pin_count.transit ? (
                 <> · транзит: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.transit}</span></>
               ) : null}
             </span>
@@ -2387,11 +2585,11 @@ function App() {
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
-        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
+        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, cardCanShowOnDiagram(item), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {filteredTransitWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
         ) : null}
-        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, hasEwdDiagram && features.ewdDiagrams, selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
+        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, cardCanShowOnDiagram(item), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
         ) : null}
@@ -2779,3 +2977,9 @@ function Root() {
 }
 
 createRoot(document.getElementById("root")!).render(<Root />);
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

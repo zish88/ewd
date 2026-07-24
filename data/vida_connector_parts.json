@@ -1,0 +1,2263 @@
+{
+  "generated_at": "2026-07-20T18:07:52.705610+00:00",
+  "source": "EPC_Data.mdf",
+  "count": 536,
+  "semantics": "part_number / part_number_mate are EPC ItemNumbers for the connector/housing on a wiring designation (e.g. 16/3), not the consumer device assembly (speaker, module, lamp). name_en is the EPC row title and may name the device.",
+  "connectors": {
+    "10/1": {
+      "part_number": "30658204",
+      "name_en": "left-hand front lamp housing",
+      "part_number_mate": "8688207"
+    },
+    "10/102": {
+      "part_number": "30656844",
+      "name_en": "Footwell lighting passenger side",
+      "part_number_mate": "8688401"
+    },
+    "10/11": {
+      "part_number": "30682747",
+      "part_number_mate": "9168792",
+      "name_en": "Position lamp left front"
+    },
+    "10/112": {
+      "part_number": "9187018",
+      "name_en": "Right-hand vanity mirror lighting"
+    },
+    "10/114": {
+      "part_number": "9187018",
+      "name_en": "Makeup lighting left sunshade"
+    },
+    "10/115": {
+      "part_number": "9187018",
+      "name_en": "vanity mirror lighting, right"
+    },
+    "10/12": {
+      "part_number": "30682747",
+      "part_number_mate": "9168792",
+      "name_en": "Position lamp right front"
+    },
+    "10/125": {
+      "part_number": "8688349",
+      "name_en": "Left-hand front courtesy lighting",
+      "part_number_mate": "30656844"
+    },
+    "10/126": {
+      "part_number": "978305",
+      "name_en": "Right-hand front courtesy lighting",
+      "part_number_mate": "30656844"
+    },
+    "10/127": {
+      "part_number": "978305",
+      "name_en": "Load space illumination lamp, left"
+    },
+    "10/128": {
+      "part_number": "978305"
+    },
+    "10/15": {
+      "part_number": "9168792"
+    },
+    "10/150": {
+      "part_number": "978305",
+      "part_number_mate": "9456454",
+      "name_en": "Reading lamp rear left and right side"
+    },
+    "10/162": {
+      "part_number": "978305",
+      "name_en": "Ceiling light passenger compartment"
+    },
+    "10/166": {
+      "part_number": "9187023",
+      "name_en": "Map light"
+    },
+    "10/17": {
+      "part_number": "30669634",
+      "part_number_mate": "30669650",
+      "name_en": "lamp housing, rear right"
+    },
+    "10/172": {
+      "part_number": "9456454"
+    },
+    "10/173": {
+      "part_number": "30656844",
+      "name_en": "Cargo compartment lighting, tailgate",
+      "part_number_mate": "978305"
+    },
+    "10/18": {
+      "part_number": "30669634",
+      "part_number_mate": "30669650",
+      "name_en": "lamp housing, rear left"
+    },
+    "10/19": {
+      "part_number": "30656846",
+      "name_en": "Auxiliary brake light",
+      "part_number_mate": "978305"
+    },
+    "10/190": {
+      "part_number": "30656844"
+    },
+    "10/191": {
+      "part_number": "30656844"
+    },
+    "10/2": {
+      "part_number": "30658204",
+      "name_en": "right-hand front lamp housing",
+      "part_number_mate": "8688207"
+    },
+    "10/20": {
+      "part_number": "30682292",
+      "name_en": "License plate lighting, left"
+    },
+    "10/21": {
+      "part_number": "30682292",
+      "name_en": "License plate lighting, right"
+    },
+    "10/22": {
+      "part_number": "9441322",
+      "name_en": "Ceiling light passenger compartment",
+      "part_number_mate": "978305"
+    },
+    "10/24": {
+      "part_number": "978305",
+      "name_en": "Bagagerumsbelysning 4-D",
+      "part_number_mate": "981853"
+    },
+    "10/241": {
+      "part_number": "30682794",
+      "name_en": "right-hand front door handle lighting"
+    },
+    "10/242": {
+      "part_number": "30682794"
+    },
+    "10/243": {
+      "part_number": "30682794"
+    },
+    "10/244": {
+      "part_number": "30682794"
+    },
+    "10/245": {
+      "part_number": "30656844",
+      "name_en": "Vänster dörrlåsindikering"
+    },
+    "10/249": {
+      "part_number": "31252389"
+    },
+    "10/25": {
+      "part_number": "978305",
+      "name_en": "Roof lamp cargo compartment 5-D"
+    },
+    "10/250": {
+      "part_number": "31252389"
+    },
+    "10/251": {
+      "part_number": "31252389"
+    },
+    "10/252": {
+      "part_number": "31252389"
+    },
+    "10/259": {
+      "part_number": "30656844",
+      "name_en": "Warning lights BLIS left"
+    },
+    "10/26": {
+      "part_number": "30656844",
+      "name_en": "Läslampa bak vänster"
+    },
+    "10/260": {
+      "part_number": "30656844",
+      "name_en": "Warning lamp BLIS, right"
+    },
+    "10/261": {
+      "part_number": "30656844",
+      "name_en": "Ground lighting front door, left"
+    },
+    "10/263": {
+      "part_number": "9187023",
+      "part_number_mate": "30682794",
+      "name_en": "Cupholder lighting tunnel"
+    },
+    "10/264": {
+      "part_number": "30656844",
+      "name_en": "Lighting, cargo compartment, left-hand side"
+    },
+    "10/265": {
+      "part_number": "30656844",
+      "name_en": "Lighting, cargo compartment, right-hand side"
+    },
+    "10/289": {
+      "part_number": "9187023",
+      "name_en": "Lighting door compartment"
+    },
+    "10/29": {
+      "part_number": "3923242",
+      "name_en": "Glove compartment lighting",
+      "part_number_mate": "8688401"
+    },
+    "10/294": {
+      "part_number": "30656844"
+    },
+    "10/298": {
+      "part_number": "30656844"
+    },
+    "10/299": {
+      "part_number": "30656844"
+    },
+    "10/3": {
+      "part_number": "9168793",
+      "part_number_mate": "30682292",
+      "name_en": "Lamp housing registration plate number"
+    },
+    "10/300": {
+      "part_number": "30656844"
+    },
+    "10/301": {
+      "part_number": "30656844"
+    },
+    "10/46": {
+      "part_number": "9187020",
+      "name_en": "Fog light, rear right,",
+      "part_number_mate": "31252171"
+    },
+    "10/5": {
+      "part_number": "30667274",
+      "name_en": "front left fog light",
+      "part_number_mate": "979041"
+    },
+    "10/53": {
+      "part_number": "31252171",
+      "name_en": "Fog light, rear left",
+      "part_number_mate": "9187020"
+    },
+    "10/56": {
+      "part_number": "31300300",
+      "name_en": "Daytime Running Lights right"
+    },
+    "10/57": {
+      "part_number": "31300300",
+      "name_en": "Daytime Running Lights left"
+    },
+    "10/6": {
+      "part_number": "30667274",
+      "name_en": "front right fog light",
+      "part_number_mate": "979041"
+    },
+    "10/72": {
+      "part_number": "30682794",
+      "part_number_mate": "30656845",
+      "name_en": "Ashtray lighting front"
+    },
+    "10/97": {
+      "part_number": "8688401",
+      "name_en": "Footwell lighting driver's side",
+      "part_number_mate": "30656844"
+    },
+    "16/1": {
+      "part_number": "8676066",
+      "name_en": "integrated Audio Module (IAM)",
+      "part_number_mate": "8690600"
+    },
+    "16/10": {
+      "part_number": "6849784",
+      "name_en": "horn 1",
+      "part_number_mate": "979040"
+    },
+    "16/105": {
+      "part_number": "978309",
+      "part_number_mate": "3962004",
+      "name_en": "global positioning system module (GPS)"
+    },
+    "16/106": {
+      "part_number": "8688080"
+    },
+    "16/107": {
+      "part_number": "8688080"
+    },
+    "16/108": {
+      "part_number": "8676216",
+      "name_en": "Multi Media Module with most MMM",
+      "part_number_mate": "30682707"
+    },
+    "16/109": {
+      "part_number": "30669630",
+      "part_number_mate": "30682712"
+    },
+    "16/11": {
+      "part_number": "6849784",
+      "name_en": "horn 2",
+      "part_number_mate": "8688349"
+    },
+    "16/110": {
+      "part_number": "9452331"
+    },
+    "16/111": {
+      "part_number": "978307",
+      "part_number_mate": "9456277"
+    },
+    "16/112": {
+      "part_number": "978307"
+    },
+    "16/123": {
+      "part_number": "978305",
+      "part_number_mate": "978306",
+      "name_en": "output external auxiliary equipment (AUX)"
+    },
+    "16/132": {
+      "part_number": "8688210",
+      "name_en": "Antenna door lock trunk lid/tailgate"
+    },
+    "16/133": {
+      "part_number": "8688210",
+      "name_en": "Antenna, door lock, cargo compartment",
+      "part_number_mate": "8690674"
+    },
+    "16/134": {
+      "part_number": "30728848",
+      "name_en": "Antenna, door lock, passenger compartment 2",
+      "part_number_mate": "8688210"
+    },
+    "16/135": {
+      "part_number": "8688210",
+      "name_en": "Antenna, door lock, passenger compartment 3"
+    },
+    "16/136": {
+      "part_number": "30669156",
+      "name_en": "LH rear door tweeter"
+    },
+    "16/137": {
+      "part_number": "30669156",
+      "name_en": "RH rear door tweeter"
+    },
+    "16/139": {
+      "part_number": "8676067",
+      "name_en": "global positioning system module (GPS)",
+      "part_number_mate": "978305"
+    },
+    "16/140": {
+      "part_number": "981801",
+      "name_en": "SIM card reader"
+    },
+    "16/141": {
+      "part_number": "976416",
+      "name_en": "Wave trap, rear window left",
+      "part_number_mate": "8688211"
+    },
+    "16/142": {
+      "part_number": "30669165",
+      "name_en": "Wave trap, rear window right"
+    },
+    "16/143": {
+      "part_number": "30682746",
+      "name_en": "Battery controlled siren BBS"
+    },
+    "16/145": {
+      "part_number": "8676067",
+      "part_number_mate": "30682813",
+      "name_en": "Use a fibre optic brace where there is no corresponding MOST unit. P/N 8688083 2-pin, 30682422 2+4-pin."
+    },
+    "16/147": {
+      "part_number": "8676067",
+      "part_number_mate": "30682816",
+      "name_en": "Bluetooth phone module BPM"
+    },
+    "16/150": {
+      "part_number": "976416",
+      "name_en": "AM/FM antenn och förstärkare vänster bakskärm",
+      "part_number_mate": "30658999"
+    },
+    "16/155": {
+      "part_number": "30669165",
+      "name_en": "Högtalare förardörr"
+    },
+    "16/156": {
+      "part_number": "30669165",
+      "name_en": "Högtalare passagerardörr"
+    },
+    "16/157": {
+      "part_number": "30669158",
+      "name_en": "treble speaker, driver's door"
+    },
+    "16/158": {
+      "part_number": "30669158",
+      "name_en": "Diskanthögtalare passagerardörr",
+      "part_number_mate": "30669156"
+    },
+    "16/16": {
+      "part_number": "976416",
+      "name_en": "Window antenna amplifier"
+    },
+    "16/162": {
+      "part_number": "30682813",
+      "name_en": "Digital Audio Broadcast Module (DABM), C3"
+    },
+    "16/196": {
+      "part_number": "31350273"
+    },
+    "16/26": {
+      "part_number": "30669165",
+      "name_en": "Center dashboard speaker"
+    },
+    "16/267": {
+      "part_number": "978306"
+    },
+    "16/29": {
+      "part_number": "30669156",
+      "name_en": "intermediate register speaker, left-hand front door"
+    },
+    "16/3": {
+      "part_number": "30669156",
+      "part_number_mate": "30669165",
+      "name_en": "Right-hand front door speaker"
+    },
+    "16/30": {
+      "part_number": "30669156",
+      "name_en": "Loudspeaker mid range H-door"
+    },
+    "16/35": {
+      "part_number": "30682746",
+      "name_en": "siren control module (SCM)",
+      "part_number_mate": "30658218"
+    },
+    "16/36": {
+      "part_number": "978305",
+      "name_en": "TV receiver",
+      "part_number_mate": "8676067"
+    },
+    "16/4": {
+      "part_number": "30669156",
+      "part_number_mate": "30669165",
+      "name_en": "loudspeaker, passenger door"
+    },
+    "16/46": {
+      "part_number": "9441322",
+      "name_en": "RTI/MMM display"
+    },
+    "16/49": {
+      "part_number": "8676067",
+      "name_en": "traffic message channel module (TMC)",
+      "part_number_mate": "976416"
+    },
+    "16/5": {
+      "part_number": "30669165",
+      "name_en": "Right-hand rear door speaker"
+    },
+    "16/55": {
+      "part_number": "30669156",
+      "name_en": "right-hand front tweeter",
+      "part_number_mate": "9168550"
+    },
+    "16/56": {
+      "part_number": "30669156",
+      "name_en": "Right-hand front tweeter",
+      "part_number_mate": "30669158"
+    },
+    "16/6": {
+      "part_number": "30669165",
+      "name_en": "Left-hand rear door speaker"
+    },
+    "16/60": {
+      "part_number": "30682712",
+      "name_en": "Phone Module (PHM)",
+      "part_number_mate": "31328398"
+    },
+    "16/62": {
+      "part_number": "981853",
+      "name_en": "Hand unit telephone"
+    },
+    "16/65": {
+      "part_number": "978306",
+      "name_en": "Immobilizer Antenna Unit (IAU)",
+      "part_number_mate": "30656844"
+    },
+    "16/66": {
+      "part_number": "8676067",
+      "name_en": "Telefonmottagarmodul"
+    },
+    "16/77": {
+      "part_number": "8682782",
+      "name_en": "microphone, cellular phone",
+      "part_number_mate": "8688522"
+    },
+    "16/79": {
+      "part_number": "30669170",
+      "part_number_mate": "8676067",
+      "name_en": "Use a fibre optic brace where there is no corresponding MOST unit. P/N 8688083 2-pin, 30682422 2+4-pin."
+    },
+    "16/94": {
+      "part_number": "976416",
+      "name_en": "AM/FM module AFM",
+      "part_number_mate": "981801"
+    },
+    "16/98": {
+      "part_number": "31252811",
+      "name_en": "Microphone"
+    },
+    "20/12": {
+      "part_number": "9469479"
+    },
+    "20/13": {
+      "part_number": "9469479"
+    },
+    "20/14": {
+      "part_number": "30765405"
+    },
+    "20/16": {
+      "part_number": "30797976",
+      "part_number_mate": "31252171",
+      "name_en": "Capacitor"
+    },
+    "20/17": {
+      "part_number": "30728782",
+      "name_en": "transformer ignition coils"
+    },
+    "20/22": {
+      "part_number": "9168792",
+      "part_number_mate": "30797849",
+      "name_en": "glow plug"
+    },
+    "20/23": {
+      "part_number": "30797849",
+      "name_en": "glow plug"
+    },
+    "20/24": {
+      "part_number": "30797849",
+      "name_en": "glow plug"
+    },
+    "20/25": {
+      "part_number": "30797849",
+      "name_en": "glow plug"
+    },
+    "20/26": {
+      "part_number": "30797849",
+      "name_en": "glow plug"
+    },
+    "20/3": {
+      "part_number": "30728018",
+      "part_number_mate": "30728019",
+      "name_en": "spark plug and ignition coil"
+    },
+    "20/4": {
+      "part_number": "30728018",
+      "part_number_mate": "9469479",
+      "name_en": "spark plug and ignition coil"
+    },
+    "20/46": {
+      "part_number": "9469479"
+    },
+    "20/47": {
+      "part_number": "9469479"
+    },
+    "20/48": {
+      "part_number": "9469479"
+    },
+    "20/49": {
+      "part_number": "9469479"
+    },
+    "20/5": {
+      "part_number": "30728018",
+      "part_number_mate": "9469479",
+      "name_en": "spark plug and ignition coil"
+    },
+    "20/50": {
+      "part_number": "9469479"
+    },
+    "20/51": {
+      "part_number": "9469479"
+    },
+    "20/52": {
+      "part_number": "9469479"
+    },
+    "20/53": {
+      "part_number": "9469479"
+    },
+    "20/6": {
+      "part_number": "30728018",
+      "part_number_mate": "9469479",
+      "name_en": "spark plug and ignition coil"
+    },
+    "20/7": {
+      "part_number": "30728018",
+      "part_number_mate": "9469479",
+      "name_en": "spark plug and ignition coil"
+    },
+    "20/8": {
+      "part_number": "9469479"
+    },
+    "3/1": {
+      "part_number": "30669638",
+      "name_en": "Ignition switch",
+      "part_number_mate": "9187018"
+    },
+    "3/10": {
+      "part_number": "30728891",
+      "part_number_mate": "30728187",
+      "name_en": "reversing light contact"
+    },
+    "3/100": {
+      "part_number": "30658220",
+      "name_en": "Låsenhet förardörr",
+      "part_number_mate": "8688028"
+    },
+    "3/104": {
+      "part_number": "981801"
+    },
+    "3/110": {
+      "part_number": "8688028",
+      "name_en": "Låsenhet passagerardörr",
+      "part_number_mate": "30658220"
+    },
+    "3/111": {
+      "part_number": "978305",
+      "name_en": "Light Switch Module (LSM)",
+      "part_number_mate": "8688223"
+    },
+    "3/112": {
+      "part_number": "978306",
+      "name_en": "Climate control system",
+      "part_number_mate": "978308"
+    },
+    "3/117": {
+      "part_number": "978306",
+      "part_number_mate": "978307"
+    },
+    "3/120": {
+      "part_number": "8690674",
+      "name_en": "Hood alarm contact"
+    },
+    "3/126": {
+      "part_number": "30682796",
+      "part_number_mate": "30682797",
+      "name_en": "Driver/Passenger Door Module (DDM)/(PDM)"
+    },
+    "3/127": {
+      "part_number": "30682797",
+      "name_en": "Passenger Door Module (PDM)",
+      "part_number_mate": "30682796"
+    },
+    "3/128": {
+      "part_number": "8688191",
+      "name_en": "Left Rear Door Module (LDM)",
+      "part_number_mate": "30682714"
+    },
+    "3/129": {
+      "part_number": "30682796",
+      "name_en": "Right Rear Door Module (RDM)",
+      "part_number_mate": "30682714"
+    },
+    "3/130": {
+      "part_number": "30728339",
+      "name_en": "Steering Wheel Module (SWM)",
+      "part_number_mate": "30797782"
+    },
+    "3/132": {
+      "part_number": "978305",
+      "name_en": "Start Control Module (SCU)",
+      "part_number_mate": "30682704"
+    },
+    "3/15": {
+      "part_number": "9441322",
+      "name_en": "Switch power window central unit driver's door"
+    },
+    "3/156": {
+      "part_number": "978307",
+      "name_en": "Gear Selector Module (GSM)",
+      "part_number_mate": "9187018"
+    },
+    "3/157": {
+      "part_number": "981801",
+      "name_en": "Switch, passenger side airbag"
+    },
+    "3/161": {
+      "part_number": "9187018",
+      "name_en": "Left-hand vanity mirror lighting"
+    },
+    "3/173": {
+      "part_number": "30669158",
+      "name_en": "Elec. switch privacy locking boot lid"
+    },
+    "3/176": {
+      "part_number": "9441322",
+      "name_en": "Elec. switch window lift left front door module driver"
+    },
+    "3/19": {
+      "part_number": "8688223",
+      "part_number_mate": "9441322",
+      "name_en": "Elec. switch window lift driver side rear"
+    },
+    "3/21": {
+      "part_number": "8688223",
+      "part_number_mate": "9441322"
+    },
+    "3/217": {
+      "part_number": "30669160",
+      "name_en": "Contact, LH rear belt buckle",
+      "part_number_mate": "30669157"
+    },
+    "3/218": {
+      "part_number": "30669157",
+      "name_en": "Contact, center rear belt buckle",
+      "part_number_mate": "30669160"
+    },
+    "3/219": {
+      "part_number": "30669160",
+      "part_number_mate": "30669159",
+      "name_en": "Contact, RH rear belt buckle"
+    },
+    "3/25": {
+      "part_number": "9441322",
+      "name_en": "Elk. elmanövrerad taklucka",
+      "part_number_mate": "981801"
+    },
+    "3/254": {
+      "part_number": "978307",
+      "name_en": "Steering wheel module and steering wheel angle sensor"
+    },
+    "3/258": {
+      "part_number": "8690914",
+      "name_en": "Låsswitch vänster fram"
+    },
+    "3/259": {
+      "part_number": "8690914",
+      "name_en": "Låsswitch höger fram"
+    },
+    "3/267": {
+      "part_number": "978306",
+      "name_en": "Elec. switch telematics"
+    },
+    "3/268": {
+      "part_number": "978305",
+      "name_en": "loading assistance switch"
+    },
+    "3/269": {
+      "part_number": "978305",
+      "name_en": "Switch, heated rear seat"
+    },
+    "3/270": {
+      "part_number": "30682743"
+    },
+    "3/271": {
+      "part_number": "30669156",
+      "name_en": "contact, immobilizer, clutch pedal"
+    },
+    "3/272": {
+      "part_number": "30682705",
+      "name_en": "Electronic handbrake switch"
+    },
+    "3/273": {
+      "part_number": "8690914",
+      "name_en": "lock contact, LH front door"
+    },
+    "3/274": {
+      "part_number": "8690914",
+      "name_en": "Lock contact, RH front door"
+    },
+    "3/275": {
+      "part_number": "8690914",
+      "name_en": "Lock contact, LH rear door"
+    },
+    "3/276": {
+      "part_number": "8690914",
+      "name_en": "Lock contact, RH rear door"
+    },
+    "3/281": {
+      "part_number": "8690600",
+      "name_en": "Infotainment Control Module (ICM), C1",
+      "part_number_mate": "978307"
+    },
+    "3/282": {
+      "part_number": "8688349",
+      "name_en": "switch indicator 1st gear"
+    },
+    "3/284": {
+      "part_number": "30682818",
+      "name_en": "Brake lamp switch diagnostic"
+    },
+    "3/286": {
+      "part_number": "978305",
+      "name_en": "Elkopplare för systemet dolda vinkeln BLIS",
+      "part_number_mate": "9441322"
+    },
+    "3/291": {
+      "part_number": "978305"
+    },
+    "3/299": {
+      "part_number": "981913"
+    },
+    "3/309": {
+      "part_number": "31328617",
+      "name_en": "switch module ceiling console"
+    },
+    "3/332": {
+      "part_number": "30732692",
+      "name_en": "Electric/hybrid position switch"
+    },
+    "3/38": {
+      "part_number": "31252712",
+      "name_en": "Brake pedal switch"
+    },
+    "3/39": {
+      "part_number": "8690671",
+      "name_en": "Elec. switch clutch"
+    },
+    "3/4": {
+      "part_number": "952359",
+      "part_number_mate": "1218076"
+    },
+    "3/47": {
+      "part_number": "30656898",
+      "name_en": "Hand brake switch",
+      "part_number_mate": "30682818"
+    },
+    "3/5": {
+      "part_number": "274114",
+      "part_number_mate": "284669",
+      "name_en": "with rear window wiper"
+    },
+    "3/6": {
+      "part_number": "978305",
+      "name_en": "Switch, hazard warning flashers"
+    },
+    "3/62": {
+      "part_number": "8688349",
+      "name_en": "hood alarm contact",
+      "part_number_mate": "8690674"
+    },
+    "3/65": {
+      "part_number": "978305",
+      "name_en": "Elec. switch rear seat heating left and right"
+    },
+    "3/74": {
+      "part_number": "30658220",
+      "name_en": "lock contact, RH front door",
+      "part_number_mate": "9168844"
+    },
+    "3/75": {
+      "part_number": "30658220",
+      "name_en": "Lock unit right front door",
+      "part_number_mate": "8688028"
+    },
+    "3/76": {
+      "part_number": "8688028",
+      "name_en": "Lock unit, left rear door",
+      "part_number_mate": "9168844"
+    },
+    "3/77": {
+      "part_number": "30658220",
+      "name_en": "Lock unit, right rear door",
+      "part_number_mate": "8688028"
+    },
+    "3/78": {
+      "part_number": "978305",
+      "name_en": "Lock unit, trunk lid/tailgate",
+      "part_number_mate": "8690666"
+    },
+    "3/8": {
+      "part_number": "940115",
+      "part_number_mate": "946559",
+      "name_en": "Included in complete cylinder block."
+    },
+    "3/80": {
+      "part_number": "978305",
+      "part_number_mate": "981801",
+      "name_en": "switch, central locking system, passenger door"
+    },
+    "3/81": {
+      "part_number": "978309",
+      "name_en": "Elec. switch window lift left front",
+      "part_number_mate": "978305"
+    },
+    "3/82": {
+      "part_number": "978305",
+      "name_en": "Elec. switch central locking button right",
+      "part_number_mate": "981801"
+    },
+    "3/83": {
+      "part_number": "9441322",
+      "name_en": "Elec. switch window lift right front",
+      "part_number_mate": "8688223"
+    },
+    "3/85": {
+      "part_number": "8688223",
+      "name_en": "Power window switch, rear left door",
+      "part_number_mate": "9441322"
+    },
+    "3/86": {
+      "part_number": "9441322",
+      "name_en": "Power window switch, right rear door",
+      "part_number_mate": "8688223"
+    },
+    "3/9": {
+      "part_number": "30669165",
+      "name_en": "brake light contact",
+      "part_number_mate": "9441322"
+    },
+    "3/95": {
+      "part_number": "981801",
+      "name_en": "Elk. spinnreglering",
+      "part_number_mate": "978305"
+    },
+    "31/4": {
+      "part_number": "9469052",
+      "part_number_mate": "30656282"
+    },
+    "31/98": {
+      "part_number": "9452331"
+    },
+    "4/102": {
+      "part_number": "8676156",
+      "name_en": "Steering Column Lock Module (SCL)"
+    },
+    "4/103": {
+      "part_number": "978305",
+      "name_en": "Fjärrmottagare larm RRX",
+      "part_number_mate": "30656846"
+    },
+    "4/109": {
+      "part_number": "30658999",
+      "name_en": "glow plug control module",
+      "part_number_mate": "8690922"
+    },
+    "4/110": {
+      "part_number": "30669170",
+      "name_en": "Trailer Module (TRM)",
+      "part_number_mate": "978305"
+    },
+    "4/112": {
+      "part_number": "9168845",
+      "part_number_mate": "8688207",
+      "name_en": "gas discharge lamp module (GDL), master, left"
+    },
+    "4/113": {
+      "part_number": "9168845",
+      "part_number_mate": "8688207",
+      "name_en": "gas discharge lamp module (GDL), slave right"
+    },
+    "4/114": {
+      "part_number": "30797819",
+      "name_en": "Headlamp beam height control module left and right side AFS / HCM",
+      "part_number_mate": "30682812"
+    },
+    "4/115": {
+      "part_number": "30728730",
+      "name_en": "Parking Brake Module (PBM)"
+    },
+    "4/116": {
+      "part_number": "30669173",
+      "part_number_mate": "30669618"
+    },
+    "4/118": {
+      "part_number": "978308",
+      "part_number_mate": "30682812",
+      "name_en": "Headlamp bending module DBL"
+    },
+    "4/119": {
+      "part_number": "8690671",
+      "name_en": "Remote Keyless Entry (TRX)",
+      "part_number_mate": "30656844"
+    },
+    "4/120": {
+      "part_number": "978308",
+      "part_number_mate": "31268300"
+    },
+    "4/121": {
+      "part_number": "8690663"
+    },
+    "4/122": {
+      "part_number": "30765288",
+      "name_en": "Control module, rear left seat heater",
+      "part_number_mate": "30765284"
+    },
+    "4/123": {
+      "part_number": "30765284",
+      "name_en": "Control module, rear right seat heater",
+      "part_number_mate": "30765288"
+    },
+    "4/126": {
+      "part_number": "31337653",
+      "name_en": "Side Obstacle Detection Control Module left (SODL)"
+    },
+    "4/127": {
+      "part_number": "31337653",
+      "name_en": "Side Obstacle Detection Control Module Right (SODR)"
+    },
+    "4/129": {
+      "part_number": "8690671",
+      "name_en": "Remote Keyless Entry (LRX)"
+    },
+    "4/137": {
+      "part_number": "31346269",
+      "name_en": "Pedestrian Protection Module (PPM)",
+      "part_number_mate": "31346270"
+    },
+    "4/146": {
+      "part_number": "31346258",
+      "name_en": "Transmission oil pump control unit"
+    },
+    "4/147": {
+      "part_number": "30669168",
+      "part_number_mate": "30797987"
+    },
+    "4/148": {
+      "part_number": "31346419",
+      "name_en": "Steering wheel heating module"
+    },
+    "4/16": {
+      "part_number": "8688446",
+      "part_number_mate": "30667254",
+      "name_en": "brake control module (BCM)"
+    },
+    "4/21": {
+      "part_number": "989823",
+      "name_en": "day notice lamps"
+    },
+    "4/27": {
+      "part_number": "978305",
+      "name_en": "Styrenhet utfällbar instegsplatta RBM"
+    },
+    "4/28": {
+      "part_number": "9456585",
+      "part_number_mate": "9456587",
+      "name_en": "transmission control module (TCM)"
+    },
+    "4/31": {
+      "part_number": "30669618",
+      "name_en": "Passenger compartment fan control module",
+      "part_number_mate": "30728618"
+    },
+    "4/33": {
+      "part_number": "30656846",
+      "name_en": "Sunroof control module",
+      "part_number_mate": "30669637"
+    },
+    "4/42": {
+      "part_number": "30656211",
+      "part_number_mate": "30656627",
+      "name_en": "engine control module (ECM)"
+    },
+    "4/46": {
+      "part_number": "9456586",
+      "part_number_mate": "9456588",
+      "name_en": "engine control module (ECM)"
+    },
+    "4/5": {
+      "part_number": "3200095"
+    },
+    "4/50": {
+      "part_number": "8690791",
+      "part_number_mate": "9441564",
+      "name_en": "electronic throttle module (ETM)"
+    },
+    "4/52": {
+      "part_number": "30669161",
+      "part_number_mate": "30669170"
+    },
+    "4/56": {
+      "part_number": "8676086",
+      "part_number_mate": "8682664",
+      "name_en": "central electronic module (CEM)"
+    },
+    "4/58": {
+      "part_number": "8688147",
+      "part_number_mate": "30772792"
+    },
+    "4/59": {
+      "part_number": "30682796",
+      "name_en": "Styrenhet sufflett CRM",
+      "part_number_mate": "30669618"
+    },
+    "4/6": {
+      "part_number": "978308",
+      "part_number_mate": "3345771"
+    },
+    "4/68": {
+      "part_number": "978308"
+    },
+    "4/7": {
+      "part_number": "30756529",
+      "part_number_mate": "31346065",
+      "name_en": "combustion preheater module (CPM)"
+    },
+    "4/70": {
+      "part_number": "978309"
+    },
+    "4/71": {
+      "part_number": "31252041",
+      "part_number_mate": "8690663",
+      "name_en": "cooling fan control module"
+    },
+    "4/80": {
+      "part_number": "30682783",
+      "name_en": "Forward Sensing Module (FSM)",
+      "part_number_mate": "31252811"
+    },
+    "4/82": {
+      "part_number": "31346258",
+      "name_en": "Differential Electronic Module (DEM)",
+      "part_number_mate": "30765013"
+    },
+    "4/83": {
+      "part_number": "9168901",
+      "name_en": "Fuel pump control module"
+    },
+    "4/84": {
+      "part_number": "978310",
+      "part_number_mate": "30669170",
+      "name_en": "Shock absorber module SUM"
+    },
+    "4/86": {
+      "part_number": "30668250",
+      "name_en": "Parking Assistance Module (PAM), C2",
+      "part_number_mate": "30668248"
+    },
+    "4/9": {
+      "part_number": "9441712",
+      "part_number_mate": "31252990",
+      "name_en": "supplemental restraint system (SRS)"
+    },
+    "4/93": {
+      "part_number": "8688182",
+      "part_number_mate": "8688183",
+      "name_en": "Keyless Vehicle Module (KVM), C4"
+    },
+    "4/98": {
+      "part_number": "9494690",
+      "name_en": "Alternator Control Module (ACM)"
+    },
+    "54/1": {
+      "part_number": "3523484",
+      "part_number_mate": "30737127",
+      "name_en": "For connection to engine compartment cable harness."
+    },
+    "54/10": {
+      "part_number": "9494588"
+    },
+    "54/100": {
+      "part_number": "9168792",
+      "name_en": "For connection to camshaft harness."
+    },
+    "54/109": {
+      "part_number": "8676066"
+    },
+    "54/11": {
+      "part_number": "9168965"
+    },
+    "54/112": {
+      "part_number": "30669161"
+    },
+    "54/113": {
+      "part_number": "9168793"
+    },
+    "54/117": {
+      "part_number": "30669157"
+    },
+    "54/12": {
+      "part_number": "30682592",
+      "part_number_mate": "30669162"
+    },
+    "54/122": {
+      "part_number": "9168793"
+    },
+    "54/123": {
+      "part_number": "9168805"
+    },
+    "54/129": {
+      "part_number": "30679937"
+    },
+    "54/13": {
+      "part_number": "9441973",
+      "part_number_mate": "9441976"
+    },
+    "54/132": {
+      "part_number": "30669636"
+    },
+    "54/133": {
+      "part_number": "30728397",
+      "part_number_mate": "30728398"
+    },
+    "54/134": {
+      "part_number": "30669632",
+      "part_number_mate": "30669636"
+    },
+    "54/146": {
+      "part_number": "3523484",
+      "name_en": "For connection to engine compartment cable harness."
+    },
+    "54/16": {
+      "part_number": "981853",
+      "part_number_mate": "978305",
+      "name_en": "For connection to the rain sensor wiring harness."
+    },
+    "54/20": {
+      "part_number": "9168966",
+      "part_number_mate": "9162900",
+      "name_en": "rear door"
+    },
+    "54/21": {
+      "part_number": "9168966"
+    },
+    "54/22": {
+      "part_number": "8676442",
+      "part_number_mate": "8688207"
+    },
+    "54/23": {
+      "part_number": "8676442",
+      "part_number_mate": "8688207"
+    },
+    "54/24": {
+      "part_number": "8633576",
+      "part_number_mate": "8676163"
+    },
+    "54/25": {
+      "part_number": "8633576",
+      "part_number_mate": "8676163"
+    },
+    "54/3": {
+      "part_number": "30669636",
+      "part_number_mate": "30669637"
+    },
+    "54/32": {
+      "part_number": "30669649"
+    },
+    "54/34": {
+      "part_number": "30669634"
+    },
+    "54/36": {
+      "part_number": "9168901",
+      "part_number_mate": "9168902",
+      "name_en": "For connection to passenger compartment cable harness."
+    },
+    "54/4": {
+      "part_number": "9168845"
+    },
+    "54/40": {
+      "part_number": "943855",
+      "part_number_mate": "3523480"
+    },
+    "54/43": {
+      "part_number": "30669639",
+      "part_number_mate": "30669174"
+    },
+    "54/50": {
+      "part_number": "30669170"
+    },
+    "54/53": {
+      "part_number": "9168818",
+      "name_en": "For connection to knock sensor (KS) cable harness."
+    },
+    "54/55": {
+      "part_number": "9168805"
+    },
+    "54/56": {
+      "part_number": "9168805"
+    },
+    "54/57": {
+      "part_number": "9168819",
+      "part_number_mate": "9168845"
+    },
+    "54/58": {
+      "part_number": "9168845"
+    },
+    "54/59": {
+      "part_number": "9168832"
+    },
+    "54/60": {
+      "part_number": "9168915"
+    },
+    "54/66": {
+      "part_number": "8676067"
+    },
+    "54/74": {
+      "part_number": "30682144",
+      "part_number_mate": "30669616",
+      "name_en": "For connection to the AOC coupling wiring harness."
+    },
+    "54/78": {
+      "part_number": "30669173"
+    },
+    "54/8": {
+      "part_number": "9168862"
+    },
+    "54/9": {
+      "part_number": "9168901"
+    },
+    "54/99": {
+      "part_number": "30679938",
+      "part_number_mate": "30679939"
+    },
+    "6/1": {
+      "part_number": "8688177",
+      "name_en": "wiper motor module (WMM)",
+      "part_number_mate": "8688647"
+    },
+    "6/104": {
+      "part_number": "9168794",
+      "name_en": "washer pump, high pressure, headlamps",
+      "part_number_mate": "6849784"
+    },
+    "6/113": {
+      "part_number": "979040",
+      "name_en": "Coolant water pump"
+    },
+    "6/114": {
+      "part_number": "9168863",
+      "name_en": "vacuum pump"
+    },
+    "6/117": {
+      "part_number": "978305",
+      "name_en": "Fläktmotor CCM"
+    },
+    "6/118": {
+      "part_number": "9494347",
+      "name_en": "Swirl actuator"
+    },
+    "6/120": {
+      "part_number": "30728003",
+      "part_number_mate": "8645661",
+      "name_en": "throttle body motor"
+    },
+    "6/127": {
+      "part_number": "30658214",
+      "name_en": "Washer motor"
+    },
+    "6/139": {
+      "part_number": "9168805"
+    },
+    "6/140": {
+      "part_number": "9168807"
+    },
+    "6/143": {
+      "part_number": "30682770",
+      "name_en": "Regulator motor, Turbo",
+      "part_number_mate": "30682573"
+    },
+    "6/144": {
+      "part_number": "9187020"
+    },
+    "6/145": {
+      "part_number": "9187020"
+    },
+    "6/146": {
+      "part_number": "30682802",
+      "name_en": "Brake disc lock motor left rear"
+    },
+    "6/147": {
+      "part_number": "30682802",
+      "name_en": "Brake disc lock motor right rear"
+    },
+    "6/149": {
+      "part_number": "30669161",
+      "part_number_mate": "30797978"
+    },
+    "6/163": {
+      "part_number": "31266849",
+      "name_en": "Electrical Power Steering Module (PSCM)",
+      "part_number_mate": "30658215"
+    },
+    "6/164": {
+      "part_number": "30658215",
+      "part_number_mate": "30728420",
+      "name_en": "electro hydraulic power steering (EHPAS)"
+    },
+    "6/177": {
+      "part_number": "31328452",
+      "name_en": "HVG alternator"
+    },
+    "6/179": {
+      "part_number": "31346261",
+      "name_en": "Electric oil pump",
+      "part_number_mate": "30682192"
+    },
+    "6/183": {
+      "part_number": "31346829",
+      "name_en": "Electric Rear Axle Drive (ERAD)"
+    },
+    "6/193": {
+      "part_number": "31328452",
+      "name_en": "Exhaust noise and output control motor"
+    },
+    "6/194": {
+      "part_number": "31328452",
+      "name_en": "LT-coolant pump"
+    },
+    "6/2": {
+      "part_number": "30658214",
+      "name_en": "washer pump",
+      "part_number_mate": "9168902"
+    },
+    "6/25": {
+      "part_number": "949597",
+      "name_en": "Starter motor"
+    },
+    "6/26": {
+      "part_number": "9494690",
+      "part_number_mate": "9456437",
+      "name_en": "alternator control module (ACM)"
+    },
+    "6/28": {
+      "part_number": "8688192",
+      "name_en": "Motor, passenger compartment fan",
+      "part_number_mate": "30728619"
+    },
+    "6/32": {
+      "part_number": "30669648",
+      "name_en": "Rear window wiper motor"
+    },
+    "6/33": {
+      "part_number": "8688207",
+      "name_en": "fuel pump",
+      "part_number_mate": "30682802"
+    },
+    "6/35": {
+      "part_number": "6849784",
+      "name_en": "Fuel pump, auxiliary heater",
+      "part_number_mate": "9441560"
+    },
+    "6/36": {
+      "part_number": "8688028",
+      "name_en": "lock motor, central locking, LH front door"
+    },
+    "6/37": {
+      "part_number": "8688470",
+      "name_en": "Lock motor, fuel filler cover",
+      "part_number_mate": "968376"
+    },
+    "6/44": {
+      "part_number": "9168794"
+    },
+    "6/55": {
+      "part_number": "8688028"
+    },
+    "6/56": {
+      "part_number": "8688028"
+    },
+    "6/57": {
+      "part_number": "8688028"
+    },
+    "6/58": {
+      "part_number": "9187019",
+      "part_number_mate": "30731582",
+      "name_en": "motor, front passenger door power window"
+    },
+    "6/59": {
+      "part_number": "30731582",
+      "name_en": "Motor, rear left power window"
+    },
+    "6/60": {
+      "part_number": "30731582",
+      "name_en": "Motor, front passenger door power window"
+    },
+    "6/61": {
+      "part_number": "30731582",
+      "name_en": "Motor, rear right power window"
+    },
+    "6/62": {
+      "part_number": "9187039",
+      "name_en": "power door mirror, right"
+    },
+    "6/63": {
+      "part_number": "9187039",
+      "name_en": "Electric mirror right"
+    },
+    "6/67": {
+      "part_number": "8645532",
+      "name_en": "pump, fuel leakage control"
+    },
+    "6/71": {
+      "part_number": "9168794",
+      "part_number_mate": "30658215",
+      "name_en": "Stepper motor speed related power steering (ECPS)"
+    },
+    "6/73": {
+      "part_number": "9168793",
+      "part_number_mate": "9168792",
+      "name_en": "coolant pump"
+    },
+    "6/74": {
+      "part_number": "30669637"
+    },
+    "6/8": {
+      "part_number": "8690666",
+      "name_en": "Central locking motor, trunk lid"
+    },
+    "6/9": {
+      "part_number": "30731582",
+      "name_en": "Motor, front left power window"
+    },
+    "6/92": {
+      "part_number": "9187020"
+    },
+    "6/99": {
+      "part_number": "30682754",
+      "name_en": "engine EGR",
+      "part_number_mate": "30728116"
+    },
+    "7/10": {
+      "part_number": "978305"
+    },
+    "7/103": {
+      "part_number": "9168888",
+      "part_number_mate": "9168890",
+      "name_en": "Front heated oxygen sensor"
+    },
+    "7/104": {
+      "part_number": "9168888",
+      "part_number_mate": "9168890"
+    },
+    "7/108": {
+      "part_number": "30669160",
+      "name_en": "Left-hand rear side impact sensor",
+      "part_number_mate": "8688401"
+    },
+    "7/109": {
+      "part_number": "8688349",
+      "name_en": "Right-hand rear side impact sensor",
+      "part_number_mate": "8688401"
+    },
+    "7/115": {
+      "part_number": "30669157",
+      "name_en": "Side impact sensor, left B-post",
+      "part_number_mate": "8688401"
+    },
+    "7/116": {
+      "part_number": "8688349",
+      "name_en": "Side impact sensor, right B-post",
+      "part_number_mate": "8688401"
+    },
+    "7/118": {
+      "part_number": "9441564",
+      "name_en": "Height sensor, suspension, front left",
+      "part_number_mate": "9168807"
+    },
+    "7/119": {
+      "part_number": "9441564",
+      "part_number_mate": "9168807",
+      "name_en": "Position sensor shock absorber right front"
+    },
+    "7/12": {
+      "part_number": "9441322",
+      "name_en": "Solar sensor ECC/indicator LED alarm"
+    },
+    "7/120": {
+      "part_number": "9441564",
+      "name_en": "Position sensor shock absorber left front"
+    },
+    "7/121": {
+      "part_number": "9441564",
+      "part_number_mate": "8688207",
+      "name_en": "angle sensor, Bi-Xenon front"
+    },
+    "7/122": {
+      "part_number": "978305",
+      "part_number_mate": "9441322",
+      "name_en": "Mass Movement Sensor Module (MMS), front"
+    },
+    "7/123": {
+      "part_number": "8645532",
+      "name_en": "clutch pedal sensor",
+      "part_number_mate": "978305"
+    },
+    "7/124": {
+      "part_number": "30728885",
+      "name_en": "brake pedal sensor",
+      "part_number_mate": "9441562"
+    },
+    "7/125": {
+      "part_number": "9168792"
+    },
+    "7/129": {
+      "part_number": "30728886"
+    },
+    "7/13": {
+      "part_number": "8698533",
+      "part_number_mate": "31324330",
+      "name_en": "positive power supply"
+    },
+    "7/131": {
+      "part_number": "30682790",
+      "name_en": "rear parking assistance sensor"
+    },
+    "7/132": {
+      "part_number": "30682790",
+      "name_en": "rear parking assistance sensor"
+    },
+    "7/133": {
+      "part_number": "30682790",
+      "name_en": "rear parking assistance sensor"
+    },
+    "7/134": {
+      "part_number": "30682790",
+      "name_en": "rear parking assistance sensor"
+    },
+    "7/138": {
+      "part_number": "9168807",
+      "name_en": "exhaust pressure sensor"
+    },
+    "7/140": {
+      "part_number": "31252283",
+      "name_en": "Fuel pressure sensor engine",
+      "part_number_mate": "9441562"
+    },
+    "7/149": {
+      "part_number": "978305",
+      "name_en": "rain sensor module (RSM)",
+      "part_number_mate": "9187018"
+    },
+    "7/15": {
+      "part_number": "8690791",
+      "part_number_mate": "9469643",
+      "name_en": "heated oxygen sensor, front"
+    },
+    "7/153": {
+      "part_number": "30682745",
+      "name_en": "control valve"
+    },
+    "7/154": {
+      "part_number": "30682741",
+      "name_en": "sensor fuel temperature",
+      "part_number_mate": "30656979"
+    },
+    "7/156": {
+      "part_number": "9494800",
+      "name_en": "pressure and temperature sensor fuel",
+      "part_number_mate": "31252293"
+    },
+    "7/158": {
+      "part_number": "978305",
+      "part_number_mate": "9441322",
+      "name_en": "Mikrovågsgivare 2 (bak) larm"
+    },
+    "7/16": {
+      "part_number": "210144",
+      "part_number_mate": "30682769",
+      "name_en": "coolant temperature sensor"
+    },
+    "7/160": {
+      "part_number": "9168807",
+      "name_en": "Brake vacuum sensor",
+      "part_number_mate": "30728330"
+    },
+    "7/162": {
+      "part_number": "30682750",
+      "name_en": "pressure sensor, fuel line",
+      "part_number_mate": "30765051"
+    },
+    "7/163": {
+      "part_number": "30728286",
+      "name_en": "camshaft position sensor 2"
+    },
+    "7/164": {
+      "part_number": "8645532",
+      "name_en": "movement sensor BSC/YAW",
+      "part_number_mate": "8688570"
+    },
+    "7/165": {
+      "part_number": "30658220",
+      "part_number_mate": "31252293",
+      "name_en": "pressure and temperature sensor, intake manifold"
+    },
+    "7/166": {
+      "part_number": "8677833",
+      "name_en": "Oil level and oil level sensor",
+      "part_number_mate": "30797865"
+    },
+    "7/168": {
+      "part_number": "9441562",
+      "name_en": "fuel pressure sensor low"
+    },
+    "7/17": {
+      "part_number": "31268049",
+      "name_en": "mass air flow sensor (MAF)",
+      "part_number_mate": "30682751"
+    },
+    "7/172": {
+      "part_number": "30682748",
+      "part_number_mate": "31268190",
+      "name_en": "position sensor camshaft, intake side"
+    },
+    "7/173": {
+      "part_number": "31268190",
+      "part_number_mate": "8645612",
+      "name_en": "camshaft position sensor, exhaust side"
+    },
+    "7/174": {
+      "part_number": "9168807",
+      "name_en": "differential pressure sensor, particle filter",
+      "part_number_mate": "30682746"
+    },
+    "7/178": {
+      "part_number": "8688349",
+      "name_en": "front impact sensor, right",
+      "part_number_mate": "9168888"
+    },
+    "7/179": {
+      "part_number": "8688349",
+      "name_en": "front impact sensor, left"
+    },
+    "7/182": {
+      "part_number": "30656844",
+      "name_en": "IR sensor fjärrkontroll RTI"
+    },
+    "7/186": {
+      "part_number": "9168888",
+      "name_en": "Syregivare HEGO bakre A"
+    },
+    "7/187": {
+      "part_number": "9168888",
+      "name_en": "Syregivare HEGO bakre B"
+    },
+    "7/188": {
+      "part_number": "8645612"
+    },
+    "7/189": {
+      "part_number": "8645612"
+    },
+    "7/190": {
+      "part_number": "31252171",
+      "part_number_mate": "9168792",
+      "name_en": "temperature sensor, catalytic converter"
+    },
+    "7/191": {
+      "part_number": "9168792",
+      "name_en": "temperature sensor, exhaust gases downstream of particle filter",
+      "part_number_mate": "31252282"
+    },
+    "7/192": {
+      "part_number": "30682749",
+      "name_en": "water detection sensor",
+      "part_number_mate": "30669636"
+    },
+    "7/193": {
+      "part_number": "30682779",
+      "name_en": "position sensor turbo",
+      "part_number_mate": "30682746"
+    },
+    "7/194": {
+      "part_number": "30669159",
+      "name_en": "Seat belt reel sensor left side front"
+    },
+    "7/195": {
+      "part_number": "30669159",
+      "name_en": "Seat belt reel sensor right side front"
+    },
+    "7/198": {
+      "part_number": "978305"
+    },
+    "7/199": {
+      "part_number": "30656844",
+      "name_en": "Ultrasonic sensor (IMS)"
+    },
+    "7/200": {
+      "part_number": "31328452",
+      "name_en": "Radiator sensor CATD",
+      "part_number_mate": "9168806"
+    },
+    "7/202": {
+      "part_number": "30682749",
+      "name_en": "EGR position sensor"
+    },
+    "7/203": {
+      "part_number": "30682782",
+      "name_en": "Forward-aimed radar (FLR)",
+      "part_number_mate": "31300545"
+    },
+    "7/204": {
+      "part_number": "31328452",
+      "name_en": "Front parking assistance sensor"
+    },
+    "7/205": {
+      "part_number": "31328452",
+      "name_en": "Front parking assistance sensor"
+    },
+    "7/206": {
+      "part_number": "31328452",
+      "name_en": "Front parking assistance sensor"
+    },
+    "7/207": {
+      "part_number": "31328452",
+      "name_en": "Front parking assistance sensor"
+    },
+    "7/208": {
+      "part_number": "30658214",
+      "name_en": "Side impact sensor, left front door",
+      "part_number_mate": "8688401"
+    },
+    "7/209": {
+      "part_number": "8688401",
+      "name_en": "Side impact sensor, right front door",
+      "part_number_mate": "30658214"
+    },
+    "7/21": {
+      "part_number": "30682748",
+      "name_en": "camshaft position sensor",
+      "part_number_mate": "8622455"
+    },
+    "7/214": {
+      "part_number": "30656844"
+    },
+    "7/225": {
+      "part_number": "30682743",
+      "name_en": "EGR trottel potentiometer"
+    },
+    "7/227": {
+      "part_number": "30682795"
+    },
+    "7/228": {
+      "part_number": "30682729"
+    },
+    "7/229": {
+      "part_number": "30682729"
+    },
+    "7/23": {
+      "part_number": "9168793",
+      "name_en": "rear knock sensor",
+      "part_number_mate": "8676256"
+    },
+    "7/232": {
+      "part_number": "31252293",
+      "name_en": "Pressure and temperature sensor, intake manifold"
+    },
+    "7/24": {
+      "part_number": "8676256",
+      "part_number_mate": "9168793",
+      "name_en": "front knock sensor"
+    },
+    "7/240": {
+      "part_number": "31300300",
+      "name_en": "Batteristatus givare"
+    },
+    "7/243": {
+      "part_number": "8676897",
+      "name_en": "Gear position sensor neutral position"
+    },
+    "7/248": {
+      "part_number": "31328452",
+      "name_en": "Oil pressure and temperature sensor"
+    },
+    "7/249": {
+      "part_number": "9441322",
+      "name_en": "Sun and daylight sensor"
+    },
+    "7/25": {
+      "part_number": "30682749",
+      "name_en": "camshaft position sensor",
+      "part_number_mate": "30728286"
+    },
+    "7/251": {
+      "part_number": "31300072",
+      "name_en": "Brake vacuum sensor Stop/Start"
+    },
+    "7/266": {
+      "part_number": "31252283",
+      "name_en": "Parking sensor side, left"
+    },
+    "7/267": {
+      "part_number": "31252283",
+      "name_en": "Parking sensor side, right"
+    },
+    "7/3": {
+      "part_number": "30656895",
+      "name_en": "Tempgivare batteri"
+    },
+    "7/31": {
+      "part_number": "8688180",
+      "name_en": "left-hand front ABS sensor",
+      "part_number_mate": "9168792"
+    },
+    "7/32": {
+      "part_number": "8688180",
+      "name_en": "right-hand front ABS sensor",
+      "part_number_mate": "9168792"
+    },
+    "7/35": {
+      "part_number": "30728930",
+      "name_en": "oil level sensor",
+      "part_number_mate": "8677833"
+    },
+    "7/4": {
+      "part_number": "8698078",
+      "name_en": "brake fluid level sensor",
+      "part_number_mate": "8688349"
+    },
+    "7/5": {
+      "part_number": "9168792",
+      "name_en": "washer fluid level sensor",
+      "part_number_mate": "9168793"
+    },
+    "7/51": {
+      "part_number": "8690598",
+      "name_en": "accelerator pedal sensor",
+      "part_number_mate": "31288935"
+    },
+    "7/54": {
+      "part_number": "30682752",
+      "name_en": "Throttle sensor position",
+      "part_number_mate": "30682746"
+    },
+    "7/56": {
+      "part_number": "8688180",
+      "name_en": "Sensor ABS, rear left",
+      "part_number_mate": "30669158"
+    },
+    "7/57": {
+      "part_number": "8688180",
+      "name_en": "Sensor ABS, rear right",
+      "part_number_mate": "30669499"
+    },
+    "7/59": {
+      "part_number": "8690676",
+      "name_en": "Temperature sensor left"
+    },
+    "7/6": {
+      "part_number": "30682742",
+      "part_number_mate": "30682997",
+      "name_en": "oil pressure sensor"
+    },
+    "7/60": {
+      "part_number": "8690676",
+      "name_en": "Temperature sensor right"
+    },
+    "7/62": {
+      "part_number": "9168793"
+    },
+    "7/71": {
+      "part_number": "30682747",
+      "name_en": "sensor boost pressure"
+    },
+    "7/73": {
+      "part_number": "30682788",
+      "name_en": "Coolant level sensor",
+      "part_number_mate": "9168794"
+    },
+    "7/77": {
+      "part_number": "30682769",
+      "name_en": "temperature sensor, intake air 1"
+    },
+    "7/8": {
+      "part_number": "8698296",
+      "part_number_mate": "977929",
+      "name_en": "pressure sensor, climate control system"
+    },
+    "7/81": {
+      "part_number": "31268190",
+      "part_number_mate": "9494334",
+      "name_en": "pressure sensor, intake manifold"
+    },
+    "7/82": {
+      "part_number": "3545970",
+      "part_number_mate": "3545972",
+      "name_en": "heated oxygen sensor, rear"
+    },
+    "7/86": {
+      "part_number": "30682769",
+      "name_en": "intake air temperature sensor, Diesel"
+    },
+    "7/87": {
+      "part_number": "9441563",
+      "part_number_mate": "30728886",
+      "name_en": "Vertical body accelerometer left front CCD"
+    },
+    "7/88": {
+      "part_number": "9441563",
+      "part_number_mate": "30728886",
+      "name_en": "Vertical body accelerometer right front CCD"
+    },
+    "7/89": {
+      "part_number": "9441563",
+      "name_en": "Vertical body accelerometer rear CCD"
+    },
+    "7/9": {
+      "part_number": "1363682",
+      "part_number_mate": "1363683"
+    },
+    "74/1010": {
+      "part_number": "31252233"
+    },
+    "74/1500": {
+      "part_number": "30669156"
+    },
+    "74/1503": {
+      "part_number": "30682795"
+    },
+    "74/301": {
+      "part_number": "9168863",
+      "part_number_mate": "30728923",
+      "name_en": "For connection to engine compartment cable harness."
+    },
+    "74/302": {
+      "part_number": "30682775",
+      "part_number_mate": "30682953",
+      "name_en": "For connection to engine compartment cable harness."
+    },
+    "74/303": {
+      "part_number": "9168832"
+    },
+    "74/304": {
+      "part_number": "9168792",
+      "part_number_mate": "9168793",
+      "name_en": "For connection to engine compartment cable harness."
+    },
+    "74/307": {
+      "part_number": "30682872"
+    },
+    "74/308": {
+      "part_number": "9168888",
+      "part_number_mate": "9168889"
+    },
+    "74/309": {
+      "part_number": "9168853",
+      "part_number_mate": "9168854",
+      "name_en": "Front bumper"
+    },
+    "74/313": {
+      "part_number": "30682775"
+    },
+    "74/314": {
+      "part_number": "9168805"
+    },
+    "74/316": {
+      "part_number": "30659113"
+    },
+    "74/317": {
+      "part_number": "31328452"
+    },
+    "74/318": {
+      "part_number": "31252171",
+      "name_en": "Connector"
+    },
+    "74/323": {
+      "part_number": "9168792",
+      "part_number_mate": "30659228",
+      "name_en": "Connector"
+    },
+    "74/324": {
+      "part_number": "31252171"
+    },
+    "74/401": {
+      "part_number": "30682711",
+      "part_number_mate": "30682712",
+      "name_en": "Dashboard"
+    },
+    "74/402": {
+      "part_number": "8676066",
+      "part_number_mate": "8676067",
+      "name_en": "Dashboard"
+    },
+    "74/403": {
+      "part_number": "30682711",
+      "part_number_mate": "30682712",
+      "name_en": "Dashboard"
+    },
+    "74/404": {
+      "part_number": "8676066",
+      "part_number_mate": "8676067",
+      "name_en": "Dashboard"
+    },
+    "74/405": {
+      "part_number": "31252389"
+    },
+    "74/407": {
+      "part_number": "30669640",
+      "part_number_mate": "30669642",
+      "name_en": "Dashboard"
+    },
+    "74/409": {
+      "part_number": "30765280",
+      "part_number_mate": "30765281",
+      "name_en": "Dashboard"
+    },
+    "74/411": {
+      "part_number": "30728327",
+      "part_number_mate": "30728325",
+      "name_en": "Dashboard"
+    },
+    "74/412": {
+      "part_number": "9187039",
+      "part_number_mate": "9441973",
+      "name_en": "Dashboard"
+    },
+    "74/413": {
+      "part_number": "981801"
+    },
+    "74/414": {
+      "part_number": "30669650",
+      "part_number_mate": "30669619",
+      "name_en": "Dashboard"
+    },
+    "74/416": {
+      "part_number": "30765206"
+    },
+    "74/417": {
+      "part_number": "978306"
+    },
+    "74/420": {
+      "part_number": "30765280"
+    },
+    "74/501": {
+      "part_number": "981801",
+      "part_number_mate": "981853",
+      "name_en": "tunnel"
+    },
+    "74/502": {
+      "part_number": "30669631"
+    },
+    "74/503": {
+      "part_number": "9441973",
+      "part_number_mate": "9441976",
+      "name_en": "tunnel"
+    },
+    "74/504": {
+      "part_number": "981900",
+      "part_number_mate": "3523482"
+    },
+    "74/505": {
+      "part_number": "3523480",
+      "part_number_mate": "3523482"
+    },
+    "74/507": {
+      "part_number": "30728379",
+      "part_number_mate": "30728380",
+      "name_en": "Connector"
+    },
+    "74/508": {
+      "part_number": "30728379",
+      "part_number_mate": "30728380",
+      "name_en": "Passenger door."
+    },
+    "74/509": {
+      "part_number": "30728328",
+      "part_number_mate": "30728329",
+      "name_en": "rear door"
+    },
+    "74/510": {
+      "part_number": "30728328",
+      "part_number_mate": "30728329",
+      "name_en": "rear door"
+    },
+    "74/511": {
+      "part_number": "30669159",
+      "part_number_mate": "30682711"
+    },
+    "74/512": {
+      "part_number": "30669173",
+      "part_number_mate": "30669174"
+    },
+    "74/513": {
+      "part_number": "978305",
+      "part_number_mate": "981853"
+    },
+    "74/514": {
+      "part_number": "30669618",
+      "part_number_mate": "30669656"
+    },
+    "74/518": {
+      "part_number": "978306",
+      "part_number_mate": "30682144"
+    },
+    "74/519": {
+      "part_number": "30682711",
+      "part_number_mate": "30682712"
+    },
+    "74/520": {
+      "part_number": "9168831",
+      "part_number_mate": "9168832"
+    },
+    "74/522": {
+      "part_number": "9168924"
+    },
+    "74/523": {
+      "part_number": "9168832",
+      "part_number_mate": "30656845"
+    },
+    "74/524": {
+      "part_number": "30656844",
+      "part_number_mate": "30656845"
+    },
+    "74/525": {
+      "part_number": "981801"
+    },
+    "74/526": {
+      "part_number": "30669634",
+      "part_number_mate": "30669629",
+      "name_en": "Adapter rear bumper"
+    },
+    "74/529": {
+      "part_number": "8676067",
+      "part_number_mate": "8676066",
+      "name_en": "Use a fibre optic brace where there is no corresponding MOST unit. P/N 8688083 2-pin, 30682422 2+4-pin."
+    },
+    "74/530": {
+      "part_number": "30669174",
+      "part_number_mate": "30669173",
+      "name_en": "tunnel"
+    },
+    "74/534": {
+      "part_number": "30669618",
+      "part_number_mate": "30669656"
+    },
+    "74/535": {
+      "part_number": "30682794",
+      "part_number_mate": "30682795"
+    },
+    "74/539": {
+      "part_number": "30669636",
+      "part_number_mate": "30669637",
+      "name_en": "Rear bumper"
+    },
+    "74/540": {
+      "part_number": "9168844",
+      "part_number_mate": "9168845",
+      "name_en": "Adapter rear bumper"
+    },
+    "74/543": {
+      "part_number": "978308"
+    },
+    "74/548": {
+      "part_number": "30682794",
+      "name_en": "green"
+    },
+    "74/553": {
+      "part_number": "978305",
+      "name_en": "Connector"
+    },
+    "74/560": {
+      "part_number": "30669139"
+    },
+    "74/561": {
+      "part_number": "30669156"
+    },
+    "74/562": {
+      "part_number": "8690671",
+      "part_number_mate": "30728911"
+    },
+    "74/601": {
+      "part_number": "30669163",
+      "part_number_mate": "30669164"
+    },
+    "74/602": {
+      "part_number": "30669173",
+      "part_number_mate": "30669174"
+    },
+    "74/603": {
+      "part_number": "30669647",
+      "part_number_mate": "30682711"
+    },
+    "74/604": {
+      "part_number": "30669171",
+      "part_number_mate": "30669619"
+    },
+    "74/609": {
+      "part_number": "30669156",
+      "part_number_mate": "30669158"
+    },
+    "74/701": {
+      "part_number": "30669629"
+    },
+    "74/702": {
+      "part_number": "30669629"
+    },
+    "74/704": {
+      "part_number": "30669642"
+    },
+    "74/901": {
+      "part_number": "31252233"
+    }
+  }
+}

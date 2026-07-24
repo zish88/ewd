@@ -22,6 +22,8 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   dtcSearch: "Поиск DTC / OBD кодов",
 };
 
+const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
+
 export function AdminPage() {
   const [configured, setConfigured] = useState(false);
   const [admin, setAdmin] = useState(false);
@@ -54,10 +56,43 @@ export function AdminPage() {
     setSettings(d as Settings);
   }
 
+  async function logoutServer() {
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    try {
+      sessionStorage.removeItem(ADMIN_UI_SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setAdmin(false);
+    setSettings(null);
+  }
+
   useEffect(() => {
     void (async () => {
+      let uiOk = false;
+      try {
+        uiOk = sessionStorage.getItem(ADMIN_UI_SESSION_KEY) === "1";
+      } catch {
+        uiOk = false;
+      }
+      // Always show password form for a new tab/visit — do not restore old cookie alone.
+      if (!uiOk) {
+        await logoutServer();
+        const r = await fetch("/api/admin/me", { credentials: "include" });
+        const d = await r.json();
+        setConfigured(Boolean(d.configured));
+        setAdmin(false);
+        return;
+      }
       const ok = await refreshMe();
       if (ok) await loadSettings();
+      else {
+        try {
+          sessionStorage.removeItem(ADMIN_UI_SESSION_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
     })();
   }, []);
 
@@ -74,6 +109,11 @@ export function AdminPage() {
     if (!r.ok) {
       setNotice(d.error || "Ошибка входа");
       return;
+    }
+    try {
+      sessionStorage.setItem(ADMIN_UI_SESSION_KEY, "1");
+    } catch {
+      /* ignore */
     }
     setPassword("");
     setAdmin(true);
@@ -102,7 +142,13 @@ export function AdminPage() {
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-[var(--accent)]">Админ · Volvo EWD</h1>
-          <a href="/" className="text-xs underline text-[var(--text-muted)]">
+          <a
+            href="/"
+            className="text-xs underline text-[var(--text-muted)]"
+            onClick={() => {
+              void logoutServer();
+            }}
+          >
             ← На сайт
           </a>
         </div>
@@ -112,7 +158,7 @@ export function AdminPage() {
             <p className="text-sm text-[var(--text-muted)]">
               {configured
                 ? "Войдите паролем ADMIN_PASSWORD, чтобы управлять доступом к сайту."
-                : "ADMIN_PASSWORD не задан — задайте его в окружении контейнера."}
+                : "ADMIN_PASSWORD не задан. Локально: пропишите в .env и полностью перезапустите npm run dev. На VPS: /opt/ewd-app/.env и BUILD=1 bash deploy.sh."}
             </p>
             <input
               type="password"
@@ -226,9 +272,7 @@ export function AdminPage() {
                 type="button"
                 className="w-full text-[var(--text-muted)]"
                 onClick={async () => {
-                  await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-                  setAdmin(false);
-                  setSettings(null);
+                  await logoutServer();
                   setNotice("Выход");
                 }}
               >

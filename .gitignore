@@ -43,6 +43,11 @@ data/test_colored*
 data/vida_extract_run*.log
 data/vida_*.json
 data/vida_schema_probe.json
+# Production EPC lookups used by /api/nav/wires (force-tracked)
+!data/vida_device_parts.json
+!data/vida_connector_bom.json
+!data/vida_connector_parts.json
+!data/vida_components_ru.json
 
 # Allow the production SQLite DB in git (small, required for VPS)
 !data/wiring.sqlite

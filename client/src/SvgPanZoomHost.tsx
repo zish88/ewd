@@ -19,6 +19,11 @@ type SvgPanZoomHostProps = {
   markerAt?: Pt | null;
   /** Bump to re-run comfort fit to markerAt. */
   fitToken?: string | number;
+  /**
+   * When no marker: fit the whole SVG into the viewport and center it
+   * (Location views). Schematics keep top-left padding unless a marker is set.
+   */
+  fitMode?: "marker" | "contain";
   /** Called after markup is written into the canvas. */
   onMarkupApplied?: (root: HTMLDivElement, svg: SVGSVGElement) => void;
   /** Extra overlays inside the viewport (e.g. headers). */
@@ -37,6 +42,7 @@ export function SvgPanZoomHost({
   testId = "svg-viewer",
   markerAt = null,
   fitToken = 0,
+  fitMode = "marker",
   onMarkupApplied,
   children,
 }: SvgPanZoomHostProps) {
@@ -59,6 +65,8 @@ export function SvgPanZoomHost({
   const appliedMarkupRef = useRef("");
   const markerRef = useRef<Pt | null>(null);
   markerRef.current = markerAt;
+  const fitModeRef = useRef(fitMode);
+  fitModeRef.current = fitMode;
   const onMarkupAppliedRef = useRef(onMarkupApplied);
   onMarkupAppliedRef.current = onMarkupApplied;
 
@@ -97,12 +105,32 @@ export function SvgPanZoomHost({
     applyPanZoomDom();
   };
 
+  const fitContainCenter = () => {
+    const viewport = viewportRef.current;
+    const base = baseSizeRef.current;
+    if (!viewport || !base || !base.w || !base.h) return;
+    const pad = 24;
+    const availW = Math.max(40, viewport.clientWidth - pad * 2);
+    const availH = Math.max(40, viewport.clientHeight - pad * 2);
+    const s = Math.min(availW / base.w, availH / base.h, 2.5);
+    scaleRef.current = Math.max(0.12, s);
+    translateRef.current = {
+      x: (viewport.clientWidth - base.w * scaleRef.current) / 2,
+      y: (viewport.clientHeight - base.h * scaleRef.current) / 2,
+    };
+    applyPanZoomDom();
+  };
+
   const fitComfortToMarker = () => {
     const viewport = viewportRef.current;
     const base = baseSizeRef.current;
     const svg = contentRef.current?.querySelector("svg") as SVGSVGElement | null;
     const at = markerRef.current;
     if (!viewport || !base || !svg) return;
+    if (!at && fitModeRef.current === "contain") {
+      fitContainCenter();
+      return;
+    }
     const comfortScale = 1.1;
     scaleRef.current = comfortScale;
     if (at) {
@@ -168,13 +196,22 @@ export function SvgPanZoomHost({
     translateRef.current = { x: 40, y: 40 };
     applyPanZoomDom();
     onMarkupAppliedRef.current?.(host, svg as SVGSVGElement);
+    if (fitModeRef.current === "contain" && !markerRef.current) {
+      // Center after layout so viewport has real size
+      requestAnimationFrame(() => fitContainCenter());
+    }
   }, [markup]);
 
   useEffect(() => {
-    if (!markup || !fitToken) return;
+    if (!markup) return;
+    if (fitMode === "contain" && !markerAt) {
+      fitContainCenter();
+      return;
+    }
+    if (!fitToken) return;
     fitComfortToMarker();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fit on token/marker only
-  }, [fitToken, markerAt, markup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fit on token/marker/mode only
+  }, [fitToken, markerAt, markup, fitMode]);
 
   useEffect(() => {
     const el = viewportRef.current;

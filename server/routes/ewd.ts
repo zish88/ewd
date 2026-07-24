@@ -1153,6 +1153,10 @@ export function createEwdRouter() {
         const allGroups = rec.groups || [];
         const relevant = allGroups.filter((g) => (g.uids || []).some((u) => codeObjectIds.has(u)));
         const groups = (relevant.length ? relevant : allGroups).slice(0, 200);
+        // Full UID set for "can show this wire on an available sheet" (not only device groups)
+        const onSheetUids = [
+          ...new Set(allGroups.flatMap((g) => g.uids || []).filter(Boolean)),
+        ].slice(0, 8000);
         // Only expose diagrams whose SVG file actually exists on disk
         if (!resolveIndexedPath(rec.svg)) return null;
         const sysRec = cat.get(rec.designFolder);
@@ -1167,6 +1171,7 @@ export function createEwdRouter() {
           textCodes: rec.textCodes || [],
           pathCount: rec.pathCount || 0,
           groups,
+          onSheetUids,
           svgAvailable: true,
         };
       })
@@ -1177,6 +1182,10 @@ export function createEwdRouter() {
         return aHit - bHit || (b!.pathCount || 0) - (a!.pathCount || 0);
       });
 
+    const sheetUidUnion = [
+      ...new Set(diagrams.flatMap((d) => (d as { onSheetUids?: string[] }).onSheetUids || [])),
+    ].slice(0, 20000);
+
     res.json({
       code,
       zone: zone || "all",
@@ -1184,6 +1193,8 @@ export function createEwdRouter() {
       count: diagrams.length,
       diagrams,
       objectIds: deviceIndex?.by_code?.[code]?.objectIds || [],
+      /** Union of UIDs present on SVG sheets that are actually available (file on disk). */
+      sheetUids: sheetUidUnion,
     });
   });
 

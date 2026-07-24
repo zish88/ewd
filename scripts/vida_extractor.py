@@ -19,7 +19,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-MANUAL_DIR_DEFAULT = os.environ.get("MANUAL_DIR", r"E:\manual")
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_LOCAL_MANUAL = _REPO_ROOT / "data" / "ewd"
+MANUAL_DIR_DEFAULT = os.environ.get("MANUAL_DIR") or (
+    str(_LOCAL_MANUAL) if _LOCAL_MANUAL.is_dir() else r"E:\manual"
+)
 OUT_DIR_DEFAULT = "data"
 TMP_DIR_DEFAULT = os.path.join("data", "vida_tmp")
 
@@ -731,8 +735,439 @@ def _ingest_code_desc_rows(mapping: dict[str, str], rows: list) -> None:
             mapping[code] = desc
 
 
+def classify_bom_role(name: str) -> str:
+    """Heuristic role for connector BOM children (not a typed Volvo BOM role)."""
+    t = (name or "").lower()
+    if re.search(r"seal|gasket|rubber|grommet|bushing|boot|уплотн|резин", t):
+        return "seal"
+    if re.search(
+        r"terminal|contact pin|pin contact|socket|cavity|контакт|терминал|"
+        r"excluded.?article|mm\s*%?\s*2|type\s*[abc]|tin\s*\(",
+        t,
+    ):
+        return "terminal"
+    if re.search(r"housing|shell|connector hous|корпус|колодк", t):
+        return "housing"
+    return "other"
+
+
+DEVICE_NAME_RE = re.compile(
+    r"\b(motor|module|speaker|loudspeaker|tweeter|lamp|sensor|switch|pump|valve|"
+    r"antenna|camera|microphone|actuator|relay|resistor|blower|fan|wiper|"
+    r"mirror|lock|horn|heater|compressor|generator|alternator|starter|"
+    r"amplifier|radio|display|unit|control|climate|ecu|dim|cem|rem|sum)\b",
+    re.I,
+)
+CONNECTORISH_NAME_RE = re.compile(
+    r"\b(housing|connector|shell|cavity|terminal|contact|pole|pin|колодк|корпус)\b",
+    re.I,
+)
+_COLOR_ONLY_NAMES = {
+    "black",
+    "white",
+    "grey",
+    "gray",
+    "blue",
+    "green",
+    "red",
+    "yellow",
+    "natural",
+    "light",
+    "+",
+    "-",
+}
+
+
+def _device_name_score(name: str) -> int:
+    """Higher = more likely a replaceable device assembly title."""
+    n = (name or "").strip()
+    if not n or n.lower() in _COLOR_ONLY_NAMES:
+        return 0
+    if CONNECTORISH_NAME_RE.search(n) and not DEVICE_NAME_RE.search(n):
+        return 0
+    score = 0
+    if DEVICE_NAME_RE.search(n):
+        score += 40
+    score += min(len(n), 80)
+    return score
+
+
+def extract_epc_device_parts(
+    server: str,
+    db_name: str,
+    housing_by_code: dict[str, dict[str, str]] | None = None,
+) -> dict[str, dict[str, str]]:
+    """
+    Best-effort map wiring code → replaceable device/assembly ItemNumber.
+
+    EPC often lists only connector housings under a designation (6/28, 16/3).
+    When a distinct level-0 PN or included_article (non-terminal) exists beyond
+    housing/mate, record it as device_part_number. Coverage is intentionally sparse.
+    """
+    conn = get_odbc_connection(server, db_name)
+    cur = conn.cursor()
+    out: dict[str, dict[str, str]] = {}
+    housing_by_code = housing_by_code or {}
+
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM sys.tables t
+        JOIN sys.schemas s ON s.schema_id = t.schema_id
+        WHERE s.name = 'dbo' AND t.name IN ('CatalogueComponents', 'PartItems', 'ComponentDescriptions', 'Lexicon')
+        """
+    )
+    if cur.fetchone()[0] < 4:
+        log("  EPC device parts: required tables missing — skip")
+        conn.close()
+        return out
+
+    log("  EPC device parts: level-0 PNs + included articles in BOM window…")
+    cur.execute(
+        """
+        SELECT
+            LTRIM(RTRIM(code_lex.Description)) AS component_code,
+            LTRIM(RTRIM(pi.ItemNumber)) AS part_number,
+            LTRIM(RTRIM(ISNULL(n.Description, N''))) AS name_en,
+            ISNULL(cc.IndentationLevel, 0) AS ind
+        FROM dbo.ComponentDescriptions AS code_cd
+        JOIN dbo.Lexicon AS code_lex
+          ON code_lex.DescriptionId = code_cd.DescriptionId AND code_lex.fkLanguage IN (15, 16)
+        JOIN dbo.CatalogueComponents AS cc ON cc.Id = code_cd.fkCatalogueComponent
+        JOIN dbo.PartItems AS pi ON pi.Id = cc.fkPartItem
+        LEFT JOIN dbo.ComponentDescriptions AS name_cd
+          ON name_cd.fkCatalogueComponent = cc.Id AND name_cd.DescriptionTypeId IN (2, 3)
+        LEFT JOIN dbo.Lexicon AS n
+          ON n.DescriptionId = name_cd.DescriptionId AND n.fkLanguage IN (15, 16)
+        WHERE code_cd.DescriptionTypeId = 1
+          AND code_lex.Description LIKE N'[0-9]%/[0-9]%'
+          AND LEN(code_lex.Description) <= 14
+          AND ISNULL(cc.IndentationLevel, 0) = 0
+          AND pi.ItemNumber IS NOT NULL
+          AND LTRIM(RTRIM(pi.ItemNumber)) <> N''
+        """
+    )
+    level0: dict[str, dict[str, str]] = {}
+    for code_raw, part_raw, name_en, _ind in cur.fetchall():
+        code = normalize_component_code(str(code_raw or ""))
+        if not code:
+            m = VOLVO_CODE_RE.search(str(code_raw or ""))
+            if m:
+                code = f"{m.group(1)}/{m.group(2)}"
+        if not code or not re.match(r"^(3|4|6|7|10|16|20|31|54|74)/", code):
+            continue
+        part = str(part_raw or "").strip()
+        if not part or not re.search(r"\d", part):
+            continue
+        name = str(name_en or "").strip()
+        if name.lower() in _COLOR_ONLY_NAMES:
+            name = ""
+        prev = level0.setdefault(code, {})
+        # Keep best name per PN
+        key = f"_pn:{part}"
+        prev_name = prev.get(key, "")
+        if _device_name_score(name) >= _device_name_score(prev_name):
+            prev[key] = name[:200]
+        # ordered unique PNs
+        ordered = prev.setdefault("_ordered", "")
+        parts_list = [p for p in ordered.split("|") if p] if ordered else []
+        if part not in parts_list:
+            parts_list.append(part)
+            prev["_ordered"] = "|".join(parts_list)
+
+    # BOM-window included articles (reuse sibling walk)
+    cur.execute(
+        """
+        SELECT DISTINCT
+            cc.Id AS comp_id,
+            cc.ParentComponentId AS parent_id,
+            cc.SequenceId AS seq,
+            ISNULL(cc.IndentationLevel, 0) AS ind,
+            LTRIM(RTRIM(code_lex.Description)) AS component_code
+        FROM dbo.ComponentDescriptions AS code_cd
+        JOIN dbo.Lexicon AS code_lex
+          ON code_lex.DescriptionId = code_cd.DescriptionId AND code_lex.fkLanguage IN (15, 16)
+        JOIN dbo.CatalogueComponents AS cc ON cc.Id = code_cd.fkCatalogueComponent
+        WHERE code_cd.DescriptionTypeId = 1
+          AND code_lex.Description LIKE N'[0-9]%/[0-9]%'
+          AND LEN(code_lex.Description) <= 14
+        """
+    )
+    anchors = cur.fetchall()
+    parent_ids = sorted({int(a[1]) for a in anchors if a[1] is not None})
+    siblings_by_parent: dict[int, list[tuple]] = {}
+    chunk = 400
+    for i in range(0, len(parent_ids), chunk):
+        batch = parent_ids[i : i + chunk]
+        placeholders = ",".join("?" * len(batch))
+        cur.execute(
+            f"""
+            SELECT
+                c.ParentComponentId,
+                c.Id,
+                c.SequenceId,
+                ISNULL(c.IndentationLevel, 0) AS ind,
+                LTRIM(RTRIM(ISNULL(c.IndentationType, N''))) AS ind_type,
+                LTRIM(RTRIM(ISNULL(pi.ItemNumber, N''))) AS part_number,
+                LTRIM(RTRIM(ISNULL(n.Description, N''))) AS name_en
+            FROM dbo.CatalogueComponents AS c
+            LEFT JOIN dbo.PartItems AS pi ON pi.Id = c.fkPartItem
+            LEFT JOIN dbo.ComponentDescriptions AS nd
+              ON nd.fkCatalogueComponent = c.Id AND nd.DescriptionTypeId IN (2, 3)
+            LEFT JOIN dbo.Lexicon AS n
+              ON n.DescriptionId = nd.DescriptionId AND n.fkLanguage IN (15, 16)
+            WHERE c.ParentComponentId IN ({placeholders})
+            ORDER BY c.ParentComponentId, c.SequenceId, c.Id
+            """,
+            batch,
+        )
+        for row in cur.fetchall():
+            siblings_by_parent.setdefault(int(row[0]), []).append(row)
+
+    included_by_code: dict[str, list[tuple[str, str]]] = {}
+    for comp_id, parent_id, seq, ind, code_raw in anchors:
+        code = normalize_component_code(str(code_raw or ""))
+        if not code:
+            m = VOLVO_CODE_RE.search(str(code_raw or ""))
+            if m:
+                code = f"{m.group(1)}/{m.group(2)}"
+        if not code or not re.match(r"^(3|4|6|7|10|16|20|31|54|74)/", code):
+            continue
+        if parent_id is None:
+            continue
+        sibs = siblings_by_parent.get(int(parent_id), [])
+        collecting = False
+        for _pid, sid, sseq, sind, sind_type, part, name_en in sibs:
+            if int(sid) == int(comp_id):
+                collecting = True
+                continue
+            if not collecting:
+                continue
+            if int(sseq) <= int(seq):
+                continue
+            if int(sind) <= int(ind or 0):
+                break
+            if "included" not in str(sind_type).lower():
+                continue
+            part_s = str(part or "").strip()
+            name = str(name_en or "").strip()
+            if not part_s or not re.search(r"\d", part_s):
+                continue
+            if name.lower() in _COLOR_ONLY_NAMES:
+                continue
+            role = classify_bom_role(f"{name} {sind_type}")
+            if role in {"terminal", "seal", "housing"}:
+                continue
+            if _device_name_score(name) < 40:
+                continue
+            included_by_code.setdefault(code, []).append((part_s, name[:200]))
+
+    for code, rec in level0.items():
+        housing_rec = housing_by_code.get(code) or {}
+        housing = str(housing_rec.get("part_number") or "").strip()
+        mate = str(housing_rec.get("part_number_mate") or "").strip()
+        ordered = [p for p in str(rec.get("_ordered") or "").split("|") if p]
+        if not housing and ordered:
+            housing = ordered[0]
+        if not mate and len(ordered) > 1:
+            mate = ordered[1]
+        exclude = {p for p in (housing, mate) if p}
+
+        candidates: list[tuple[int, str, str]] = []
+        for pn in ordered:
+            if pn in exclude:
+                continue
+            name = str(rec.get(f"_pn:{pn}") or housing_rec.get("name_en") or "").strip()
+            score = _device_name_score(name) + 25  # level-0 extra PN is strong signal
+            if score < 25:
+                continue
+            candidates.append((score, pn, name))
+
+        for pn, name in included_by_code.get(code, []):
+            if pn in exclude:
+                continue
+            score = _device_name_score(name) + 15
+            candidates.append((score, pn, name))
+
+        if not candidates:
+            continue
+        candidates.sort(key=lambda t: (-t[0], t[1]))
+        best_score, best_pn, best_name = candidates[0]
+        if best_score < 25:
+            continue
+        out[code] = {
+            "device_part_number": best_pn,
+            "name_en": best_name or str(housing_rec.get("name_en") or "")[:200],
+        }
+
+    log(f"  EPC device parts: {len(out)} codes with device_part_number")
+    conn.close()
+    return out
+
+
+def extract_epc_connector_bom(server: str, db_name: str) -> dict[str, list[dict[str, str]]]:
+    """
+    Related PN under a coded catalogue row via IndentationLevel siblings.
+
+    In EPC, a Volvo code (type1, IndentationLevel=0) is followed by indented
+    articles (terminals / seals, often IndentationType=excluded_article) until
+    the next same-or-shallower level row. ParentComponentId children are empty
+    for these leaves.
+    Returns { "16/3": [ { part_number, role, name_en } ] }.
+    """
+    conn = get_odbc_connection(server, db_name)
+    cur = conn.cursor()
+    out: dict[str, list[dict[str, str]]] = {}
+
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM sys.tables t
+        JOIN sys.schemas s ON s.schema_id = t.schema_id
+        WHERE s.name = 'dbo' AND t.name IN ('CatalogueComponents', 'PartItems', 'ComponentDescriptions', 'Lexicon')
+        """
+    )
+    if cur.fetchone()[0] < 4:
+        log("  EPC BOM: required tables missing — skip")
+        conn.close()
+        return out
+
+    log("  EPC BOM: indented articles after coded components…")
+    # Anchors: coded components with a part number
+    cur.execute(
+        """
+        SELECT DISTINCT
+            cc.Id AS comp_id,
+            cc.ParentComponentId AS parent_id,
+            cc.SequenceId AS seq,
+            ISNULL(cc.IndentationLevel, 0) AS ind,
+            LTRIM(RTRIM(code_lex.Description)) AS component_code,
+            LTRIM(RTRIM(ISNULL(pi.ItemNumber, N''))) AS root_part
+        FROM dbo.ComponentDescriptions AS code_cd
+        JOIN dbo.Lexicon AS code_lex
+          ON code_lex.DescriptionId = code_cd.DescriptionId
+         AND code_lex.fkLanguage IN (15, 16)
+        JOIN dbo.CatalogueComponents AS cc
+          ON cc.Id = code_cd.fkCatalogueComponent
+        LEFT JOIN dbo.PartItems AS pi
+          ON pi.Id = cc.fkPartItem
+        WHERE code_cd.DescriptionTypeId = 1
+          AND code_lex.Description LIKE N'[0-9]%/[0-9]%'
+          AND LEN(code_lex.Description) <= 14
+        """
+    )
+    anchors = cur.fetchall()
+    log(f"  EPC BOM: {len(anchors)} coded anchors")
+
+    # Prefetch sibling rows per parent (SequenceId ordered) — one query, group in Python
+    parent_ids = sorted({int(a[1]) for a in anchors if a[1] is not None})
+    siblings_by_parent: dict[int, list[tuple]] = {}
+    # Chunk parent ids to keep IN-list reasonable
+    chunk = 400
+    for i in range(0, len(parent_ids), chunk):
+        batch = parent_ids[i : i + chunk]
+        placeholders = ",".join("?" * len(batch))
+        cur.execute(
+            f"""
+            SELECT
+                c.ParentComponentId,
+                c.Id,
+                c.SequenceId,
+                ISNULL(c.IndentationLevel, 0) AS ind,
+                LTRIM(RTRIM(ISNULL(c.IndentationType, N''))) AS ind_type,
+                LTRIM(RTRIM(ISNULL(pi.ItemNumber, N''))) AS part_number,
+                LTRIM(RTRIM(ISNULL(n.Description, N''))) AS name_en
+            FROM dbo.CatalogueComponents AS c
+            LEFT JOIN dbo.PartItems AS pi ON pi.Id = c.fkPartItem
+            LEFT JOIN dbo.ComponentDescriptions AS nd
+              ON nd.fkCatalogueComponent = c.Id AND nd.DescriptionTypeId IN (2, 3)
+            LEFT JOIN dbo.Lexicon AS n
+              ON n.DescriptionId = nd.DescriptionId AND n.fkLanguage IN (15, 16)
+            WHERE c.ParentComponentId IN ({placeholders})
+            ORDER BY c.ParentComponentId, c.SequenceId, c.Id
+            """,
+            batch,
+        )
+        for row in cur.fetchall():
+            siblings_by_parent.setdefault(int(row[0]), []).append(row)
+
+    seen: dict[str, set[str]] = {}
+    for comp_id, parent_id, seq, ind, code_raw, root_part in anchors:
+        code = normalize_component_code(str(code_raw or ""))
+        if not code:
+            m = VOLVO_CODE_RE.search(str(code_raw or ""))
+            if m:
+                code = f"{m.group(1)}/{m.group(2)}"
+        if not code or not re.match(r"^(3|4|6|7|10|16|20|31|54|74)/", code):
+            continue
+        if parent_id is None:
+            continue
+        sibs = siblings_by_parent.get(int(parent_id), [])
+        # Walk forward after this SequenceId while deeper indentation
+        collecting = False
+        for _pid, sid, sseq, sind, sind_type, part, name_en in sibs:
+            if int(sid) == int(comp_id):
+                collecting = True
+                continue
+            if not collecting:
+                continue
+            if int(sseq) <= int(seq):
+                continue
+            if int(sind) <= int(ind or 0):
+                break
+            part_s = str(part or "").strip()
+            if not part_s or not re.search(r"\d", part_s):
+                continue
+            root_pn = str(root_part or "").strip()
+            if root_pn and part_s == root_pn:
+                continue
+            name = str(name_en or "").strip()
+            # Prefer descriptive name; skip useless EPC fillers
+            if name.lower() in {
+                "black",
+                "white",
+                "grey",
+                "gray",
+                "+",
+                "-",
+                "tin (sn)",
+                "type a",
+                "type b",
+                "type c",
+                "excluded article",
+                "excluded_article",
+            }:
+                name = ""
+            keyset = seen.setdefault(code, set())
+            if part_s in keyset:
+                continue
+            keyset.add(part_s)
+            role = classify_bom_role(f"{name} {sind_type}")
+            if role == "other" and "excluded_article" in str(sind_type).lower():
+                role = "terminal"
+            out.setdefault(code, []).append(
+                {
+                    "part_number": part_s,
+                    "role": role,
+                    "name_en": name[:200],
+                }
+            )
+
+    for code, items in out.items():
+        items.sort(key=lambda r: (r.get("role") or "", r.get("part_number") or ""))
+
+    log(f"  EPC BOM: {len(out)} codes with related parts")
+    conn.close()
+    return out
+
+
 def extract_epc_parts(server: str, db_name: str, probe: dict[str, Any]) -> dict[str, dict[str, str]]:
-    """Map Volvo connector/component codes to PartItems.ItemNumber via EPC joins."""
+    """Map Volvo wiring codes (e.g. 16/3) to EPC PartItems.ItemNumber.
+
+    Semantics for the whole project: part_number / part_number_mate are catalogue
+    numbers of the *connector / mating housing* on that designation — not the
+    consumer device (speaker, module, lamp assembly). name_en is the EPC title
+    of the catalogue row (often the device name) and must not be read as the PN's
+    product type.
+    """
     conn = get_odbc_connection(server, db_name)
     cur = conn.cursor()
     out: dict[str, dict[str, str]] = {}
@@ -898,10 +1333,151 @@ def main() -> int:
         action="store_true",
         help="Re-clean existing vida_components_ru.json (no MDF attach)",
     )
+    ap.add_argument(
+        "--bom-only",
+        action="store_true",
+        help="Attach EPC only and write vida_connector_bom.json (uses existing tmp/epc MDF if present)",
+    )
+    ap.add_argument(
+        "--device-parts-only",
+        action="store_true",
+        help="Attach EPC only and write vida_device_parts.json (uses existing tmp/epc MDF if present)",
+    )
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.device_parts_only:
+        manual = Path(args.manual_dir)
+        tmp = Path(args.tmp_dir)
+        epc_zip = manual / "EPC.zip"
+        epc_mdf_existing = tmp / "epc" / "EPC_Data.mdf"
+        epc_ldf_existing = tmp / "epc" / "EPC_Log.ldf"
+        try:
+            import pyodbc  # noqa: F401
+        except ImportError:
+            log("ERROR: pyodbc required — pip install pyodbc")
+            return 1
+        ensure_localdb_started()
+        server = resolve_server()
+        log(f"SQL server: {server}")
+        code, out, err = sqlcmd_run(server, "SELECT 1")
+        if code != 0:
+            log(f"ERROR: cannot connect to {server}: {err or out}")
+            return 1
+        attached: list[str] = []
+        try:
+            if epc_mdf_existing.is_file():
+                epc_mdf = epc_mdf_existing
+                epc_ldf = epc_ldf_existing if epc_ldf_existing.is_file() else None
+                log(f"Using existing {epc_mdf}")
+            else:
+                if not epc_zip.is_file():
+                    log(f"ERROR: missing {epc_zip}")
+                    return 1
+                epc_mdf, epc_ldf = unzip_epc(epc_zip, tmp / "epc")
+            attach_mdf(server, DB_EPC, epc_mdf, epc_ldf)
+            attached.append(DB_EPC)
+            parts_path = out_dir / "vida_connector_parts.json"
+            housing_by_code: dict[str, dict[str, str]] = {}
+            if parts_path.is_file():
+                housing_by_code = (
+                    json.loads(parts_path.read_text(encoding="utf-8")).get("connectors") or {}
+                )
+            devices = extract_epc_device_parts(server, DB_EPC, housing_by_code)
+            write_json(
+                out_dir / "vida_device_parts.json",
+                {
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "source": "EPC_Data.mdf CatalogueComponents (extra level-0 / included_article)",
+                    "semantics": (
+                        "device_part_number is a replaceable device/assembly ItemNumber when EPC "
+                        "lists one distinct from connector housing/mate under the wiring code. "
+                        "Sparse by design — many designations only have connector PNs."
+                    ),
+                    "count": len(devices),
+                    "devices": dict(sorted(devices.items(), key=lambda kv: kv[0])),
+                },
+            )
+            for sample in ("6/28", "16/3", "3/112", "6/1"):
+                log(f"  {sample}: {devices.get(sample, '(none)')}")
+            return 0
+        finally:
+            for name in reversed(attached):
+                try:
+                    detach_db(server, name)
+                    log(f"  detached {name}")
+                except Exception as e:
+                    log(f"  detach warn {name}: {e}")
+
+    if args.bom_only:
+        manual = Path(args.manual_dir)
+        tmp = Path(args.tmp_dir)
+        epc_zip = manual / "EPC.zip"
+        epc_mdf_existing = tmp / "epc" / "EPC_Data.mdf"
+        epc_ldf_existing = tmp / "epc" / "EPC_Log.ldf"
+        try:
+            import pyodbc  # noqa: F401
+        except ImportError:
+            log("ERROR: pyodbc required — pip install pyodbc")
+            return 1
+        ensure_localdb_started()
+        server = resolve_server()
+        log(f"SQL server: {server}")
+        code, out, err = sqlcmd_run(server, "SELECT 1")
+        if code != 0:
+            log(f"ERROR: cannot connect to {server}: {err or out}")
+            return 1
+        attached: list[str] = []
+        try:
+            if epc_mdf_existing.is_file():
+                epc_mdf = epc_mdf_existing
+                epc_ldf = epc_ldf_existing if epc_ldf_existing.is_file() else None
+                log(f"Using existing {epc_mdf}")
+            else:
+                if not epc_zip.is_file():
+                    log(f"ERROR: missing {epc_zip}")
+                    return 1
+                epc_mdf, epc_ldf = unzip_epc(epc_zip, tmp / "epc")
+            attach_mdf(server, DB_EPC, epc_mdf, epc_ldf)
+            attached.append(DB_EPC)
+            bom = extract_epc_connector_bom(server, DB_EPC)
+            parts_path = out_dir / "vida_connector_parts.json"
+            if parts_path.is_file():
+                parts = (json.loads(parts_path.read_text(encoding="utf-8")).get("connectors") or {})
+                for code, items in list(bom.items()):
+                    housing = (parts.get(code) or {}).get("part_number") or ""
+                    mate = (parts.get(code) or {}).get("part_number_mate") or ""
+                    filtered = [
+                        it
+                        for it in items
+                        if it.get("part_number") not in {housing, mate} and it.get("part_number")
+                    ]
+                    if filtered:
+                        bom[code] = filtered
+                    else:
+                        bom.pop(code, None)
+            write_json(
+                out_dir / "vida_connector_bom.json",
+                {
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "source": "EPC_Data.mdf CatalogueComponents children",
+                    "count": len(bom),
+                    "connectors": dict(sorted(bom.items(), key=lambda kv: kv[0])),
+                },
+            )
+            log(f"  EPC BOM codes: {len(bom)}")
+            sample = bom.get("16/3") or bom.get("3/271") or next(iter(bom.values()), [])
+            log(f"  sample items: {len(sample) if isinstance(sample, list) else 0}")
+            return 0
+        finally:
+            for name in reversed(attached):
+                try:
+                    detach_db(server, name)
+                    log(f"  detached {name}")
+                except Exception as e:
+                    log(f"  detach warn {name}: {e}")
 
     if args.clean_only:
         ru_path = out_dir / "vida_components_ru.json"
@@ -1099,6 +1675,51 @@ def main() -> int:
             },
         )
         log(f"  EPC connectors: {len(parts)}")
+
+        log("Extracting EPC connector BOM (children)…")
+        bom = extract_epc_connector_bom(server, DB_EPC)
+        # Drop child PNs that already appear as housing/mate on the same code
+        for code, items in list(bom.items()):
+            housing = (parts.get(code) or {}).get("part_number") or ""
+            mate = (parts.get(code) or {}).get("part_number_mate") or ""
+            filtered = [
+                it
+                for it in items
+                if it.get("part_number") not in {housing, mate}
+                and it.get("part_number")
+            ]
+            if filtered:
+                bom[code] = filtered
+            else:
+                bom.pop(code, None)
+        write_json(
+            out_dir / "vida_connector_bom.json",
+            {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "source": "EPC_Data.mdf CatalogueComponents children",
+                "count": len(bom),
+                "connectors": dict(sorted(bom.items(), key=lambda kv: kv[0])),
+            },
+        )
+        log(f"  EPC BOM codes: {len(bom)}")
+
+        log("Extracting EPC device/assembly part numbers…")
+        devices = extract_epc_device_parts(server, DB_EPC, parts)
+        write_json(
+            out_dir / "vida_device_parts.json",
+            {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "source": "EPC_Data.mdf CatalogueComponents (extra level-0 / included_article)",
+                "semantics": (
+                    "device_part_number is a replaceable device/assembly ItemNumber when EPC "
+                    "lists one distinct from connector housing/mate under the wiring code. "
+                    "Sparse by design — many designations only have connector PNs."
+                ),
+                "count": len(devices),
+                "devices": dict(sorted(devices.items(), key=lambda kv: kv[0])),
+            },
+        )
+        log(f"  EPC device parts: {len(devices)}")
         log("VIDA extract complete.")
         return 0
     finally:

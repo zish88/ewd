@@ -2,7 +2,8 @@ import type { Request, Response, NextFunction } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const COOKIE = "ewd_admin";
-const MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
+/** Cookie is session-only (no Max-Age). Token TTL is a safety cap for the same browser session. */
+const TOKEN_TTL_SEC = 60 * 60 * 12; // 12 hours
 
 function secret(): string {
   return process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || "";
@@ -17,7 +18,7 @@ function sign(payload: string): string {
 }
 
 export function issueAdminToken(): string {
-  const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEC;
+  const exp = Math.floor(Date.now() / 1000) + TOKEN_TTL_SEC;
   const body = `admin:${exp}`;
   return `${body}.${sign(body)}`;
 }
@@ -69,9 +70,10 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 export function setAdminCookie(res: Response, token: string) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  // No Max-Age / Expires → session cookie; cleared when the browser session ends.
   res.setHeader(
     "Set-Cookie",
-    `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_SEC}${secure}`,
+    `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${secure}`,
   );
 }
 
