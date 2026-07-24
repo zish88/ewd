@@ -1,0 +1,1002 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="500px" height="360px" viewBox="0 0 226.772 104.882" xml:space="preserve">
+	<g>
+		<path clip-path="url(#SVGID_4_)"
+                d="M221.734,27.375   c0.01-0.063,0.016-0.127,0.016-0.191c0-0.647-0.525-1.171-1.172-1.171h-0.04"
+                fill="none" stroke="#FFFFFF" stroke-miterlimit="2"
+                stroke-width="0.85"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="M220.572,27.068   c0.005-0.031,0.008-0.062,0.008-0.092c0-0.306-0.248-0.554-0.554-0.554c-0.005,0-0.009,0-0.014,0.001"
+                fill="none" stroke="#FFFFFF" stroke-miterlimit="2"
+                stroke-width="0.85"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="M220.443,27.993   c0-0.014,0.001-0.027,0.001-0.041c0-0.314-0.213-0.59-0.518-0.669"
+                fill="none" stroke="#FFFFFF" stroke-miterlimit="2"
+                stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-miterlimit="2" stroke-width="0.85" x1="220.572"
+                x2="220.443" y1="27.068" y2="27.994"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-miterlimit="2" stroke-width="0.85" x1="221.695"
+                x2="221.734" y1="27.697" y2="27.376"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M127.637,46.875c-0.043,0-0.234-0.043-0.381,0c-0.145,0.043-1.488,0.555-1.59,0.555s-1.139,0.498-1.139,0.498"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-linejoin="round" stroke-miterlimit="22.926"
+                stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M136.389,17.158l1.346-1.724 M137.734,15.435c-1.609,0.036-3.201,0.354-4.703,0.939"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M59.722,96.092v0.002c2.421-3.389,5.969-5.811,10.008-6.828c0.504-0.127,1.022-0.191,1.541-0.191c1.38,0,2.724,0.453,3.82,1.291   v-0.002c0.884,0.674,1.402,1.721,1.402,2.828c0,0.275-0.032,0.547-0.095,0.814c-0.281,1.193-0.421,2.416-0.421,3.641   c0,0.184,0.003,0.367,0.008,0.551 M97.071,3.169c-2.023,0.96-4.032,1.949-6.027,2.968v0.001   C78.438,12.58,66.347,19.983,54.878,28.285l-0.001,0.002c-7.909,6.023-15.336,12.652-22.214,19.829   c-1.684,1.268-3.409,2.479-5.173,3.635c-2.501,1.638-4.93,3.38-7.282,5.22 M146.619,56.975c0.615,0.356,1.256,0.676,1.918,0.943   c0.104,0.045,0.218,0.066,0.332,0.066c0.199,0,0.391-0.068,0.545-0.191c0.371-0.296,0.591-0.744,0.596-1.221v-0.229   c0-1.252-0.104-2.502-0.314-3.736c1.363-2.798,2.324-5.771,2.854-8.838v-0.001c0.338-1.034,0.508-2.115,0.508-3.204   c0-0.67-0.064-1.339-0.193-1.997c0.338-1.545,0.59-3.107,0.754-4.679c0.008-0.039,0.013-0.078,0.013-0.118   c0-0.106-0.03-0.21-0.089-0.298c-0.232-0.361-0.5-0.697-0.803-1.003c0.189-1.949,0.314-3.903,0.377-5.86h-0.002   c0.033-0.241,0.049-0.485,0.049-0.729c0-0.904-0.223-1.794-0.643-2.592v-0.001c-1.025-1.933-2.33-3.703-3.871-5.252v-0.001   c-0.92-0.724-1.961-1.275-3.074-1.629c-2.424-2.83-5.443-5.088-8.844-6.612l-0.625,0.501c-3.744-3.209-7.863-5.93-12.256-8.11    M137.734,15.435c0.309-0.439,0.473-0.962,0.473-1.499c0-0.334-0.064-0.666-0.189-0.977v0.001   c-0.414-1.029-1.072-1.942-1.912-2.664"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M144.182,16.1c-2.313-1.758-4.715-3.394-7.197-4.9"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M145.574,16.406c-2.439-0.895-5.018-1.354-7.615-1.358"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M133.389,16.242c0.721,0.606,1.633,0.939,2.576,0.939c0.141,0,0.281-0.007,0.424-0.022"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M145.225,19.698c-2.793-1.31-5.775-2.167-8.836-2.54"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M148.148,21.928c-0.805-0.944-1.803-1.705-2.926-2.231"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M150.695,26.644c-0.508-1.733-1.377-3.34-2.549-4.714"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M150.834,28.32c0.02-0.165,0.029-0.331,0.029-0.498c0-0.398-0.057-0.795-0.168-1.178"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M144.438,46.774c1.326-1.407,2.383-3.047,3.113-4.838"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M139.943,27.315c0.166-0.386,0.252-0.801,0.252-1.221c0-1.265-0.772-2.402-1.951-2.865"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M137.521,30.018c0.92-0.793,1.732-1.702,2.422-2.704"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.979,38.691c3.525-2.88,7.039-5.774,10.543-8.681"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M138.244,23.229c-1.521-0.78-3.15-1.335-4.832-1.648"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M133.412,21.58c-0.297-0.051-0.598-0.077-0.898-0.077c-0.527,0-1.053,0.078-1.555,0.234"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M130.957,21.738c-7.404,3.474-14.65,7.273-21.719,11.385"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M109.238,33.123c-4.883,2.658-9.547,5.7-13.947,9.096"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M95.291,42.219c-1.797,1.384-3.432,2.967-4.875,4.713"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M90.416,46.932c-3.082,3.73-5.832,7.724-8.217,11.933"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M82.199,58.867c-1.672,2.949-3.309,5.918-4.911,8.906"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.287,67.773c-0.809,1.508-1.233,3.193-1.233,4.906c0,0.113,0.003,0.229,0.005,0.342"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M76.06,73.023c0.016,0.428,0.117,0.846,0.303,1.23"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.522,76.623c-0.314-0.824-0.703-1.617-1.159-2.371"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.812,78.285c-0.019-0.564-0.117-1.125-0.29-1.662"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.774,79.305c0.027-0.26,0.041-0.52,0.041-0.779c0-0.08,0-0.159-0.004-0.24"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.686,79.732c0.043-0.141,0.073-0.281,0.089-0.428"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.686,79.73c-0.042,0.139-0.07,0.277-0.089,0.418"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.895,93.789c0.137-1.455,0.206-2.918,0.206-4.381c0-0.678-0.015-1.355-0.045-2.029"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M78.055,87.379c-0.074-2.414-0.228-4.826-0.457-7.229"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.895,93.789c-0.03,0.186-0.044,0.375-0.044,0.563s0.014,0.371,0.042,0.557"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M77.893,94.908c0.022,0.146,0.146,0.248,0.292,0.248c0.057,0,0.113-0.016,0.162-0.047"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M85.111,90.893c-2.285,1.357-4.541,2.762-6.765,4.215"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M85.111,90.895c6.787-3.936,13.502-7.998,20.139-12.186"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M74.342,98.916c0.23,0.119,0.486,0.182,0.746,0.182c0.34,0,0.672-0.107,0.946-0.307l0.004-0.002   c10.544-7.656,21.593-14.592,33.069-20.758"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.246,78.711c0.193-0.1,0.313-0.299,0.313-0.514c0-0.014,0-0.029-0.002-0.047"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.535,77.219c-0.004,0.098-0.004,0.193-0.004,0.291c0,0.215,0.008,0.428,0.025,0.641"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.535,77.221v-0.014c0-0.086-0.029-0.168-0.082-0.234"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.281,76.594c0.023,0.139,0.082,0.27,0.172,0.379"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.542,78.326c0.998-0.482,1.965-1.021,2.9-1.613"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M119.637,69.777c-3.781,2.234-7.512,4.547-11.196,6.938"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M119.635,69.779c0.713-0.396,1.393-0.848,2.033-1.35"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M121.668,68.43c0.168-0.131,0.305-0.297,0.402-0.484"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M123.385,65.473c-0.445,0.818-0.883,1.643-1.314,2.473"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.4,59.861c-1.057,1.842-2.063,3.713-3.016,5.611"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.4,59.859c1.102-1.896,2.074-3.865,2.91-5.893"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M129.311,53.967c0.994-2.392,1.643-4.912,1.928-7.486"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M131.238,46.481c0.174-1.27,0.264-2.551,0.268-3.834"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M131.506,42.647v-0.015c0-0.854-0.271-1.685-0.775-2.373"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M130.73,40.257c-0.658-0.76-1.338-1.501-2.041-2.22"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M128.131,37.262c0.156,0.278,0.342,0.539,0.559,0.776"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M128.131,37.261c-0.092-0.143-0.252-0.23-0.42-0.23c-0.051,0-0.101,0.008-0.15,0.024"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M120.48,27.336c-0.1-0.114-0.229-0.196-0.377-0.233"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M120.85,27.772c-0.496,0.264-0.994,0.531-1.488,0.8"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="127.561" x2="124.061" y1="37.055"
+                y2="39.94"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M98.912,62.365c13.516-8.883,26.911-17.947,40.182-27.185"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M139.088,35.19c4.293-2.988,8.457-6.158,12.48-9.5"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M71.037,84.389c4.541-3.123,9.033-6.32,13.474-9.584"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M108.406,58.279c-8.121,5.279-16.09,10.789-23.894,16.525"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M127.9,45.725c-6.516,4.154-13.01,8.335-19.487,12.544"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M88.48,65.402c13.398-8.061,26.262-16.982,38.504-26.71"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M104.156,45.383c-0.479-2.747-1.08-5.472-1.803-8.164"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.162,53.693c-0.256-2.781-0.594-5.55-1.006-8.312"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.458,53.971c-0.047-0.137-0.158-0.24-0.297-0.277"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.554,54.467c-0.008-0.168-0.039-0.336-0.096-0.496"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.554,54.467c0.029,0.525,0.152,1.041,0.367,1.521"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M106.46,58.066v-0.02c0-0.611-0.137-1.215-0.4-1.766"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M106.441,59.262c0.014-0.398,0.018-0.799,0.02-1.195"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M106.343,59.791c0.061-0.17,0.094-0.348,0.098-0.529"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M106.343,59.791c-0.031,0.092-0.049,0.191-0.049,0.289v0.016"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="105.921" x2="106.059" y1="55.988"
+                y2="56.281"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M106.039,67.809c0.111-2.572,0.195-5.143,0.256-7.715"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.332,74.168c0.332-2.109,0.566-4.23,0.707-6.359"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.333,74.168c-0.088,0.377-0.131,0.766-0.131,1.15c0,0.34,0.033,0.682,0.1,1.014"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M105.281,76.594c0.02-0.055,0.031-0.109,0.031-0.17c0-0.029-0.004-0.061-0.01-0.092"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="124.061" x2="124.016" y1="39.94"
+                y2="39.613"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M148.783,49.425c1.936-2.586,3.383-5.502,4.271-8.608"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M146.803,47.581c-0.863-0.543-1.861-0.831-2.883-0.831c-0.498,0-0.996,0.068-1.475,0.205h-0.002   c-5.236,1.753-9.734,5.219-12.76,9.841v-0.003c-1.969,3.004-3.588,6.221-4.83,9.59c-0.273,0.75-0.465,1.527-0.564,2.318   c-0.049,0.396-0.113,0.791-0.191,1.182c-0.043,0.205-0.203,0.365-0.408,0.408v-0.006c-4.859,2.566-9.713,5.145-14.565,7.732    M149.695,52.607c-0.262-1.864-1.07-3.607-2.326-5.008l0.002-0.001c-0.064,0.089-0.168,0.142-0.277,0.142   c-0.117,0-0.229-0.06-0.291-0.16"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M149.369,47.332c-1.23-1.378-2.988-2.166-4.838-2.166c-0.48,0-0.961,0.054-1.433,0.161"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M143.1,45.325c-2.434,0.474-4.727,1.495-6.709,2.985"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M136.393,48.311c-3.148,2.369-5.822,5.306-7.885,8.664"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M133.031,16.375c-6.668,3.03-13.111,6.53-19.283,10.476"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M113.75,26.85c-5.963,3.813-11.87,7.716-17.715,11.708"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M96.033,38.557c-3.34,2.281-6.193,5.199-8.401,8.588"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M93.009,38.509c-2.795,2.275-5.209,4.98-7.154,8.012"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M118.74,21.717c-9.014,4.897-17.622,10.513-25.733,16.793"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M118.744,21.715c3.277-1.78,6.541-3.587,9.789-5.419"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M131.895,15.239c-1.182,0.113-2.328,0.473-3.361,1.056"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M133.387,16.241c-7.424-4.88-15.047-9.446-22.856-13.687"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M100.355,2.952c-8.115,3.8-16.061,7.958-23.811,12.46"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M76.544,15.412c-7.046,4.122-13.776,8.761-20.135,13.878"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="80.553" x2="76.059" y1="70.26"
+                y2="73.021"/>
+		<line clip-path="url(#SVGID_4_)"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85" x1="79.536"
+                x2="76.063" y1="70.047" y2="72.232"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M36.374,91.689c-1.24,0.672-2.413,1.459-3.504,2.35"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M67.767,73.994c-10.508,5.826-20.975,11.729-31.4,17.705"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M56.126,75.375c-7.407,4.676-14.754,9.445-22.04,14.309"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M28.436,59.066c-2.998,2.285-5.818,4.785-8.44,7.477"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M29.739,51.598c-3.51,2.765-6.786,5.8-9.8,9.074"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M29.74,51.596c0.635-0.531,1.195-1.146,1.665-1.83"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M64.876,90.309c-2.485,1.48-4.694,3.379-6.529,5.615"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M69.648,88.141c-1.666,0.545-3.265,1.271-4.772,2.168"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M74.545,88.33c-0.858-0.355-1.777-0.541-2.707-0.541c-0.744,0-1.482,0.119-2.19,0.352"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M30.519,100.451c-0.484,0.031-0.951,0.158-1.376,0.363"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M37.743,100.334c-0.803-0.025-1.606-0.039-2.41-0.039c-1.606,0-3.212,0.053-4.814,0.158"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M37.743,100.334c0.674,0.021,1.348,0.037,2.022,0.043"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M80.207,68.713c0.027,0.281,0.216,0.521,0.484,0.609"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="80.141" x2="78.671" y1="67.975"
+                y2="68.592"/>
+		<line clip-path="url(#SVGID_4_)"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85" x1="79.289"
+                x2="78.429" y1="69.992" y2="69.066"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M79.289,69.992c1.332,0.301,2.675,0.543,4.029,0.729h0.001c0.557,0.075,1.12,0.114,1.682,0.114c0.208,0,0.416-0.006,0.623-0.016   c1.383-0.07,2.758-0.234,4.118-0.496v-0.002c0.3-0.057,0.572-0.221,0.761-0.461c0.137-0.176,0.264-0.359,0.375-0.553   c0.106-0.182,0.162-0.385,0.166-0.596c0.006-0.463,0.018-0.928,0.032-1.389c0.002-0.016,0.002-0.029,0.002-0.043   c0-0.412-0.204-0.803-0.541-1.039c-1.928-0.873-3.947-1.535-6.016-1.973c-0.08-0.018-0.162-0.025-0.244-0.025   c-0.147,0-0.293,0.025-0.428,0.078h-0.002c-1.215,0.514-2.327,1.246-3.278,2.164h0.001c-0.292,0.281-0.457,0.668-0.457,1.072   c0,0.035,0.002,0.072,0.004,0.107c0.025,0.35,0.055,0.699,0.089,1.047"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M39.394,41.434c0.026-0.602,0.039-1.205,0.039-1.808c0-0.17-0.001-0.341-0.003-0.512v-0.001c0.004-0.044,0.006-0.089,0.006-0.133   c0-0.266-0.08-0.526-0.231-0.747c-0.838-1.225-1.793-2.367-2.851-3.41c-0.085-0.044-0.178-0.068-0.273-0.068   c-0.083,0-0.165,0.018-0.24,0.052v0.001c-0.176,0.079-0.334,0.193-0.465,0.335h0.001c-0.365,0.4-0.609,0.894-0.706,1.426   c-0.175,0.975-0.262,1.964-0.262,2.954c0,0.291,0.007,0.582,0.022,0.872v-0.001c0.081,1.539,0.726,2.994,1.812,4.086"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M18.729,95.033c0.314,0.174,0.631,0.344,0.95,0.508"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M20.383,95.895c1.722,0.85,3.496,1.592,5.311,2.223"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M19.68,95.541c0.233,0.119,0.468,0.238,0.703,0.354"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M25.693,98.117c0.584,0.203,1.198,0.307,1.815,0.307c0.246,0,0.491-0.018,0.734-0.049"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M28.243,98.375c0.402-0.055,0.764-0.271,1.002-0.602"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M29.245,97.773c0.897-1.131,1.647-2.371,2.233-3.691"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M19.801,97.215c0.729,0.354,1.472,0.684,2.227,0.986"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M18.634,96.623c0.385,0.205,0.774,0.402,1.167,0.592"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M22.028,98.203c1.092,0.439,2.224,0.773,3.379,1.002"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M25.407,99.205c0.202,0.039,0.408,0.059,0.614,0.059c0.581,0,1.151-0.158,1.648-0.459"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M20.599,87.379c0.188,0.111,0.376,0.225,0.564,0.336"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M19.864,86.936c0.245,0.148,0.489,0.295,0.735,0.443"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M21.164,87.717c2.847,1.689,5.809,3.178,8.864,4.457"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M31.345,93.088c-0.369-0.395-0.818-0.707-1.317-0.914"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M31.478,94.08c0.066-0.123,0.101-0.262,0.101-0.402c0-0.219-0.084-0.428-0.233-0.59"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M42.373,101.508c4.957-0.455,9.817-1.652,14.418-3.551"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M30.875,93.91c0.004-0.027,0.006-0.059,0.006-0.088c0-0.131-0.039-0.258-0.112-0.367"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)" d="   M20.1,93.484"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M19.893,93.102v0.002c0.056-0.018,0.11-0.043,0.161-0.072 M20.054,93.031L20.054,93.031c0.162-0.094,0.291-0.236,0.367-0.406    M20.42,92.625L20.42,92.625c0.111-0.244,0.168-0.51,0.168-0.777 M20.588,91.848L20.588,91.848c0-0.283-0.041-0.566-0.122-0.842    M20.467,91.006L20.467,91.006c-0.066-0.218-0.148-0.434-0.247-0.643 M19.853,89.574l-0.08,0.047 M20.296,90.32l-0.077,0.045    M19.853,89.574l-0.282-0.473 M20.655,89.592l-0.083,1.188 M19.571,89.102l1.084,0.49 M19.772,89.621L19.772,89.621   c-0.106-0.145-0.22-0.281-0.343-0.41 M19.43,89.211L19.43,89.211c-0.196-0.207-0.42-0.382-0.667-0.525 M20.572,90.779l-0.275-0.459    M24.831,90.309l-3.318-0.07"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M20.1,87.744c3.227,1.84,6.535,3.533,9.916,5.078c0.304,0.139,0.564,0.36,0.753,0.633"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M54.082,90.914c-0.832-0.334-1.711-0.537-2.605-0.602c-0.222-0.016-0.443-0.023-0.665-0.023c-0.84,0-1.676,0.113-2.485,0.338   c-3.537,0.982-6.963,2.326-10.224,4.008"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M38.103,94.635c-1.436,1.09-2.697,2.393-3.737,3.865c-0.038,0.053-0.058,0.117-0.058,0.182c0,0.154,0.111,0.287,0.264,0.311v0.002   c2.102,0.344,4.227,0.514,6.357,0.514c3.346,0,6.679-0.424,9.917-1.269h0.001c0.679-0.22,1.277-0.638,1.718-1.2   c1.07-1.365,1.893-2.904,2.434-4.551c0.072-0.125,0.11-0.27,0.11-0.417c0-0.177-0.059-0.354-0.168-0.5   c-0.221-0.292-0.518-0.521-0.859-0.657"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M27.338,97.518c0.056,0.008,0.112,0.012,0.169,0.012c0.355,0,0.695-0.141,0.948-0.389c0.588-0.582,1.102-1.234,1.528-1.941   c0.302-0.467,0.558-0.961,0.762-1.479c-0.031-0.217-0.121-0.42-0.261-0.59"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M54.052,90.438c3.515-2.088,6.958-4.297,10.322-6.623h-0.001c0.955-0.85,1.738-1.875,2.304-3.021v0.002   c0.691-1.398,1.192-2.883,1.488-4.414c0.366-0.832,0.554-1.729,0.554-2.637c0-0.168-0.006-0.338-0.019-0.508   c-3.594-0.396-7.145-1.119-10.609-2.158L58.09,71.08c-3.936-1.182-7.674-2.943-11.09-5.23v-0.002   c-5.979-2.922-11.311-7.018-15.677-12.043c-0.558-0.645-0.866-1.467-0.866-2.318c0-0.044,0.001-0.086,0.002-0.129   c-0.048-0.15-0.189-0.253-0.347-0.253h-0.003v0.001c-0.192,0-0.381,0.047-0.551,0.137c-0.602,0.314-1.154,0.715-1.64,1.189V52.43   c-0.676,0.66-1.373,1.299-2.089,1.914c-0.318,0.273-0.682,0.486-1.076,0.627c-0.816,0.291-1.607,0.646-2.366,1.063   c-0.799,0.438-1.583,0.904-2.35,1.396"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M68.7,73.236c1.473-0.529,2.758-1.48,3.696-2.734h0.001c1.324-1.77,2.574-3.594,3.744-5.471v0.002   c1.669-2.674,3.271-5.389,4.805-8.141c1.921-3.447,4.159-6.712,6.685-9.747c-3.263-1.229-6.519-2.479-9.766-3.75l0.002,0.002   c-5.909-2.314-11.48-5.413-16.563-9.213c-2.334-1.746-4.488-3.722-6.427-5.899"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M32.967,47.858c-0.814,0.986-1.607,1.992-2.378,3.015v0.001c-0.079,0.149-0.123,0.315-0.13,0.484"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M124.016,39.614l-0.629-4.552v-0.001c-0.176-0.748-0.477-1.461-0.889-2.109h-0.002c-0.965-1.515-2.012-2.977-3.133-4.379   c-0.947,0.517-1.891,1.042-2.827,1.577c-4.226,2.11-8.333,4.449-12.305,7.006c1.524,4.868,2.608,9.862,3.244,14.924"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M104.232,37.156c-1.123,0.722-2.232,1.461-3.332,2.218"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.72,55.361c-0.275-5.361-0.883-10.701-1.82-15.988c-1.545,1.065-3.069,2.162-4.567,3.292v0.001   c-2.468,1.862-4.689,4.026-6.613,6.445c-3.225,4.051-6.021,8.426-8.349,13.053l0.301,3.393"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M87.478,65.057c5.172-3.084,10.256-6.318,15.246-9.695 M107.474,52.08c5.649-3.973,11.167-8.131,16.542-12.467"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.722,55.361c1.594-1.078,3.18-2.172,4.752-3.281"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M127.553,37.056c3.525-2.88,7.041-5.775,10.545-8.682l-0.002,0.006c0.857-0.516,1.424-1.405,1.527-2.401h0.002   c0.01-0.091,0.014-0.183,0.014-0.275c0-0.748-0.32-1.46-0.879-1.957c-1.703-1.019-3.586-1.703-5.545-2.012   c-0.189-0.03-0.379-0.045-0.57-0.045c-0.354,0-0.703,0.051-1.039,0.151c-3.777,1.594-7.469,3.382-11.063,5.355"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M127.561,37.055c-0.711-1.206-1.473-2.379-2.287-3.517c-1.492-2.147-3.092-4.217-4.795-6.202"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="20.933" x2="26.888" y1="91.217"
+                y2="91.34"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M28.88,98.131L28.88,98.131c-0.412,0.207-0.815,0.434-1.211,0.674"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M132.557,69.166L132.557,69.166c0.482,0.279,1.029,0.426,1.588,0.426c0.104,0,0.209-0.005,0.314-0.016 M134.459,69.576h-0.002   c0.947-0.094,1.863-0.387,2.688-0.864 M137.145,68.712L137.145,68.712c0.877-0.505,1.676-1.136,2.371-1.87 M139.516,66.844v-0.002   c0.855-0.9,1.6-1.9,2.221-2.975 M141.736,63.867L141.736,63.867c0.619-1.074,1.111-2.219,1.465-3.408 M143.201,60.457v0.002   c0.289-0.971,0.436-1.977,0.436-2.988 M143.637,57.471L143.637,57.471c0-0.951-0.203-1.895-0.596-2.762 M143.041,54.709   L143.041,54.709c-0.273-0.605-0.73-1.107-1.305-1.441 M132.557,69.166L132.557,69.166c-0.574-0.329-1.031-0.836-1.305-1.441    M131.25,67.725h0.002c-0.395-0.867-0.598-1.807-0.598-2.76 M130.654,64.965L130.654,64.965c0-1.012,0.146-2.018,0.434-2.988    M131.09,61.977L131.09,61.977c0.354-1.189,0.846-2.334,1.467-3.41 M132.557,58.568v-0.002c0.621-1.074,1.365-2.072,2.219-2.973    M134.775,55.594L134.775,55.594c0.695-0.734,1.494-1.365,2.371-1.871 M137.145,53.723L137.145,53.723   c0.826-0.475,1.742-0.771,2.689-0.865 M139.834,52.857L139.834,52.857c0.105-0.01,0.209-0.014,0.313-0.014   c0.558,0,1.104,0.147,1.589,0.424"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M124.25,69.254c0.48,0.613,1.09,1.109,1.789,1.451v0.002c1.393,0.965,2.895,1.758,4.475,2.365h0.002   c0.652,0.328,1.375,0.5,2.107,0.5c0.156,0,0.311-0.008,0.465-0.023c1.402-0.139,2.758-0.576,3.98-1.279   c1.297-0.75,2.479-1.684,3.508-2.77h0.002c1.264-1.334,2.367-2.813,3.285-4.404s1.646-3.287,2.17-5.047v-0.002   c0.428-1.434,0.645-2.926,0.645-4.424h-0.002c0-1.408-0.299-2.803-0.879-4.087c-0.367-0.811-0.957-1.499-1.699-1.989v-0.001   c-1-0.809-2.072-1.527-3.205-2.141"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M130.273,72.943v-0.002c-0.854-0.49-1.529-1.238-1.934-2.133 M128.338,70.809L128.338,70.809c-0.58-1.285-0.881-2.68-0.881-4.09    M127.457,66.719h0.002c0-1.498,0.215-2.986,0.643-4.422 M128.102,62.297L128.102,62.297c0.523-1.762,1.252-3.455,2.172-5.047    M130.273,57.25L130.273,57.25c0.918-1.592,2.021-3.07,3.285-4.405 M133.559,52.843L133.559,52.843   c1.029-1.085,2.211-2.019,3.508-2.769 M137.068,50.074L137.068,50.074c1.219-0.703,2.578-1.14,3.979-1.279 M141.049,48.795   L141.049,48.795c0.154-0.015,0.309-0.023,0.463-0.023c0.824,0,1.637,0.218,2.352,0.629 M130.273,72.943L130.273,72.943   c0.016,0.01,0.033,0.02,0.053,0.027"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M73.999,101.592c0.272-1.16,0.409-2.35,0.409-3.545c0-1.408-0.3-2.803-0.881-4.086c-0.367-0.811-0.957-1.5-1.7-1.99   c-1-0.811-2.072-1.527-3.203-2.143"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M56.914,101.805c0.326-0.729,0.69-1.438,1.089-2.131 M58.002,99.672l0.001,0.002c0.919-1.59,2.022-3.07,3.285-4.404 M61.288,95.268   L61.288,95.268c1.031-1.086,2.212-2.018,3.51-2.768 M64.798,92.5L64.798,92.5c1.22-0.707,2.578-1.141,3.98-1.279 M68.778,91.221   L68.778,91.221c0.154-0.016,0.309-0.023,0.464-0.023c0.825,0,1.637,0.217,2.351,0.631"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M71.215,101.674c0.101-0.586,0.152-1.182,0.152-1.779"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M71.367,99.895L71.367,99.895c0-0.951-0.203-1.893-0.596-2.762"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M70.771,97.133L70.771,97.133c-0.273-0.604-0.73-1.107-1.306-1.439"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M60.287,100.992L60.287,100.992c0.62-1.076,1.365-2.072,2.219-2.975"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M62.505,98.018L62.505,98.018c0.696-0.734,1.495-1.365,2.371-1.871"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M64.876,96.146L64.876,96.146c0.824-0.475,1.741-0.771,2.688-0.865"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M67.564,95.281L67.564,95.281c0.104-0.01,0.209-0.014,0.313-0.014c0.558,0,1.105,0.146,1.587,0.426"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M123.582,48.946c-0.221,0.274-0.359,0.602-0.4,0.95h0.003c0.132,0.055,0.274,0.083,0.419,0.083c0.166,0,0.331-0.037,0.48-0.107   l-0.002-0.001c0.738-0.37,1.418-0.85,2.014-1.425 M122.455,51.413c0.029,0.104,0.121,0.174,0.229,0.174h0.009   c0.205-0.01,0.404-0.061,0.59-0.153v-0.001c1.787-0.61,3.401-1.643,4.701-3.01c0.211-0.221,0.326-0.514,0.326-0.819   c0-0.018-0.001-0.039-0.001-0.056"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M123.908,51.683c1.035-0.286,1.924-0.954,2.486-1.868"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.484,47.672c-0.184-0.152-0.414-0.236-0.65-0.236c-0.088,0-0.176,0.012-0.264,0.036"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M123.281,51.434c0.146,0.159,0.354,0.251,0.568,0.251c0.02,0,0.039,0,0.059-0.002"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M122.445,50.921c-0.018,0.073-0.025,0.149-0.025,0.224c0,0.091,0.012,0.181,0.035,0.267"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="123.182" x2="123.158" y1="49.896"
+                y2="50.184"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M122.582,50.67c0.227-0.114,0.424-0.281,0.576-0.486"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M122.582,50.67c-0.07,0.07-0.117,0.156-0.139,0.251"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M125.57,47.472c-0.775,0.316-1.459,0.824-1.988,1.474"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.664,47.555c0.186,0.178,0.396,0.325,0.627,0.438"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M127.342,49.046c0.078-0.149,0.121-0.315,0.121-0.484c0-0.204-0.061-0.402-0.172-0.571"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.482,47.672c-0.047-0.02-0.096-0.029-0.148-0.029c-0.068,0-0.139,0.018-0.201,0.052"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.133,47.696c-0.098,0.056-0.189,0.123-0.273,0.199"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M125.807,48.713c-0.006-0.164-0.021-0.329-0.047-0.491"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M125.857,47.897c-0.068,0.069-0.104,0.164-0.104,0.263c0,0.02,0,0.04,0.005,0.062"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M126.096,48.448c0.059-0.059,0.096-0.14,0.096-0.223c0-0.101-0.051-0.195-0.133-0.254"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M128.307,47.516c0,0-0.131-0.716-0.621-0.568c-0.488,0.145-1.125,0.537-1.125,0.537"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M99.968,64.328c-0.221,0.271-0.359,0.602-0.4,0.949c0.134,0.055,0.277,0.082,0.421,0.082c0.166,0,0.329-0.037,0.479-0.107   c0.738-0.371,1.418-0.85,2.014-1.426 M98.841,66.793c0.027,0.104,0.121,0.176,0.229,0.176h0.009c0.205-0.01,0.405-0.061,0.59-0.152   v-0.003c1.787-0.608,3.399-1.644,4.701-3.011c0.209-0.219,0.326-0.512,0.326-0.816c0-0.02-0.001-0.039-0.001-0.059"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M100.292,67.064c1.037-0.285,1.926-0.955,2.488-1.869"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.871,63.053c-0.184-0.15-0.414-0.234-0.652-0.234c-0.088,0-0.176,0.012-0.262,0.035"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M99.667,66.816c0.145,0.158,0.352,0.25,0.568,0.25c0.02,0,0.039,0,0.057-0.002"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M98.832,66.303c-0.018,0.072-0.025,0.148-0.025,0.225c0,0.09,0.011,0.18,0.035,0.266"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<line
+                clip-path="url(#SVGID_4_)" fill="none" stroke="#FFFFFF"
+                stroke-linecap="round" stroke-miterlimit="2"
+                stroke-width="0.85" x1="99.568" x2="99.543" y1="65.277"
+                y2="65.564"/>
+		<path clip-path="url(#SVGID_4_)"
+                d="   M98.968,66.053c0.227-0.115,0.422-0.283,0.574-0.488"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M98.968,66.053c-0.07,0.068-0.117,0.156-0.139,0.25"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M101.957,62.854c-0.775,0.316-1.459,0.824-1.988,1.475"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M103.05,62.938c0.184,0.178,0.396,0.324,0.627,0.438"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M103.728,64.428c0.078-0.148,0.121-0.314,0.121-0.484c0-0.204-0.06-0.4-0.172-0.57"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.869,63.053c-0.047-0.018-0.098-0.027-0.148-0.027c-0.071,0-0.139,0.018-0.202,0.051"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.519,63.076c-0.098,0.057-0.189,0.125-0.275,0.201"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.193,64.094c-0.006-0.164-0.021-0.328-0.049-0.49"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.244,63.279c-0.068,0.068-0.105,0.164-0.105,0.262c0,0.02,0.001,0.041,0.003,0.063"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M102.482,63.828c0.059-0.059,0.094-0.139,0.094-0.221c0-0.102-0.049-0.197-0.131-0.254"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M104.691,62.896c0,0-0.131-0.715-0.619-0.568c-0.49,0.146-1.125,0.539-1.125,0.539"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M148.998,38.509c0.848-3.35,1.461-6.754,1.836-10.19"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M147.551,41.935c0.654-1.062,1.141-2.217,1.447-3.426"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M56.13,75.371c0.166-0.219,0.256-0.486,0.256-0.764c0-0.553-0.36-1.041-0.888-1.205"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M30.732,59.02c7.556,5.908,15.89,10.748,24.766,14.383"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M30.733,59.02c-0.32-0.248-0.714-0.385-1.121-0.385c-0.431,0-0.847,0.154-1.176,0.434"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+		<path
+                clip-path="url(#SVGID_4_)"
+                d="   M110.533,2.554c-0.24-0.13-0.481-0.259-0.723-0.387"
+                fill="none" stroke="#FFFFFF" stroke-linecap="round"
+                stroke-miterlimit="2" stroke-width="0.85"/>
+	</g>
+</svg>

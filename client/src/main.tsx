@@ -2123,9 +2123,13 @@ function App() {
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--b" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--c" />
-      <div className="desktop-bg-art__piece desktop-bg-art__piece--d" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--e" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--f" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--g" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--h" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--i" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--j" />
+      <div className="desktop-bg-art__piece desktop-bg-art__piece--k" />
     </div>
     <header
       ref={headerRef}
