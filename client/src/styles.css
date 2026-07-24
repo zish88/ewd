@@ -623,6 +623,20 @@ html {
   white-space: nowrap;
 }
 
+/* Card action labels: short on mobile, full on desktop */
+.card-actions__label-short {
+  display: none;
+}
+
+.card-actions__label-full {
+  display: inline;
+}
+
+.card-actions__btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 12px;
+}
+
 .theme-toggle {
   display: inline-flex;
   border: 1px solid var(--outline-variant);
@@ -1420,9 +1434,7 @@ main.is-filters-sheet-open {
   .app-input,
   [data-testid="nav-zone"],
   [data-testid="nav-component"],
-  [data-testid="show-on-diagram"],
   [data-testid="show-pinout"],
-  [data-testid="result-card"] button,
   .wire-color-chip,
   .diagram-picker__btn,
   [data-testid="clear-results"],
@@ -1438,7 +1450,6 @@ main.is-filters-sheet-open {
     font-size: 12px;
   }
 
-  [data-testid="show-on-diagram"],
   [data-testid="show-pinout"] {
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
@@ -1459,8 +1470,127 @@ main.is-filters-sheet-open {
     font-size: 13px;
   }
 
-  [data-testid="result-card"] {
-    border-radius: var(--radius-lg);
+  /* —— Compact wire cards (MD3 chips + denser actions) —— */
+  [data-testid="result-card"].result-card {
+    border-radius: var(--radius-md);
+    padding: 0.65rem 0.7rem;
+    gap: 0.45rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .result-card__head {
+    gap: 0.35rem;
+  }
+
+  .result-card__head h3 {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+  }
+
+  .result-card__body {
+    gap: 0.35rem;
+    padding: 0.45rem 0.55rem;
+  }
+
+  [data-testid="card-parts"].parts-catalog--card {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.25rem 0.3rem;
+    margin-top: 0.2rem;
+    padding-top: 0.3rem;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__chip {
+    flex: 1 1 calc(33.333% - 0.3rem);
+    min-width: 5.5rem;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    padding: 0.2rem 0.35rem 0.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--outline-variant) 80%, transparent);
+    background: color-mix(in srgb, var(--bg-card) 70%, var(--input-bg));
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__role {
+    min-width: 0;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    line-height: 1.1;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__pn-row {
+    gap: 0.1rem;
+    width: 100%;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__pn {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__copy {
+    min-height: 0 !important;
+    min-width: 0;
+    padding: 0.2rem;
+    margin: -0.1rem -0.1rem -0.1rem auto;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__copy svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  [data-testid="card-parts"] .parts-catalog__name {
+    font-size: 9px;
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
+
+  .card-actions {
+    gap: 0.35rem;
+    margin-top: 0;
+  }
+
+  .card-actions__label-full {
+    display: none;
+  }
+
+  .card-actions__label-short {
+    display: inline;
+  }
+
+  [data-testid="result-card"] .card-actions .md-btn,
+  [data-testid="result-card"] .card-actions__btn {
+    min-height: 36px !important;
+    padding: 0.3rem 0.55rem;
+    font-size: 11px;
+    border-radius: 999px;
+  }
+
+  [data-testid="result-card"] .card-actions__btn--primary {
+    min-height: 36px !important;
+  }
+
+  [data-testid="result-card"] .card-actions__btn--icon,
+  [data-testid="result-card"] .suggest-edit-btn {
+    min-height: 36px !important;
+    min-width: 36px;
+    width: 36px;
+    padding: 0;
+    flex: 0 0 36px;
+  }
+
+  [data-testid="result-card"] .parts-catalog__copy {
+    min-height: 0 !important;
   }
 
   .svg-zoom-fab {

@@ -581,9 +581,9 @@ function renderWireCard(
     <div
       key={itemId}
       data-testid="result-card"
-      className={`bg-[var(--bg-card)] border rounded-lg p-4 mb-2 flex flex-col gap-2.5 text-left transition-all shadow-sm ${isThis ? "border-emerald-500 shadow-md ring-1 ring-emerald-400/40" : "border-[var(--border-color)]"} ${selectedPinState && !isThis ? "border-dashed opacity-100" : "opacity-100"}`}
+      className={`result-card bg-[var(--bg-card)] border rounded-lg p-4 mb-2 flex flex-col gap-2.5 text-left transition-all shadow-sm ${isThis ? "border-emerald-500 shadow-md ring-1 ring-emerald-400/40" : "border-[var(--border-color)]"} ${selectedPinState && !isThis ? "border-dashed opacity-100" : "opacity-100"}`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="result-card__head flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
           <h3 className="ewd-data text-sm font-semibold text-[var(--text-main)] leading-snug">{connectorTitle}</h3>
         </div>
@@ -609,7 +609,7 @@ function renderWireCard(
           ) : null}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-1.5 text-xs font-mono text-[var(--text-main)] bg-[var(--input-bg)] border border-[var(--border-color)] rounded-md p-2.5">
+      <div className="result-card__body grid grid-cols-1 gap-1.5 text-xs font-mono text-[var(--text-main)] bg-[var(--input-bg)] border border-[var(--border-color)] rounded-md p-2.5">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-[var(--text-muted)] font-sans">Откуда</span>
           <span className="ewd-data font-bold whitespace-pre-wrap break-words text-[var(--text-main)]">{fromLabel}</span>
@@ -635,7 +635,7 @@ function renderWireCard(
         {item.parts && (item.parts.device || item.parts.housing || item.parts.mate || item.parts.terminals?.length) ? (
           <ul className="parts-catalog parts-catalog--card" data-testid="card-parts">
             {item.parts.device ? (
-              <li>
+              <li className="parts-catalog__chip">
                 <span className="parts-catalog__role">Деталь</span>
                 <span className="parts-catalog__pn-row">
                   <span className="parts-catalog__pn font-mono">{item.parts.device}</span>
@@ -652,7 +652,7 @@ function renderWireCard(
               </li>
             ) : null}
             {item.parts.housing ? (
-              <li>
+              <li className="parts-catalog__chip">
                 <span className="parts-catalog__role">Корпус</span>
                 <span className="parts-catalog__pn-row">
                   <span className="parts-catalog__pn font-mono">{item.parts.housing}</span>
@@ -669,7 +669,7 @@ function renderWireCard(
               </li>
             ) : null}
             {item.parts.mate ? (
-              <li>
+              <li className="parts-catalog__chip">
                 <span className="parts-catalog__role">Ответная</span>
                 <span className="parts-catalog__pn-row">
                   <span className="parts-catalog__pn font-mono">{item.parts.mate}</span>
@@ -686,7 +686,7 @@ function renderWireCard(
               </li>
             ) : null}
             {(item.parts.terminals || []).map((t) => (
-              <li key={t.part_number}>
+              <li key={t.part_number} className="parts-catalog__chip">
                 <span className="parts-catalog__role">Клемма</span>
                 <span className="parts-catalog__pn-row">
                   <span className="parts-catalog__pn font-mono">{t.part_number}</span>
@@ -708,17 +708,34 @@ function renderWireCard(
           </ul>
         ) : null}
       </div>
-      <div className="flex gap-2 mt-0.5">
+      <div className="card-actions flex gap-2 mt-0.5">
         {canShowOnDiagram ? (
-          <button type="button" data-testid="show-on-diagram" onClick={openDiagram} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 rounded font-medium">
-            Показать на схеме
+          <button
+            type="button"
+            data-testid="show-on-diagram"
+            onClick={openDiagram}
+            className="md-btn md-btn--filled card-actions__btn card-actions__btn--primary flex-1 text-xs"
+          >
+            <span className="card-actions__label-full">Показать на схеме</span>
+            <span className="card-actions__label-short">Схема</span>
           </button>
         ) : null}
-        <button type="button" data-testid="show-faceview" onClick={openFaceView} className={`${canShowOnDiagram ? "px-2" : "flex-1"} bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]`}>
+        <button
+          type="button"
+          data-testid="show-faceview"
+          onClick={openFaceView}
+          className={`md-btn md-btn--tonal card-actions__btn text-xs ${canShowOnDiagram ? "" : "flex-1"}`}
+        >
           Разъём
         </button>
-        <button type="button" data-testid="show-location" onClick={openLocation} className="px-2 bg-[var(--bg-card)] hover:bg-[var(--input-bg)] text-[var(--text-main)] text-xs py-1.5 rounded font-medium border border-[var(--border-color)]">
-          Расположение
+        <button
+          type="button"
+          data-testid="show-location"
+          onClick={openLocation}
+          className="md-btn md-btn--tonal card-actions__btn text-xs"
+        >
+          <span className="card-actions__label-full">Расположение</span>
+          <span className="card-actions__label-short">Место</span>
         </button>
         {suggestionsEnabled ? (
           <button
@@ -740,7 +757,7 @@ function renderWireCard(
                 }),
               })
             }
-            className="suggest-edit-btn"
+            className="md-btn md-btn--text suggest-edit-btn card-actions__btn card-actions__btn--icon"
           >
             ✎
           </button>
