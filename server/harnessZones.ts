@@ -1,4 +1,7 @@
-/** Map Volvo harness header strings → RU zone buckets for Dropdown facets. */
+/** Map Volvo harness header strings / Capital harness IDs → RU zone buckets. */
+
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export type ZoneId =
   | "front_doors"
@@ -27,28 +30,171 @@ export const ZONE_LABELS: Record<ZoneId, string> = {
   other: "Прочее",
 };
 
+/** Known Capital/CHS harness ids → zone (from Introduction + dominant netlist use). */
+export const CAPITAL_HARNESS_ZONE: Record<string, ZoneId> = {
+  "14014": "floor",
+  "14240_RL": "rear_doors",
+  "14240_RR": "rear_doors",
+  "14240_FL": "front_doors",
+  "14240_FR": "front_doors",
+  "14241": "front_doors",
+  "14242": "front_doors",
+  "14243": "rear_doors",
+  "14297": "front_bumper",
+  "14301": "engine",
+  "14324": "engine",
+  "14335": "roof",
+  "14401": "dashboard",
+  "483_AMB": "dashboard",
+  // Frequent unlabeled Capital netlist ids (inferred from subject codes)
+  "12A690": "engine",
+  "14K733": "engine",
+  "14A584": "front_doors",
+  "14K138": "front_doors",
+  "17N400": "trunk",
+  "15K857": "dashboard",
+  "15K868": "dashboard",
+  "15K867": "dashboard",
+  "15A871": "dashboard",
+  "14A280": "dashboard",
+  "14B079": "dashboard",
+  "14B310": "seats",
+  "14B245_HV": "engine",
+  "10B705": "engine",
+  "10K699": "engine",
+  "2C054": "engine",
+  "2C055": "engine",
+  "19A397": "rear_bumper",
+  "PDCF_4C": "front_bumper",
+  AFBT: "front_bumper",
+  CONTROLPANEL: "dashboard",
+  "TRAILER-4P": "trunk",
+  "ACU Adapter": "dashboard",
+};
+
 const ZONE_RULES: Array<{ id: ZoneId; re: RegExp }> = [
-  { id: "front_bumper", re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b/i },
-  { id: "rear_bumper", re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|park\s*assist(?:ance)?\s*system\s*rear/i },
-  { id: "trunk", re: /\btrunk\s*lid|tailgate|tail\s*gate|cargo|багажн|задн\w*\s*двер[ьи].*крыш|fifth\s*door/i },
-  { id: "front_doors", re: /\bfront\s*door|передн\w*\s*двер/i },
-  { id: "rear_doors", re: /\brear\s*door|задн\w*\s*двер/i },
-  // Avoid bare "engine"/"compartment" — they false-positive body harness titles.
-  { id: "engine", re: /\bengine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн\w*\s*отсек|капот|двигател|starter\s*motor|форсун|inject(?:or|ion)?|ECM\b|alternator|generator/i },
-  { id: "dashboard", re: /\bdashboard|instrument(\s*panel)?|heater\s*harness|\bheater\b|cabin|infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед/i },
-  { id: "floor", re: /\bfloor|tunnel|пол|туннел|rear\s*axle|axle\s*harness/i },
-  { id: "roof", re: /\broof|крыш|windshield\s*module/i },
+  {
+    id: "front_bumper",
+    re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|омывател|parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b/i,
+  },
+  {
+    id: "rear_bumper",
+    re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|park\s*assist(?:ance)?\s*system\s*rear/i,
+  },
+  {
+    id: "trunk",
+    re: /\btrunk\s*lid|tailgate|tail\s*gate|cargo|багажн|пята\w*\s*двер|fifth\s*door/i,
+  },
+  // Allow words between «задней … двери» (Capital RU labels)
+  { id: "front_doors", re: /\bfront\s*door|передн\w*.{0,24}двер|двер\w*.{0,16}передн/i },
+  { id: "rear_doors", re: /\brear\s*door|задн\w*.{0,24}двер|двер\w*.{0,16}задн/i },
+  {
+    id: "engine",
+    re: /\bengine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн\w*\s*отсек|капот|двигател|starter\s*motor|форсун|inject(?:or|ion)?|ECM\b|alternator|generator|аккумулятор|заземляющ\w*\s*кабел/i,
+  },
+  {
+    id: "dashboard",
+    re: /\bdashboard|instrument(\s*panel)?|heater\s*harness|\bheater\b|cabin|infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед|приборн/i,
+  },
+  {
+    id: "floor",
+    re: /\bfloor|tunnel|напольн|\bпол\b|туннел|rear\s*axle|axle\s*harness/i,
+  },
+  { id: "roof", re: /\broof|потолк|крыш|windshield\s*module/i },
   { id: "seats", re: /\bseat|сиден/i },
 ];
+
+let cachedLabels: Record<string, string> | null | undefined;
+
+function ewdDataDir(): string {
+  return resolve(process.env.EWD_DATA_DIR || process.env.EWD_DIR || join(process.cwd(), "data", "ewd"));
+}
+
+function loadHarnessLabels(): Record<string, string> {
+  if (cachedLabels !== undefined) return cachedLabels || {};
+  const path = join(ewdDataDir(), "harness_labels.json");
+  if (!existsSync(path)) {
+    cachedLabels = {};
+    return cachedLabels;
+  }
+  try {
+    const payload = JSON.parse(readFileSync(path, "utf-8")) as { by_id?: Record<string, string> };
+    cachedLabels = payload.by_id || {};
+  } catch {
+    cachedLabels = {};
+  }
+  return cachedLabels;
+}
+
+/** Test helper */
+export function resetHarnessLabelCache(): void {
+  cachedLabels = undefined;
+}
+
+function classifyByRules(text: string): ZoneId | null {
+  const s = String(text || "").trim();
+  if (!s) return null;
+  if (ZONE_LABELS[s as ZoneId]) return s as ZoneId;
+  for (const rule of ZONE_RULES) {
+    if (rule.re.test(s)) return rule.id;
+  }
+  return null;
+}
+
+/** Extract Capital harness id token from raw harness_left (id alone or "label id"). */
+export function extractCapitalHarnessId(raw: string): string | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (CAPITAL_HARNESS_ZONE[s] || loadHarnessLabels()[s]) return s;
+  // Prefer known keys appearing as whole tokens
+  for (const id of Object.keys(CAPITAL_HARNESS_ZONE)) {
+    if (new RegExp(`(?:^|[\\s,;/])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[\\s,;/])`, "i").test(s)) {
+      return id;
+    }
+  }
+  for (const id of Object.keys(loadHarnessLabels())) {
+    if (new RegExp(`(?:^|[\\s,;/])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[\\s,;/])`, "i").test(s)) {
+      return id;
+    }
+  }
+  // Bare Capital-style id
+  const m = s.match(/^([0-9A-Za-z][0-9A-Za-z_-]{2,20})$/);
+  return m ? m[1] : null;
+}
+
+function zoneFromCapitalId(id: string): ZoneId | null {
+  if (CAPITAL_HARNESS_ZONE[id]) return CAPITAL_HARNESS_ZONE[id];
+  const label = loadHarnessLabels()[id];
+  if (label) {
+    const z = classifyByRules(label);
+    if (z) return z;
+  }
+  return null;
+}
 
 /** Classify harness / system title text into a zone (unknown → other). */
 export function harnessToZone(harness: string | null | undefined): ZoneId {
   const s = String(harness || "").trim();
   if (!s) return "other";
-  for (const rule of ZONE_RULES) {
-    if (rule.re.test(s)) return rule.id;
+  if (ZONE_LABELS[s as ZoneId]) return s as ZoneId;
+
+  const capitalId = extractCapitalHarnessId(s);
+  if (capitalId) {
+    const z = zoneFromCapitalId(capitalId);
+    if (z) return z;
   }
-  if (/\bdoor|двер/i.test(s)) return "front_doors";
+
+  const byRules = classifyByRules(s);
+  if (byRules) return byRules;
+
+  // Label-only resolve when harness is a known id without explicit map
+  const label = loadHarnessLabels()[s];
+  if (label) {
+    const z = classifyByRules(label);
+    if (z) return z;
+  }
+
+  if (/\bdoor|двер/i.test(s)) return /rear|задн/i.test(s) ? "rear_doors" : "front_doors";
   return "other";
 }
 
@@ -59,9 +205,8 @@ export function harnessToZone(harness: string | null | undefined): ZoneId {
 export function classifySystemText(text: string | null | undefined): ZoneId | null {
   const s = String(text || "").trim();
   if (!s) return null;
-  for (const rule of ZONE_RULES) {
-    if (rule.re.test(s)) return rule.id;
-  }
+  const byRules = classifyByRules(s);
+  if (byRules) return byRules;
   // EWD LogicDesign-style titles
   if (/\bfront\s*pas\b|park\s*assistance\s*system\s*front|\bfog\b|headlamp\s*wash/i.test(s)) {
     return "front_bumper";

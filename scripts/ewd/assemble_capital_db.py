@@ -27,6 +27,47 @@ from ewd.index_devices import normalize_volvo_code  # noqa: E402
 
 CODE_RE = re.compile(r"^(\d+)/(\d+)$")
 
+# Mirror server/harnessZones.ts CAPITAL_HARNESS_ZONE
+CAPITAL_HARNESS_ZONE: dict[str, str] = {
+    "14014": "floor",
+    "14240_RL": "rear_doors",
+    "14240_RR": "rear_doors",
+    "14240_FL": "front_doors",
+    "14240_FR": "front_doors",
+    "14241": "front_doors",
+    "14242": "front_doors",
+    "14243": "rear_doors",
+    "14297": "front_bumper",
+    "14301": "engine",
+    "14324": "engine",
+    "14335": "roof",
+    "14401": "dashboard",
+    "483_AMB": "dashboard",
+    "12A690": "engine",
+    "14K733": "engine",
+    "14A584": "front_doors",
+    "14K138": "front_doors",
+    "17N400": "trunk",
+    "15K857": "dashboard",
+    "15K868": "dashboard",
+    "15K867": "dashboard",
+    "15A871": "dashboard",
+    "14A280": "dashboard",
+    "14B079": "dashboard",
+    "14B310": "seats",
+    "14B245_HV": "engine",
+    "10B705": "engine",
+    "10K699": "engine",
+    "2C054": "engine",
+    "2C055": "engine",
+    "19A397": "rear_bumper",
+    "PDCF_4C": "front_bumper",
+    "AFBT": "front_bumper",
+    "CONTROLPANEL": "dashboard",
+    "TRAILER-4P": "trunk",
+    "ACU Adapter": "dashboard",
+}
+
 
 def _load(path: Path) -> dict[str, Any]:
     if not path.is_file():
@@ -49,21 +90,69 @@ def _type_ru(code: str, kinds: list[str]) -> str:
     return "Узел"
 
 
-def _zone_guess(code: str, harness: str, harness_labels: dict[str, str]) -> str:
-    h = harness_labels.get(harness, "") + " " + harness
-    blob = h.lower()
-    if any(x in blob for x in ("door", "двер", "14240", "14241", "14242", "14243")):
-        return "front_doors" if "rear" not in blob and "задн" not in blob else "rear_doors"
-    if any(x in blob for x in ("bumper", "бампер", "pas")):
+def _zone_from_label(label: str) -> str:
+    blob = (label or "").lower()
+    if not blob:
+        return ""
+    if re.search(r"задн\w*.{0,24}двер|двер\w*.{0,16}задн|rear\s*door", blob):
+        return "rear_doors"
+    if re.search(r"передн\w*.{0,24}двер|двер\w*.{0,16}передн|front\s*door", blob):
+        return "front_doors"
+    if re.search(r"бампер.*зад|rear\s*bumper", blob):
+        return "rear_bumper"
+    if re.search(r"бампер|washer|омывател|front\s*pas", blob):
         return "front_bumper"
-    if any(x in blob for x in ("engine", "двигат", "14014")):
-        return "engine"
-    if any(x in blob for x in ("trunk", "багаж", "tail")):
+    if re.search(r"напольн|\bпол\b|tunnel|туннел", blob):
+        return "floor"
+    if re.search(r"потолк|крыш|roof", blob):
+        return "roof"
+    if re.search(r"панел|приборн|dashboard|салон", blob):
+        return "dashboard"
+    if re.search(r"багаж|trunk|tailgate", blob):
         return "trunk"
+    if re.search(r"сиден|seat", blob):
+        return "seats"
+    if re.search(r"двигат|моторн|engine|аккумулятор|заземля", blob):
+        return "engine"
+    return ""
+
+
+def _zone_guess(code: str, harness: str, harness_labels: dict[str, str]) -> str:
+    hid = (harness or "").strip()
+    if hid in CAPITAL_HARNESS_ZONE:
+        return CAPITAL_HARNESS_ZONE[hid]
+    label = harness_labels.get(hid, "")
+    z = _zone_from_label(label)
+    if z:
+        return z
+    blob = f"{label} {hid}".lower()
+    if any(x in blob for x in ("14240_rl", "14240_rr", "14243")):
+        return "rear_doors"
+    if any(x in blob for x in ("14240_fl", "14240_fr", "14241", "14242")):
+        return "front_doors"
+    if "14014" in blob:
+        return "floor"
+    if any(x in blob for x in ("14401", "приборн", "панел")):
+        return "dashboard"
+    if any(x in blob for x in ("14335", "потолк", "крыш")):
+        return "roof"
     fam = code.split("/")[0] if "/" in code else ""
     if fam in ("8", "2"):
         return "engine"
     return ""
+
+
+def _harness_stored(harness: str, harness_labels: dict[str, str], zone: str) -> str:
+    """Prefer zone id (nav short-circuit); else 'label id' for regex classification."""
+    hid = (harness or "").strip()
+    if zone:
+        return zone
+    if not hid:
+        return ""
+    label = (harness_labels.get(hid) or "").strip()
+    if label:
+        return f"{label} {hid}".strip()
+    return hid
 
 
 def assemble(
@@ -255,6 +344,7 @@ def assemble(
                     "UPDATE components SET home_zone=? WHERE component_code=? AND (home_zone='' OR home_zone IS NULL)",
                     (zone, code),
                 )
+            harness_left = _harness_stored(harness, harness_labels, zone)
             from_detail = f"{code}:{cavity}"
             to_detail = f"{peer}:{peer_pin}" if peer else (e.get("wireName") or "")
             conn.execute(
@@ -274,7 +364,7 @@ def assemble(
                     code,
                     from_id,
                     to_id,
-                    harness,
+                    harness_left,
                     e.get("gauge") or "",
                     pin_uid,
                     wire_uid,
@@ -303,6 +393,13 @@ def assemble(
             if sig in seen_wire:
                 continue
             seen_wire.add(sig)
+            pw_harness = e.get("harness") or ""
+            pw_zone = _zone_guess(code, pw_harness, harness_labels)
+            if pw_zone:
+                conn.execute(
+                    "UPDATE components SET home_zone=? WHERE component_code=? AND (home_zone='' OR home_zone IS NULL)",
+                    (pw_zone, code),
+                )
             conn.execute(
                 """INSERT INTO wire_connections(
                      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
@@ -320,7 +417,7 @@ def assemble(
                     code,
                     comp_ids.get(code),
                     comp_ids.get(peer),
-                    e.get("harness") or "",
+                    _harness_stored(pw_harness, harness_labels, pw_zone),
                     e.get("gauge") or "",
                     pin_uid,
                     wire_uid,

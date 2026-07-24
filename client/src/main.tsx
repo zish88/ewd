@@ -2219,62 +2219,6 @@ function App() {
           </div>
         </section>
         ) : null}
-        <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="capital-help">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Справка Capital EWD</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                { label: "Введение", panel: { kind: "intro", slug: "guide" } as CapitalPanel },
-                { label: "Сокращения", panel: { kind: "intro", slug: "abbreviations" } as CapitalPanel },
-                { label: "Предохранители", panel: { kind: "report", report: "fuse" } as CapitalPanel },
-                { label: "Инлайны", panel: { kind: "report", report: "inline" } as CapitalPanel },
-                { label: "Спайки", panel: { kind: "report", report: "splice" } as CapitalPanel },
-                { label: "Массы", panel: { kind: "report", report: "grounds" } as CapitalPanel },
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className="md-btn md-btn--tonal text-[11px] px-2 py-1"
-                onClick={() => {
-                  setActiveSvg(null);
-                  setCapitalPanel(item.panel);
-                  if (isMobileViewport()) setMobileView("scheme");
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-            {selectedCode ? (
-              <>
-                <button
-                  type="button"
-                  data-testid="nav-open-faceview"
-                  className="md-btn md-btn--tonal text-[11px] px-2 py-1"
-                  onClick={() => {
-                    setActiveSvg(null);
-                    setCapitalPanel({ kind: "faceview", code: selectedCode });
-                    if (isMobileViewport()) setMobileView("scheme");
-                  }}
-                >
-                  Разъём {selectedCode}
-                </button>
-                <button
-                  type="button"
-                  data-testid="nav-open-location"
-                  className="md-btn md-btn--tonal text-[11px] px-2 py-1"
-                  onClick={() => {
-                    setActiveSvg(null);
-                    setCapitalPanel({ kind: "location", code: selectedCode });
-                    if (isMobileViewport()) setMobileView("scheme");
-                  }}
-                >
-                  Расположение
-                </button>
-              </>
-            ) : null}
-          </div>
-        </section>
         {features.dtcSearch ? (
         <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>

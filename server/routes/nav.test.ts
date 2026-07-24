@@ -469,3 +469,164 @@ test("wireMatchesZone attributes engine+bumper cable to bumper not engine", asyn
   assert.equal(wireMatchesZone("Engine harness", "Engine harness", "engine"), true);
   assert.equal(wireMatchesZone("Engine harness", "Engine harness", "front_bumper"), false);
 });
+
+/** Capital harness ids (14240_RL / 14014) must populate zone dropdowns — not collapse to empty. */
+test("nav components Capital harness ids: rear_doors non-empty, no engine ECM peer", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const page = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 1, "Door module", "connector").lastInsertRowid,
+  );
+  const door = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+      )
+      .run("3/128", "Модуль", "RL door", "rear_doors")
+      .lastInsertRowid,
+  );
+  const ecm = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+      )
+      .run("4/46", "Блок", "ECM", "engine")
+      .lastInsertRowid,
+  );
+  const floorMod = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_en, home_zone) VALUES (?, ?, ?, ?)",
+      )
+      .run("4/9", "Блок", "Floor CEM", "floor")
+      .lastInsertRowid,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "1",
+    "BN",
+    "Коричневый",
+    "",
+    "3/128:1",
+    "74/509:1",
+    "",
+    "",
+    "",
+    "3/128",
+    "capital",
+    1,
+    0,
+    95,
+    door,
+    null,
+    null,
+    "14240_RL",
+    "",
+    null,
+    0,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "2",
+    "RD",
+    "Красный",
+    "",
+    "4/46:1",
+    "15/31:1",
+    "",
+    "",
+    "",
+    "4/46",
+    "capital",
+    1,
+    0,
+    95,
+    ecm,
+    null,
+    null,
+    "12A690",
+    "",
+    null,
+    0,
+  );
+  db.prepare(
+    `INSERT INTO wire_connections(
+      page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+      from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+      is_verified, requires_manual_review, integrity_score,
+      from_component_id, to_component_id, via_component_id,
+      harness_left, harness_right, diagram_page_id, diagram_source_page)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    page,
+    "3",
+    "BK",
+    "Черный",
+    "",
+    "4/9:1",
+    "31/10:1",
+    "",
+    "",
+    "",
+    "4/9",
+    "capital",
+    1,
+    0,
+    95,
+    floorMod,
+    null,
+    null,
+    "14014",
+    "",
+    null,
+    0,
+  );
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+
+  const rear = await request(app).get("/api/nav/components?zone=rear_doors");
+  assert.equal(rear.status, 200);
+  const rearCodes = rear.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(rearCodes.includes("3/128"), `rear_doors empty or missing 3/128: ${rearCodes}`);
+  assert.ok(!rearCodes.includes("4/46"), "ECM must not appear in rear_doors");
+  assert.ok(!rearCodes.includes("4/9"), "floor module must not appear in rear_doors");
+
+  const wires = await request(app).get("/api/nav/wires?code=3%2F128&zone=rear_doors");
+  assert.ok((wires.body.owner_wires?.length || 0) >= 1);
+
+  const floor = await request(app).get("/api/nav/components?zone=floor");
+  const floorCodes = floor.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(floorCodes.includes("4/9"), `floor empty or missing 4/9: ${floorCodes}`);
+  assert.ok(!floorCodes.includes("3/128"));
+
+  const eng = await request(app).get("/api/nav/components?zone=engine");
+  const engCodes = eng.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(engCodes.includes("4/46"), `engine empty or missing 4/46: ${engCodes}`);
+  assert.ok(!engCodes.includes("3/128"));
+});
