@@ -53,16 +53,17 @@ const MODEL_YEARS: Record<string, string[]> = {
 };
 
 /**
- * model+year → engines that were offered (intersected with EWD vehicleconfig power options).
+ * model+year → engines actually offered on P3 (catalog / press), not a full EWD option dump.
  * Years are inclusive; "2014+" means 2014 and later in-package.
+ * XC70 P3 never got modular 2.5T (that was P2); T6 on XC70 from MY2009.
  */
 const MODEL_YEAR_ENGINES: Record<string, Record<string, string[]>> = {
   XC70: {
-    "2008": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
-    "2009": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
-    "2010": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
-    "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    "2008": ["3.2 i6", "2.4D D5"],
+    "2009": ["3.2 i6", "3.0T T6", "2.4D D5"],
+    "2010": ["3.2 i6", "3.0T T6", "2.4D D5"],
+    "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4"],
+    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2014+": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
   },
@@ -81,7 +82,7 @@ const MODEL_YEAR_ENGINES: Record<string, Record<string, string[]>> = {
     "2009": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2010": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2014+": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
   },
@@ -201,8 +202,8 @@ export function resolveFilters(sel: VehicleSelection) {
         ? enginesForModelYear(model, "")
         : [];
   const engineRaw = String(sel.engine || "").trim();
-  const engine = engineRaw;
-  if (engine && !engines.includes(engine)) engines = [...engines, engine];
+  // Drop stale engine when it is not offered for this model+year (do not soft-append).
+  const engine = engineRaw && engines.includes(engineRaw) ? engineRaw : "";
   let transmissions = engine ? transmissionsForEngine(engine) : [];
   if (engine && !transmissions.length) {
     transmissions = ["TF-80SC", "M66"].map((id) => ({
@@ -211,16 +212,20 @@ export function resolveFilters(sel: VehicleSelection) {
     }));
   }
   const trNorm = normalizeTransmission(sel.transmission || "");
-  // Empty = «Все КПП»; keep specific pick even if not listed
-  const transmission = trNorm;
+  // Empty = «Все КПП»; keep specific pick even if not listed (only when engine is valid)
+  let transmission = trNorm;
   if (transmission && !transmissions.some((t) => t.id === transmission)) {
-    transmissions = [
-      ...transmissions,
-      {
-        id: transmission as TransmissionId,
-        label: TRANSMISSION_LABELS[transmission as TransmissionId] || transmission,
-      },
-    ];
+    if (engine) {
+      transmissions = [
+        ...transmissions,
+        {
+          id: transmission as TransmissionId,
+          label: TRANSMISSION_LABELS[transmission as TransmissionId] || transmission,
+        },
+      ];
+    } else {
+      transmission = "";
+    }
   }
   return {
     models,

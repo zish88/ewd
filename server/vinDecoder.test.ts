@@ -3,10 +3,30 @@ import assert from "node:assert/strict";
 import { decodeVolvoVin } from "./vinDecoder.js";
 import { resolveFilters } from "./vehicleMatrix.js";
 
-test("filters cascade: XC70 2008 has no 1.6T", () => {
+test("filters cascade: XC70 2008 has 3.2/D5 only — no 2.5T, T6, or 1.6T", () => {
   const r = resolveFilters({ model: "XC70", year: "2008" });
   assert.ok(r.engines.includes("3.2 i6"));
+  assert.ok(r.engines.includes("2.4D D5"));
+  assert.ok(!r.engines.includes("2.5T"));
+  assert.ok(!r.engines.includes("3.0T T6"));
   assert.ok(!r.engines.includes("1.6T"));
+});
+
+test("filters cascade: XC70 2009 adds T6, still no 2.5T", () => {
+  const r = resolveFilters({ model: "XC70", year: "2009" });
+  assert.ok(r.engines.includes("3.0T T6"));
+  assert.ok(!r.engines.includes("2.5T"));
+});
+
+test("filters cascade: V70 2008 keeps 2.5T; XC60 2009 has none", () => {
+  assert.ok(resolveFilters({ model: "V70", year: "2008" }).engines.includes("2.5T"));
+  assert.ok(!resolveFilters({ model: "XC60", year: "2009" }).engines.includes("2.5T"));
+});
+
+test("filters cascade: stale engine cleared when not offered for year", () => {
+  const r = resolveFilters({ model: "XC70", year: "2008", engine: "2.5T" });
+  assert.equal(r.selection.engine, "");
+  assert.ok(!r.engines.includes("2.5T"));
 });
 
 test("filters cascade: 3.0T T6 only TF-80SC", () => {
