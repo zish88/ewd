@@ -521,9 +521,37 @@ html {
   display: none;
 }
 
-.app-panel:not(.is-filters-collapsed) .mobile-filters-toggle__label {
-  color: var(--text-muted);
-  font-weight: 500;
+.app-bar__summary {
+  display: none;
+}
+
+/* Shared filter host: desktop = inline under header; mobile = bottom sheet */
+.filters-host {
+  position: relative;
+  z-index: 40;
+  flex-shrink: 0;
+}
+
+.filters-sheet__backdrop {
+  display: none;
+}
+
+.filters-sheet__handle,
+.filters-sheet__header,
+.filters-sheet__footer {
+  display: none;
+}
+
+.filters-sheet {
+  margin: 0 auto;
+  max-width: 80rem; /* max-w-7xl */
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.filters-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 @media (max-width: 768px) {
@@ -538,26 +566,144 @@ html {
     min-height: var(--app-bar-h);
   }
 
+  .app-bar__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.15rem 0 0.35rem;
+    max-width: 80rem;
+  }
+
   .mobile-filters-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.4rem;
     min-height: 40px;
     padding: 0.4rem 0.9rem;
     margin: 0;
     width: auto;
   }
 
-  .app-panel.is-filters-collapsed .app-panel__filters {
+  .mobile-filters-toggle__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--accent);
+    color: #fff;
+    line-height: 1;
+  }
+
+  /* Closed on mobile: keep cards full-height (no 70vh steal) */
+  .filters-host:not(.is-sheet-open) {
     display: none;
   }
 
-  /* Expanded filters: sheet-like panel under app bar */
-  .app-panel:not(.is-filters-collapsed) .app-panel__filters {
-    max-height: min(70vh, 560px);
+  .filters-host.is-sheet-open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+
+  .filters-host.is-sheet-open .filters-sheet__backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: rgba(15, 23, 42, 0.45);
+    cursor: pointer;
+  }
+
+  .filters-host.is-sheet-open .filters-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: none;
+    max-height: min(92vh, 720px);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28);
+    padding-bottom: var(--safe-bottom);
+    animation: filters-sheet-up 220ms ease-out;
+  }
+
+  @keyframes filters-sheet-up {
+    from {
+      transform: translateY(12%);
+      opacity: 0.85;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .filters-host.is-sheet-open .filters-sheet__handle {
+    display: block;
+    width: 2.5rem;
+    height: 0.28rem;
+    margin: 0.55rem auto 0.25rem;
+    border-radius: 999px;
+    background: var(--outline-variant);
+    flex-shrink: 0;
+  }
+
+  .filters-host.is-sheet-open .filters-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.25rem 0.85rem 0.5rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .filters-sheet__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--text-main);
+  }
+
+  .filters-host.is-sheet-open .filters-sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding-bottom: 0.5rem;
     -webkit-overflow-scrolling: touch;
+    padding: 0.65rem 0.85rem 0.5rem;
+  }
+
+  .filters-host.is-sheet-open .filters-sheet__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding: 0.65rem 0.85rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-card);
+  }
+
+  .filters-sheet__apply {
+    flex: 1 1 auto;
+    min-height: 44px;
   }
 
   .mobile-view-tabs {
@@ -569,12 +715,6 @@ html {
     padding: 0.35rem 0;
     margin-bottom: 0.35rem;
     background: var(--bg-main);
-  }
-
-  /* Expanded filter sheet is inside sticky header — don't pin tabs over it */
-  .app-shell:has(.app-bar:not(.is-filters-collapsed)) .mobile-view-tabs {
-    position: relative;
-    top: auto;
   }
 
   .mobile-view-tabs__btn {
@@ -687,12 +827,97 @@ html {
   }
 }
 
+/* —— Maintenance / site closed —— */
+.maintenance-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem calc(2rem + var(--safe-bottom));
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 28%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--bg-main);
+  color: var(--text-main);
+}
+
+.maintenance-inner {
+  width: min(100%, 28rem);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.maintenance-brand {
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.maintenance-car {
+  display: block;
+  width: min(100%, 26rem);
+  aspect-ratio: 475 / 345;
+  margin: 0.35rem 0 0.15rem;
+  background: var(--accent);
+  opacity: 0.9;
+  -webkit-mask: url("/maintenance-volvo.svg") center / contain no-repeat;
+  mask: url("/maintenance-volvo.svg") center / contain no-repeat;
+  animation: maintenance-car-in 0.9s ease-out both;
+}
+
+.maintenance-msg {
+  margin: 0;
+  font-size: clamp(0.95rem, 2.6vw, 1.1rem);
+  line-height: 1.45;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.maintenance-msg--pending {
+  opacity: 0.45;
+  letter-spacing: 0.35em;
+}
+
+@keyframes maintenance-car-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maintenance-car {
+    animation: none;
+  }
+}
+
 @media (min-width: 769px) {
   .app-bar__chrome .mobile-filters-toggle {
-    display: none;
+    display: none !important;
   }
 
-  .app-panel.is-filters-collapsed .app-panel__filters {
-    display: flex;
+  .app-bar__summary {
+    display: none !important;
+  }
+
+  .filters-host {
+    display: block;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-main);
+  }
+
+  .filters-sheet__backdrop,
+  .filters-sheet__handle,
+  .filters-sheet__header,
+  .filters-sheet__footer {
+    display: none !important;
   }
 }

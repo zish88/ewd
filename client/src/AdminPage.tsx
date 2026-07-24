@@ -145,7 +145,7 @@ export function AdminPage() {
                     />
                   </label>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Если выключить — на главной будет экран «сайт временно недоступен» (админка останется).
+                    Если выключить — главная покажет только экран профилактики (даже для админа). Админка /admin останется.
                   </p>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-2">Функции</h3>
                   <ul className="space-y-2">
