@@ -885,6 +885,9 @@ function App() {
   });
   /** Mobile bottom-sheet for filters; desktop ignores (filters always inline). */
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  /** Mobile: node colors / systems / diagrams sheet (keeps card list full-height). */
+  const [toolsSheetOpen, setToolsSheetOpen] = useState(false);
+  const [isMobileUi, setIsMobileUi] = useState(false);
   const [vehicleConfigured, setVehicleConfigured] = useState(
     () => Boolean(persisted0.model && persisted0.year),
   );
@@ -971,6 +974,9 @@ function App() {
 
   const applyWireColorFilter = (clicked: string | null) => {
     setWireColorFilter((cur) => nextWireColorFilter(cur, clicked));
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+      setToolsSheetOpen(false);
+    }
   };
 
   // Capital FaceView / Location / report → scheme tab on phones
@@ -1152,16 +1158,27 @@ function App() {
     });
   }, [ownerWires, transitWires, selectedCode]);
 
-  // Mobile filter sheet: scroll-lock, Escape, pull-to-refresh guard, focus
   useEffect(() => {
-    if (!filtersSheetOpen) return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobileUi(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Mobile sheets: scroll-lock, Escape, pull-to-refresh guard, focus
+  const anySheetOpen = filtersSheetOpen || (isMobileUi && toolsSheetOpen);
+  useEffect(() => {
+    if (!anySheetOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.classList.add("is-filters-sheet-open");
     document.body.classList.add("is-filters-sheet-open");
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFiltersSheetOpen(false);
+      if (e.key !== "Escape") return;
+      if (toolsSheetOpen) setToolsSheetOpen(false);
+      else setFiltersSheetOpen(false);
     };
     window.addEventListener("keydown", onKey);
 
@@ -1194,7 +1211,7 @@ function App() {
     const focusable = root?.querySelector<HTMLElement>(
       "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
     );
-    focusable?.focus();
+    if (filtersSheetOpen) focusable?.focus();
     return () => {
       document.body.style.overflow = prevOverflow;
       document.documentElement.classList.remove("is-filters-sheet-open");
@@ -1204,9 +1221,9 @@ function App() {
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("touchcancel", onTouchEnd);
-      filtersToggleRef.current?.focus();
+      if (filtersSheetOpen) filtersToggleRef.current?.focus();
     };
-  }, [filtersSheetOpen]);
+  }, [anySheetOpen, filtersSheetOpen, toolsSheetOpen]);
 
   const onSheetSwipeStart = (e: ReactTouchEvent) => {
     const t = e.touches[0];
@@ -1238,6 +1255,7 @@ function App() {
     setWireColorFilter(null);
     setSchemeContext(null);
     setMobileView("cards");
+    setToolsSheetOpen(false);
     setSelectedPinState(null);
     setCapitalPanel(null);
     setActiveSvg(null);
@@ -1828,6 +1846,7 @@ function App() {
   ].filter(Boolean).length;
 
   const closeFiltersSheet = () => setFiltersSheetOpen(false);
+  const closeToolsSheet = () => setToolsSheetOpen(false);
   const resetFiltersSheet = () => {
     setVinLocked(false);
     setVinInput("");
@@ -2099,7 +2118,7 @@ function App() {
     </>
   );
 
-  return <main className={`app-shell h-screen overflow-hidden flex flex-col${filtersSheetOpen ? " is-filters-sheet-open" : ""}`}>
+  return <main className={`app-shell h-screen overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
     <div className="desktop-bg-art" aria-hidden="true">
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
       <div className="desktop-bg-art__piece desktop-bg-art__piece--b" />
@@ -2113,27 +2132,46 @@ function App() {
       className="app-panel app-bar shrink-0 border-b px-3 py-2"
     >
       <div className="app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]">
-        <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0">Volvo EWD</span>
         <button
           ref={filtersToggleRef}
           type="button"
-          className="mobile-filters-toggle md-btn md-btn--tonal ml-auto"
+          className="mobile-filters-toggle md-btn md-btn--tonal"
           data-testid="mobile-filters-toggle"
           aria-expanded={filtersSheetOpen}
           aria-controls="filters-sheet"
           aria-haspopup="dialog"
-          aria-label={filtersSheetOpen ? "Закрыть фильтры" : "Открыть фильтры"}
-          onClick={() => setFiltersSheetOpen((v) => !v)}
+          aria-label={filtersSheetOpen ? "Закрыть меню" : "Открыть меню фильтров"}
+          onClick={() => {
+            setToolsSheetOpen(false);
+            setFiltersSheetOpen((v) => !v);
+          }}
         >
-          <span className="mobile-filters-toggle__label">Фильтры</span>
+          <span className="mobile-filters-toggle__icon" aria-hidden="true">☰</span>
+          <span className="mobile-filters-toggle__label">Меню</span>
           {filterActiveCount > 0 ? (
             <span className="mobile-filters-toggle__badge" data-testid="filters-active-count">
               {filterActiveCount}
             </span>
           ) : null}
         </button>
+        <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0 app-bar__brand">Volvo EWD</span>
+        {selectedCode ? (
+          <button
+            type="button"
+            className="app-bar__code-chip md-chip md-chip--accent font-mono"
+            data-testid="app-bar-code-chip"
+            title="Параметры узла"
+            onClick={() => {
+              setFiltersSheetOpen(false);
+              setToolsSheetOpen(true);
+            }}
+          >
+            {selectedCode}
+          </button>
+        ) : null}
+        <div className="app-bar__desktop-spacer ml-auto" aria-hidden="true" />
       </div>
-      {(selectedModel || zoneSummaryLabel || selectedCode) ? (
+      {(selectedModel || zoneSummaryLabel) && !selectedCode ? (
         <div
           className="app-bar__summary mx-auto max-w-7xl"
           data-testid="filters-summary-chips"
@@ -2148,7 +2186,6 @@ function App() {
             <span className="md-chip md-chip--accent">{selectedModel}</span>
           ) : null}
           {zoneSummaryLabel ? <span className="md-chip">{zoneSummaryLabel}</span> : null}
-          {selectedCode ? <span className="md-chip font-mono">{selectedCode}</span> : null}
         </div>
       ) : null}
     </header>
@@ -2274,42 +2311,66 @@ function App() {
         </div>
       </section>
     ) : mode ? <section data-testid="results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
-      <div className="mb-1 flex justify-between shrink-0 text-xs">
-        <p data-testid="results-notice" className="text-[var(--text-muted)]">{loading ? notice || "Загрузка…" : notice}</p>
-        <button type="button" data-testid="clear-results" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={clear}>Очистить</button>
+      <div className="results-notice-row mb-1 flex justify-between shrink-0 text-xs">
+        <p data-testid="results-notice" className="text-[var(--text-muted)] truncate">{loading ? notice || "Загрузка…" : notice}</p>
+        <button type="button" data-testid="clear-results" className="text-[var(--text-muted)] hover:text-[var(--text-main)] shrink-0" onClick={clear}>Очистить</button>
       </div>
-      <div
-        data-testid="mobile-view-tabs"
-        className="mobile-view-tabs"
-        role="tablist"
-        aria-label="Вид на телефоне"
-      >
+      <div className="mobile-browse-bar" data-testid="mobile-browse-bar">
+        <div
+          data-testid="mobile-view-tabs"
+          className="mobile-view-tabs"
+          role="tablist"
+          aria-label="Вид на телефоне"
+        >
+          <button
+            type="button"
+            role="tab"
+            data-testid="mobile-tab-cards"
+            aria-selected={mobileView === "cards"}
+            className={`mobile-view-tabs__btn${mobileView === "cards" ? " is-active" : ""}`}
+            onClick={() => setMobileView("cards")}
+          >
+            Карточки
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-testid="mobile-tab-scheme"
+            aria-selected={mobileView === "scheme"}
+            className={`mobile-view-tabs__btn${mobileView === "scheme" ? " is-active" : ""}`}
+            disabled={!rightOpen}
+            onClick={() => {
+              if (!rightOpen) {
+                setNotice("Сначала откройте схему кнопкой «Показать на схеме».");
+                return;
+              }
+              setMobileView("scheme");
+            }}
+          >
+            Схема
+          </button>
+        </div>
         <button
           type="button"
-          role="tab"
-          data-testid="mobile-tab-cards"
-          aria-selected={mobileView === "cards"}
-          className={`mobile-view-tabs__btn${mobileView === "cards" ? " is-active" : ""}`}
-          onClick={() => setMobileView("cards")}
+          className={`mobile-tools-btn md-btn md-btn--tonal${wireColorFilter ? " is-active" : ""}`}
+          data-testid="mobile-tools-btn"
+          aria-expanded={toolsSheetOpen}
+          aria-controls="cards-column-sticky"
+          onClick={() => {
+            setFiltersSheetOpen(false);
+            setToolsSheetOpen((v) => !v);
+          }}
         >
-          Карточки
+          {wireColorFilter ? `Цвет ${wireColorFilter}` : "Узел"}
         </button>
         <button
           type="button"
-          role="tab"
-          data-testid="mobile-tab-scheme"
-          aria-selected={mobileView === "scheme"}
-          className={`mobile-view-tabs__btn${mobileView === "scheme" ? " is-active" : ""}`}
-          disabled={!rightOpen}
-          onClick={() => {
-            if (!rightOpen) {
-              setNotice("Сначала откройте схему кнопкой «Показать на схеме».");
-              return;
-            }
-            setMobileView("scheme");
-          }}
+          className="mobile-tools-btn md-btn md-btn--text"
+          data-testid="mobile-clear-results"
+          aria-label="Очистить"
+          onClick={clear}
         >
-          Схема EWD
+          ✕
         </button>
       </div>
       <div className={`flex-1 min-h-0 grid gap-3 ${rightOpen ? "grid-cols-1 lg:grid-cols-12" : ""}`}>
@@ -2320,7 +2381,41 @@ function App() {
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
-      <div data-testid="cards-column-sticky" className="cards-column__sticky shrink-0 space-y-2">
+      <div data-testid="cards-column-scroll" className="cards-column__scroll flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]">
+      <details
+        data-testid="cards-column-sticky"
+        className="cards-column__sticky cards-column__chrome mobile-node-tools"
+        open={isMobileUi ? toolsSheetOpen : true}
+        onToggle={(e) => {
+          if (!isMobileUi) return;
+          const next = (e.currentTarget as HTMLDetailsElement).open;
+          if (next !== toolsSheetOpen) setToolsSheetOpen(next);
+        }}
+      >
+        <summary className="mobile-node-tools__summary">
+          <span className="mobile-node-tools__summary-title">
+            {selectedCode ? `${selectedCode} · цвета и схемы` : "Параметры узла"}
+          </span>
+          <button
+            type="button"
+            className="mobile-node-tools__summary-close"
+            aria-label="Закрыть"
+            onClick={(e) => {
+              e.preventDefault();
+              setToolsSheetOpen(false);
+            }}
+          >
+            ✕
+          </button>
+        </summary>
+        <button
+          type="button"
+          className="mobile-node-tools__backdrop"
+          aria-label="Закрыть параметры узла"
+          tabIndex={toolsSheetOpen ? 0 : -1}
+          onClick={() => setToolsSheetOpen(false)}
+        />
+        <div className="mobile-node-tools__panel space-y-2">
       {nodeInfo ? (
         <aside data-testid="node-info-banner" className="md-info-banner app-card border rounded-xl px-3 py-2.5 space-y-1.5">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -2358,8 +2453,8 @@ function App() {
         </aside>
       ) : null}
       <div data-testid="wires-block" className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 cards-chrome__actions">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] cards-chrome__heading">
             Спецификация контактов и цепей
           </h2>
           {ewdSystems.length > 0 ? (
@@ -2582,8 +2677,8 @@ function App() {
           </div>
         ) : null}
       </div>
-      </div>
-      <div data-testid="cards-column-scroll" className="cards-column__scroll flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+        </div>
+      </details>
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
