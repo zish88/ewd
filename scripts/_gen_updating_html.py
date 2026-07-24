@@ -24,6 +24,7 @@ html = f"""<!doctype html>
       --text-muted: #94a3b8;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
+      --dash: 40px;
     }}
     * {{ box-sizing: border-box; }}
     html, body {{
@@ -48,7 +49,7 @@ html = f"""<!doctype html>
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1.1rem;
     }}
     .maintenance-brand {{
       margin: 0;
@@ -58,21 +59,47 @@ html = f"""<!doctype html>
       color: var(--accent);
       text-transform: uppercase;
     }}
-    .maintenance-car {{
-      display: block;
+    /* Scene: road scrolls under the car → «едет» без скачка цикла */
+    .drive-scene {{
       width: min(100%, 26rem);
-      aspect-ratio: 475 / 345;
-      margin: 0.35rem 0 0.15rem;
-      color: var(--accent);
-      opacity: 0.9;
-      animation:
-        maintenance-car-in 0.9s ease-out both,
-        maintenance-car-idle 4.5s ease-in-out 0.9s infinite;
+      margin: 0.2rem 0 0.1rem;
+      overflow: hidden;
+      animation: scene-fade-in 0.85s ease-out both;
     }}
-    .maintenance-car svg {{
+    .drive-car {{
+      display: block;
+      width: 100%;
+      aspect-ratio: 475 / 345;
+      color: var(--accent);
+      opacity: 0.92;
+      will-change: transform;
+      animation: car-cruise 4.8s ease-in-out infinite;
+    }}
+    .drive-car svg {{
       width: 100%;
       height: 100%;
       display: block;
+    }}
+    .drive-road {{
+      position: relative;
+      height: 10px;
+      margin: -0.35rem 8% 0;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 12%, #0b1220);
+      overflow: hidden;
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
+    }}
+    .drive-road__dashes {{
+      position: absolute;
+      inset: 3px -var(--dash) 3px 0;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--accent) 0 18px,
+        transparent 18px var(--dash)
+      );
+      opacity: 0.55;
+      will-change: transform;
+      animation: road-scroll 0.9s linear infinite;
     }}
     .maintenance-msg {{
       margin: 0;
@@ -81,16 +108,23 @@ html = f"""<!doctype html>
       color: var(--text-muted);
       letter-spacing: 0.02em;
     }}
-    @keyframes maintenance-car-in {{
-      from {{ opacity: 0; transform: translateY(12px); }}
-      to {{ opacity: 0.9; transform: translateY(0); }}
+    @keyframes scene-fade-in {{
+      from {{ opacity: 0; transform: translateY(10px); }}
+      to {{ opacity: 1; transform: translateY(0); }}
     }}
-    @keyframes maintenance-car-idle {{
-      0%, 100% {{ transform: translateY(0); opacity: 0.88; }}
-      50% {{ transform: translateY(-6px); opacity: 1; }}
+    /* 0% === 100% → бесшовный цикл, без прыжка */
+    @keyframes car-cruise {{
+      0%, 100% {{ transform: translate3d(-12px, 0, 0) rotate(-0.6deg); }}
+      50% {{ transform: translate3d(12px, -3px, 0) rotate(0.6deg); }}
+    }}
+    @keyframes road-scroll {{
+      from {{ transform: translate3d(0, 0, 0); }}
+      to {{ transform: translate3d(calc(-1 * var(--dash)), 0, 0); }}
     }}
     @media (prefers-reduced-motion: reduce) {{
-      .maintenance-car {{ animation: none; opacity: 0.9; }}
+      .drive-scene {{ animation: none; }}
+      .drive-car,
+      .drive-road__dashes {{ animation: none; }}
     }}
   </style>
 </head>
@@ -98,8 +132,13 @@ html = f"""<!doctype html>
   <main class="maintenance-page">
     <div class="maintenance-inner">
       <h1 class="maintenance-brand">VOLVO EWD</h1>
-      <div class="maintenance-car" role="img" aria-label="Volvo V70 / XC70 / S80">
+      <div class="drive-scene" role="img" aria-label="Volvo V70 / XC70 / S80">
+        <div class="drive-car">
 {svg}
+        </div>
+        <div class="drive-road" aria-hidden="true">
+          <div class="drive-road__dashes"></div>
+        </div>
       </div>
       <p class="maintenance-msg">сайт на обновлении</p>
     </div>

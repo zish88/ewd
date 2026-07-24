@@ -1764,9 +1764,9 @@ main.is-filters-sheet-open {
   opacity: 0.9;
   -webkit-mask: url("/maintenance-volvo.svg") center / contain no-repeat;
   mask: url("/maintenance-volvo.svg") center / contain no-repeat;
-  animation:
-    maintenance-car-in 0.9s ease-out both,
-    maintenance-car-idle 4.5s ease-in-out 0.9s infinite;
+  will-change: transform;
+  /* Одна анимация, 0%===100% — без прыжка при цикле */
+  animation: maintenance-car-cruise 4.8s ease-in-out infinite;
 }
 
 .maintenance-msg {
@@ -1782,26 +1782,15 @@ main.is-filters-sheet-open {
   letter-spacing: 0.35em;
 }
 
-@keyframes maintenance-car-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 0.9;
-    transform: translateY(0);
-  }
-}
-
-@keyframes maintenance-car-idle {
+@keyframes maintenance-car-cruise {
   0%,
   100% {
-    transform: translateY(0);
-    opacity: 0.88;
+    transform: translate3d(-10px, 0, 0) rotate(-0.5deg);
+    opacity: 0.9;
   }
   50% {
-    transform: translateY(-6px);
-    opacity: 1;
+    transform: translate3d(10px, -3px, 0) rotate(0.5deg);
+    opacity: 0.95;
   }
 }
 
