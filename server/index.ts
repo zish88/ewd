@@ -318,7 +318,12 @@ app.post("/api/tickets", async (req, res) => {
 // Production: serve Vite build + SPA fallback (API routes registered above)
 if (isProd || existsSync(resolve(clientDist, "index.html"))) {
   app.use(express.static(clientDist, { index: false, maxAge: isProd ? "1h" : 0 }));
-  app.get(/^(?!\/api\/).*/, (_req, res) => {
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    // Do not SPA-fallback asset URLs (og:image etc.) — crawlers need real 404/PNG, not HTML
+    if (/\.(png|jpe?g|webp|gif|svg|ico|webmanifest|js|css|map|txt|xml|woff2?)$/i.test(req.path)) {
+      res.status(404).type("text").send("Not found");
+      return;
+    }
     const indexHtml = resolve(clientDist, "index.html");
     if (!existsSync(indexHtml)) {
       return res.status(503).type("text").send("Client build missing. Run npm run build.");
