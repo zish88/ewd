@@ -215,10 +215,52 @@ export function SvgPanZoomHost({
 
   useEffect(() => {
     const el = viewportRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let prevW = 0;
+    let prevH = 0;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      const w = r.width;
+      const h = r.height;
+      if (prevW > 0 && (Math.abs(w - prevW) > 80 || Math.abs(h - prevH) > 80)) {
+        requestAnimationFrame(() => {
+          if (fitModeRef.current === "contain" && !markerRef.current) fitContainCenter();
+          else if (markerRef.current) fitComfortToMarker();
+        });
+      }
+      prevW = w;
+      prevH = h;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- viewport resize only
+  }, []);
+
+  useEffect(() => {
+    const el = viewportRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.9 : 1.1);
+      // Mac trackpad pinch → wheel + ctrlKey; keep FABs/buttons for discrete zoom.
+      const pinchZoom = e.ctrlKey || e.metaKey;
+      // Mouse wheel is usually LINE/PAGE; pixel deltas without ctrl are two-finger pan.
+      const mouseWheel =
+        !pinchZoom &&
+        (e.deltaMode === WheelEvent.DOM_DELTA_LINE || e.deltaMode === WheelEvent.DOM_DELTA_PAGE);
+      if (pinchZoom || mouseWheel) {
+        const factor = pinchZoom
+          ? Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.01)))
+          : e.deltaY > 0
+            ? 0.9
+            : 1.1;
+        zoomAt(e.clientX, e.clientY, factor);
+        return;
+      }
+      translateRef.current = {
+        x: translateRef.current.x - e.deltaX,
+        y: translateRef.current.y - e.deltaY,
+      };
+      applyPanZoomDom();
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2) e.preventDefault();

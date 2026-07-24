@@ -120,12 +120,23 @@ type ActiveSvg = {
   /** Increments on every «Показать на схеме» — forces marker re-inject + recenter (never toggle-off). */
   showSeq?: number;
 };
-function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: () => void }) {
+function CapitalPanelViewer({
+  panel,
+  onClose,
+  fullscreen = false,
+  onEnterFullscreen,
+}: {
+  panel: CapitalPanel;
+  onClose: () => void;
+  fullscreen?: boolean;
+  onEnterFullscreen?: () => void;
+}) {
   const [html, setHtml] = useState("");
   const [svg, setSvg] = useState("");
   const [pins, setPins] = useState<Array<Record<string, unknown>>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [layoutFitToken, setLayoutFitToken] = useState(0);
   useEffect(() => {
     let alive = true;
     setLoading(true);
@@ -169,6 +180,10 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
       alive = false;
     };
   }, [panel]);
+  useEffect(() => {
+    setLayoutFitToken((n) => n + 1);
+  }, [fullscreen]);
+
   const title =
     panel.kind === "faceview"
       ? `Разъём ${panel.code}`
@@ -181,9 +196,30 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
     <div className="flex flex-col h-full min-h-0" data-testid="capital-panel">
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-[var(--border-color)] bg-[var(--input-bg)] text-xs shrink-0">
         <span className="font-semibold truncate">{title}</span>
-        <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-main)]" onClick={onClose}>
-          Закрыть
-        </button>
+        <div className="scheme-panel__header-actions">
+          {!fullscreen && onEnterFullscreen ? (
+            <button
+              type="button"
+              data-testid="scheme-fullscreen"
+              className="scheme-panel__fs-btn"
+              title="На весь экран"
+              aria-label="На весь экран"
+              onClick={onEnterFullscreen}
+            >
+              ⛶
+            </button>
+          ) : null}
+          <button
+            type="button"
+            data-testid="scheme-close"
+            className="scheme-panel__fs-btn"
+            title={fullscreen ? "Выйти из полноэкранного режима" : "Закрыть"}
+            aria-label={fullscreen ? "Выйти из полноэкранного режима" : "Закрыть"}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
       </div>
       <div
         className={`flex-1 min-h-0 bg-[var(--bg-card)] ${
@@ -229,6 +265,7 @@ function CapitalPanelViewer({ panel, onClose }: { panel: CapitalPanel; onClose: 
             error={err}
             className="ewd-location-svg"
             fitMode="contain"
+            fitToken={layoutFitToken || 1}
           />
         ) : null}
         {html && !pins.length ? (
@@ -872,6 +909,7 @@ function App() {
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [capitalPanel, setCapitalPanel] = useState<CapitalPanel | null>(null);
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
+  const [schemeFullscreen, setSchemeFullscreen] = useState(false);
   const showSeqRef = useRef(0);
   /** Diagram UIDs already tried after pin-miss for the current card focus (prevents loops). */
   const pinMissTriedRef = useRef<Set<string>>(new Set());
@@ -1035,6 +1073,59 @@ function App() {
   }, [diagramPickerOpen]);
 
   useEffect(() => {
+    if (!activeSvg && !capitalPanel) setSchemeFullscreen(false);
+  }, [activeSvg, capitalPanel]);
+
+  useEffect(() => {
+    if (!schemeFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSchemeFullscreen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [schemeFullscreen]);
+
+  useEffect(() => {
+    if (!schemeFullscreen) return;
+    // Refit marker after layout expands to fullscreen (keeps highlight; does not clear filters).
+    showSeqRef.current += 1;
+    setActiveSvg((prev) => (prev ? { ...prev, showSeq: showSeqRef.current } : prev));
+  }, [schemeFullscreen]);
+
+  function enterSchemeFullscreen() {
+    setSchemeFullscreen(true);
+  }
+
+  function exitSchemeFullscreen() {
+    setSchemeFullscreen(false);
+  }
+
+  function closeActiveScheme() {
+    setSchemeFullscreen(false);
+    setActiveSvg(null);
+    setSelectedPinState(null);
+    setMobileView("cards");
+  }
+
+  function closeCapitalPanel() {
+    if (schemeFullscreen) {
+      exitSchemeFullscreen();
+      return;
+    }
+    setSchemeFullscreen(false);
+    setCapitalPanel(null);
+    setMobileView("cards");
+  }
+
+  useEffect(() => {
     setDiagramPickerOpen(false);
   }, [selectedCode]);
 
@@ -1184,15 +1275,27 @@ function App() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  // Mac Chrome: overflow-x strips (color chips) swallow vertical trackpad wheel
+  // Mac Chrome: overflow-x strips / nested sticky chrome swallow vertical trackpad wheel
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return; // leave trackpad pinch to the diagram viewer
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
       const t = e.target;
       if (!(t instanceof Element)) return;
+      if (t.closest(".svg-viewer, .scheme-panel--fullscreen")) return;
       if (t.closest(".filters-host.is-sheet-open, .mobile-node-tools[open]")) return;
-      const trap = t.closest(".wire-color-filter");
+      const trap = t.closest(".wire-color-filter, .cards-column__sticky");
       if (!trap) return;
+      const sticky =
+        trap instanceof HTMLElement && trap.classList.contains("cards-column__sticky")
+          ? trap
+          : (trap.closest(".cards-column__sticky") as HTMLElement | null);
+      if (sticky && sticky.scrollHeight > sticky.clientHeight + 1) {
+        const atTop = sticky.scrollTop <= 0;
+        const atBottom = sticky.scrollTop + sticky.clientHeight >= sticky.scrollHeight - 1;
+        if (e.deltaY < 0 && !atTop) return;
+        if (e.deltaY > 0 && !atBottom) return;
+      }
       const scroller =
         (trap.closest(".cards-column__scroll") as HTMLElement | null) ||
         document.querySelector<HTMLElement>('[data-testid="cards-column-scroll"]');
@@ -2751,8 +2854,8 @@ function App() {
         <div
           data-testid="svg-panel"
           className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 min-w-0 h-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
-            mobileView === "cards" ? " is-mobile-hidden" : ""
-          }`}
+            mobileView === "cards" && !schemeFullscreen ? " is-mobile-hidden" : ""
+          }${schemeFullscreen ? " scheme-panel--fullscreen" : ""}`}
         >
           <div className="ewd-scheme-header bg-[var(--input-bg)] px-3 py-1.5 border-b border-[var(--border-color)] flex justify-between items-center text-xs shrink-0 gap-2">
             <div className="flex items-center gap-3 min-w-0">
@@ -2794,17 +2897,33 @@ function App() {
                 </details>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSvg(null);
-                setSelectedPinState(null);
-                setMobileView("cards");
-              }}
-              className="text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold px-2"
-            >
-              ✕
-            </button>
+            <div className="scheme-panel__header-actions">
+              {!schemeFullscreen ? (
+                <button
+                  type="button"
+                  data-testid="scheme-fullscreen"
+                  className="scheme-panel__fs-btn"
+                  title="На весь экран"
+                  aria-label="На весь экран"
+                  onClick={enterSchemeFullscreen}
+                >
+                  ⛶
+                </button>
+              ) : null}
+              <button
+                type="button"
+                data-testid="scheme-close"
+                className="scheme-panel__fs-btn"
+                title={schemeFullscreen ? "Выйти из полноэкранного режима" : "Закрыть схему"}
+                aria-label={schemeFullscreen ? "Выйти из полноэкранного режима" : "Закрыть схему"}
+                onClick={() => {
+                  if (schemeFullscreen) exitSchemeFullscreen();
+                  else closeActiveScheme();
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
           {selectedPinState && (
             <div
@@ -2896,15 +3015,14 @@ function App() {
         <div
           data-testid="capital-panel-host"
           className={`mobile-pane mobile-pane--scheme lg:col-span-7 min-h-0 min-w-0 h-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-sm flex flex-col${
-            mobileView === "cards" ? " is-mobile-hidden" : ""
-          }`}
+            mobileView === "cards" && !schemeFullscreen ? " is-mobile-hidden" : ""
+          }${schemeFullscreen ? " scheme-panel--fullscreen" : ""}`}
         >
           <CapitalPanelViewer
             panel={capitalPanel}
-            onClose={() => {
-              setCapitalPanel(null);
-              setMobileView("cards");
-            }}
+            fullscreen={schemeFullscreen}
+            onEnterFullscreen={enterSchemeFullscreen}
+            onClose={closeCapitalPanel}
           />
         </div>
       )}
