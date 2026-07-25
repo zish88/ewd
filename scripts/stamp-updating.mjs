@@ -94,6 +94,8 @@ function isNoiseSubject(s) {
   if (/^Refresh updating-page notes\b/i.test(s)) return true;
   if (/^Sync updating\.html\b/i.test(s)) return true;
   if (/^Stamp updating\.html\b/i.test(s)) return true;
+  if (/^Skip stamp-only\b/i.test(s)) return true;
+  if (/\bmeta deploy-note\b/i.test(s)) return true;
   return false;
 }
 
