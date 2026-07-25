@@ -104,9 +104,14 @@ export function ObdTestModal({
         >
           <header className="obd-float-window__head shrink-0 flex items-center gap-2 px-3.5 py-2.5">
             <div className="min-w-0 flex-1">
-              <h2 id="obd-test-title" className="text-sm font-semibold text-[var(--text-main)] leading-tight">
-                OBD тест
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="obd-test-title" className="text-sm font-semibold text-[var(--text-main)] leading-tight">
+                  OBD
+                </h2>
+                <span className="obd-beta-badge obd-beta-badge--inline" data-testid="obd-beta-badge">
+                  Тестирование
+                </span>
+              </div>
               <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
                 {linked ? "Связь активна · свернуть не отключает" : "Свернуть — связь сохранится"}
               </p>

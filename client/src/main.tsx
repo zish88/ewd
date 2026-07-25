@@ -2373,27 +2373,34 @@ function App() {
         ) : null}
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {features.obdAdapter !== false ? (
-            <button
-              type="button"
-              className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5${obdLinked ? " obd-btn--live" : ""}`}
-              data-testid="obd-test-open"
-              title={
-                obdLinked
-                  ? "OBD: соединение активно"
-                  : "OBD тест — шлюз ESP или ELM327"
-              }
-              onClick={() => {
-                setFiltersSheetOpen(false);
-                setToolsSheetOpen(false);
-                setObdSurface("open");
-              }}
-            >
-              {obdSurface === "minimized"
-                ? obdLinked
-                  ? "OBD · online"
-                  : "OBD · свёрнут"
-                : "OBD тест"}
-            </button>
+            <div className="obd-btn-wrap" data-testid="obd-test-wrap">
+              <span className="obd-beta-badge" aria-hidden>
+                Тестирование
+              </span>
+              <button
+                type="button"
+                className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 obd-btn--live${
+                  obdLinked ? " obd-btn--online" : ""
+                }`}
+                data-testid="obd-test-open"
+                title={
+                  obdLinked
+                    ? "OBD: соединение активно (бета)"
+                    : "OBD — функция в тестировании (ESP / ELM327)"
+                }
+                onClick={() => {
+                  setFiltersSheetOpen(false);
+                  setToolsSheetOpen(false);
+                  setObdSurface("open");
+                }}
+              >
+                {obdSurface === "minimized"
+                  ? obdLinked
+                    ? "OBD · online"
+                    : "OBD · свёрнут"
+                  : "OBD"}
+              </button>
+            </div>
           ) : null}
         </div>
       </div>

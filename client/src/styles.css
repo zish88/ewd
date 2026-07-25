@@ -558,7 +558,38 @@ html {
     0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-/* App-bar / chip halo when OBD link is live (accent = Volvo EWD brand color) */
+/* OBD beta: always pulse; stronger halo when adapter link is up */
+.obd-btn-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1;
+}
+
+.obd-beta-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.92;
+  padding: 0 2px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.obd-beta-badge--inline {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+
 .obd-btn--live {
   color: var(--accent) !important;
   border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent) !important;
@@ -567,6 +598,10 @@ html {
     0 0 10px color-mix(in srgb, var(--accent) 55%, transparent),
     0 0 22px color-mix(in srgb, var(--accent) 35%, transparent);
   animation: obd-btn-halo 2.4s ease-in-out infinite;
+}
+
+.obd-btn--online {
+  animation-duration: 1.4s;
 }
 
 @keyframes obd-btn-halo {
