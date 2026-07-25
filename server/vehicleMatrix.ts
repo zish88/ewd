@@ -36,7 +36,7 @@ const ENGINE_BY_OPTION: Record<string, string> = {
 const ENGINE_CODES: Record<string, string[]> = {
   "3.2 i6": ["B6324S5", "B6324S4"],
   "3.0T T6": ["B6304TX"],
-  "2.5T": ["B5254TX"],
+  "2.5T": ["B5254TX", "B5254T12"],
   "2.4D D5": ["D5244TX"],
   "2.0D D3/D4": ["D5204TX", "D4162TX"],
   "1.6T": ["B4164TX", "B5204TX"],
@@ -92,7 +92,8 @@ const MODEL_YEAR_ENGINES: Record<string, Record<string, string[]>> = {
     "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4"],
     "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014+": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    // B5254T12 T5 AWD (~2014–2017) — label 2.5T; earlier years keep SI6 / diesels / 1.6T
+    "2014+": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
   },
   S60: {
     "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],

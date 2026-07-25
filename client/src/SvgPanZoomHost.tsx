@@ -6,6 +6,10 @@ import {
 } from "react";
 import { syncPinMarkerScreenSize } from "./ewdHighlight.js";
 
+/** On-screen FAB zoom step (wheel stays finer at ×1.1 / ×0.9). */
+const BUTTON_ZOOM_IN = 1.25;
+const BUTTON_ZOOM_OUT = 0.8;
+
 type Pt = { x: number; y: number };
 
 /** True for a physical mouse wheel notch; false for trackpad two-finger pixel scroll. */
@@ -416,7 +420,7 @@ export function SvgPanZoomHost({
             const el = viewportRef.current;
             if (!el) return;
             const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.1);
+            zoomAt(r.left + r.width / 2, r.top + r.height / 2, BUTTON_ZOOM_IN);
           }}
         >
           +
@@ -429,7 +433,7 @@ export function SvgPanZoomHost({
             const el = viewportRef.current;
             if (!el) return;
             const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 0.9);
+            zoomAt(r.left + r.width / 2, r.top + r.height / 2, BUTTON_ZOOM_OUT);
           }}
         >
           −

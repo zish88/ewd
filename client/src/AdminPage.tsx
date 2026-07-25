@@ -57,7 +57,7 @@ type VisitStats = {
   month: number;
   total: number;
   online30m: number;
-  recent: Array<{ id: number; visitedAt: string; path: string }>;
+  recent: Array<{ id: number; visitedAt: string; path: string; uaLabel?: string }>;
 };
 
 type Ticket = {
@@ -918,9 +918,12 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                   ) : (
                     <ul className="max-h-40 md:max-h-64 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
                       {visits.recent.map((v) => (
-                        <li key={v.id} className="flex items-baseline justify-between gap-3 py-1.5">
-                          <span className="tabular-nums text-[var(--text-main)]">{formatVisitAt(v.visitedAt)}</span>
-                          <span className="truncate text-[var(--text-muted)] font-mono text-xs">{v.path || "/"}</span>
+                        <li key={v.id} className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                          <span className="tabular-nums text-[var(--text-main)] shrink-0">{formatVisitAt(v.visitedAt)}</span>
+                          <span className="truncate text-[var(--text-muted)] text-xs min-w-0" title={v.uaLabel || undefined}>
+                            {v.uaLabel || "—"}
+                          </span>
+                          <span className="truncate text-[var(--text-muted)] font-mono text-xs shrink-0 sm:max-w-[8rem]">{v.path || "/"}</span>
                         </li>
                       ))}
                     </ul>

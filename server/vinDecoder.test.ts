@@ -23,6 +23,16 @@ test("filters cascade: V70 2008 keeps 2.5T; XC60 2009 has none", () => {
   assert.ok(!resolveFilters({ model: "XC60", year: "2009" }).engines.includes("2.5T"));
 });
 
+test("filters cascade: XC60 2014+ offers 2.5T (B5254T12 T5 AWD); XC70 never", () => {
+  const xc60 = resolveFilters({ model: "XC60", year: "2014+", engine: "2.5T" });
+  assert.ok(xc60.engines.includes("2.5T"));
+  assert.equal(xc60.selection.engine, "2.5T");
+  assert.ok(xc60.transmissions.some((t) => t.id === "TF-80SC"));
+  assert.ok(xc60.transmissions.some((t) => t.id === "M66"));
+  assert.ok(xc60.optionTokens.includes("B5254T12"));
+  assert.ok(!resolveFilters({ model: "XC70", year: "2014+" }).engines.includes("2.5T"));
+});
+
 test("filters cascade: stale engine cleared when not offered for year", () => {
   const r = resolveFilters({ model: "XC70", year: "2008", engine: "2.5T" });
   assert.equal(r.selection.engine, "");

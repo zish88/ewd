@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
@@ -36,6 +37,7 @@ import {
   getPushUiState,
   type PushUiState,
 } from "./pushSubscribe.js";
+
 
 type CardParts = {
   code?: string;
@@ -973,9 +975,32 @@ function App() {
   });
   /** Mobile bottom-sheet for filters; desktop ignores (filters always inline). */
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  /** Desktop/laptop: filters popover under «Фильтры» (not a full-width plank). */
+  const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
+  const [filtersPopoverPos, setFiltersPopoverPos] = useState<{ top: number; left: number }>({
+    top: 64,
+    left: 12,
+  });
   /** Mobile: node colors / systems / diagrams sheet (keeps card list full-height). */
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false);
   const [isMobileUi, setIsMobileUi] = useState(false);
+  const desktopFiltersBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  function placeDesktopFiltersPopover() {
+    const btn = desktopFiltersBtnRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const width = Math.min(40 * 16, window.innerWidth - 24);
+    let left = r.left;
+    if (left + width > window.innerWidth - 12) left = Math.max(12, window.innerWidth - width - 12);
+    if (left < 12) left = 12;
+    setFiltersPopoverPos({ top: r.bottom + 8, left });
+  }
+
+  function openDesktopFiltersPopover() {
+    placeDesktopFiltersPopover();
+    setFiltersPopoverOpen(true);
+  }
   const [vehicleConfigured, setVehicleConfigured] = useState(
     () => Boolean(persisted0.model && persisted0.year),
   );
@@ -1321,11 +1346,34 @@ function App() {
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
-    const apply = () => setIsMobileUi(mq.matches);
+    const apply = () => {
+      const mobile = mq.matches;
+      setIsMobileUi(mobile);
+      if (mobile) setFiltersPopoverOpen(false);
+      else setFiltersSheetOpen(false);
+    };
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  // Desktop filters popover: Escape, scroll-lock, reposition on resize
+  useEffect(() => {
+    if (!filtersPopoverOpen || isMobileUi) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFiltersPopoverOpen(false);
+    };
+    const onResize = () => placeDesktopFiltersPopover();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [filtersPopoverOpen, isMobileUi]);
 
   // Mac Chrome: overflow-x strips / nested sticky chrome swallow vertical trackpad wheel
   useEffect(() => {
@@ -2072,181 +2120,303 @@ function App() {
     setVehicleConfigured(false);
   };
 
+  const vehicleQuickFields = (
+    <>
+      <label className="app-bar__quick-field">
+        <span>Модель</span>
+        <select
+          data-testid="vehicle-model"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedModel}
+          disabled={vinLocked}
+          onChange={(e) => {
+            setVinLocked(false);
+            setSelectedModel(e.target.value);
+            setSelectedYear("");
+            setSelectedEngine("");
+            setSelectedTransmission("");
+          }}
+        >
+          <option value="">—</option>
+          {available.models.map((x) => (
+            <option key={x} value={x}>{x}</option>
+          ))}
+        </select>
+      </label>
+      <label className="app-bar__quick-field">
+        <span>Год</span>
+        <select
+          data-testid="vehicle-year"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedYear}
+          disabled={vinLocked || !selectedModel}
+          onChange={(e) => {
+            setVinLocked(false);
+            setSelectedYear(e.target.value);
+            setSelectedEngine("");
+            setSelectedTransmission("");
+          }}
+        >
+          <option value="">—</option>
+          {available.years.map((x) => (
+            <option key={x} value={x}>{x}</option>
+          ))}
+        </select>
+      </label>
+      <label className="app-bar__quick-field">
+        <span>Двиг.</span>
+        <select
+          data-testid="vehicle-engine"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedEngine}
+          disabled={vinLocked || !selectedYear}
+          onChange={(e) => {
+            setVinLocked(false);
+            setSelectedEngine(e.target.value);
+            setSelectedTransmission("");
+          }}
+        >
+          <option value="">—</option>
+          {available.engines.map((x) => (
+            <option key={x} value={x}>{x}</option>
+          ))}
+        </select>
+      </label>
+      <label className="app-bar__quick-field">
+        <span>КПП</span>
+        <select
+          data-testid="vehicle-transmission"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedTransmission}
+          disabled={vinLocked || !selectedYear}
+          onChange={(e) => {
+            setVinLocked(false);
+            setSelectedTransmission(e.target.value);
+          }}
+        >
+          <option value="">Все</option>
+          {available.transmissions.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+
+  const navQuickFields = features.navBrowse ? (
+    <>
+      <label className="app-bar__quick-field app-bar__quick-field--grow">
+        <span>Зона</span>
+        <select
+          data-testid="nav-zone"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedZone}
+          onChange={(e) => {
+            setSelectedZone(e.target.value);
+            setSelectedCode("");
+            setOwnerWires([]);
+            setTransitWires([]);
+            setEwdDiagrams([]);
+            setNodeInfo(null);
+            setMode(null);
+            setCapitalPanel(null);
+            setActiveSvg(null);
+            setSelectedPinState(null);
+          }}
+        >
+          <option value="all">Все зоны</option>
+          {zones.map((z) => (
+            <option key={z.id} value={z.id}>{z.label}{z.count ? ` (${z.count})` : ""}</option>
+          ))}
+        </select>
+      </label>
+      <label className="app-bar__quick-field app-bar__quick-field--wide">
+        <span>Узел</span>
+        <select
+          data-testid="nav-component"
+          className="app-input rounded px-1.5 py-1"
+          value={selectedCode}
+          onChange={(e) => {
+            setSelectedCode(e.target.value);
+          }}
+        >
+          <option value="">Узел…</option>
+          {navGroups.map((g) =>
+            g.items.length ? (
+              <optgroup key={g.id} label={g.label}>
+                {g.items.map((it) => (
+                  <option key={it.code} value={it.code}>{it.label}</option>
+                ))}
+              </optgroup>
+            ) : null,
+          )}
+        </select>
+      </label>
+    </>
+  ) : null;
+
+  const themeAndPushControls = (
+    <>
+      <div className="theme-toggle" role="group" aria-label="Тема">
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            data-testid={`theme-${t.id}`}
+            className={theme === t.id ? "theme-toggle__btn is-active" : "theme-toggle__btn"}
+            onClick={() => setTheme(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {pushState === "unsupported" || pushState === "unavailable" ? null : (
+        <button
+          type="button"
+          data-testid="push-opt-in"
+          disabled={pushBusy || pushState === "pending"}
+          className={`md-chip ${pushState === "on" ? "md-chip--accent" : ""}`}
+          title={
+            pushState === "on"
+              ? "Отключить уведомления об обновлениях сайта"
+              : "Получать пуш, когда сайт обновится"
+          }
+          onClick={() => {
+            void (async () => {
+              setPushBusy(true);
+              setPushState("pending");
+              try {
+                if (pushState === "on") {
+                  const r = await disablePushNotifications();
+                  setPushState("off");
+                  setNotice(r.ok ? "Уведомления об обновлениях выключены" : r.error);
+                } else {
+                  const r = await enablePushNotifications();
+                  if (r.ok) {
+                    setPushState("on");
+                    setNotice("Будем сообщать об обновлениях");
+                  } else {
+                    setPushState(await getPushUiState());
+                    setNotice(r.error);
+                  }
+                }
+              } finally {
+                setPushBusy(false);
+              }
+            })();
+          }}
+        >
+          {pushState === "on" ? "Уведомления · вкл" : pushBusy || pushState === "pending" ? "…" : "Уведомления"}
+        </button>
+      )}
+    </>
+  );
+
+  const vinControls = features.vinSearch ? (
+    <>
+      <label className="flex items-center gap-1 text-[var(--muted)]">
+        VIN
+        <input
+          data-testid="vehicle-vin"
+          className="app-input rounded px-1.5 py-1 font-mono w-[11.5rem] tracking-wider"
+          maxLength={17}
+          placeholder="17 символов"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          name="ewd-vin"
+          value={vinInput}
+          onChange={(e) => {
+            setVinInput(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "").slice(0, 17));
+            setVinNotice("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void applyVin();
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        data-testid="vin-decode-btn"
+        className="md-btn md-btn--tonal text-[11px] px-2 py-1"
+        onClick={() => void applyVin()}
+      >
+        По VIN
+      </button>
+      {(vinInput || vinLocked) ? (
+        <button
+          type="button"
+          data-testid="vin-clear-btn"
+          className="md-btn md-btn--text text-[11px] px-2 py-1"
+          onClick={clearVin}
+        >
+          Сброс VIN
+        </button>
+      ) : null}
+      {vinLocked ? <span className="md-chip" data-testid="vin-chip">из VIN</span> : null}
+    </>
+  ) : null;
+
+  const dtcControls = features.dtcSearch ? (
+    <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          data-testid="dtc-query"
+          className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-[12rem]"
+          placeholder="ABS-0010, CEM-1A05, P0563, датчик колеса…"
+          value={dtcQuery}
+          onChange={(e) => setDtcQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void searchDtc();
+          }}
+        />
+        <button
+          type="button"
+          data-testid="dtc-search-btn"
+          className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
+          onClick={() => void searchDtc()}
+          disabled={dtcLoading}
+        >
+          {dtcLoading ? "…" : "Найти"}
+        </button>
+        <button
+          type="button"
+          data-testid="dtc-clear-btn"
+          className="md-btn md-btn--text text-[11px] px-2.5 py-1.5"
+          onClick={clearDtc}
+          disabled={!dtcQuery && !dtcResults.length && mode !== "dtc"}
+        >
+          Сброс
+        </button>
+      </div>
+      {dtcNotice ? (
+        <p data-testid="dtc-notice" className="text-[11px] text-[var(--muted)]">{dtcNotice}</p>
+      ) : null}
+    </section>
+  ) : null;
+
+  /** Desktop popover / extras: theme, push, VIN, DTC (vehicle+nav live in the app-bar strip). */
+  const filterPopoverControls = (
+    <>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {themeAndPushControls}
+        {vinControls}
+      </div>
+      {vinNotice ? (
+        <p data-testid="vin-notice" className="text-[11px] text-[var(--muted)] -mt-1">{vinNotice}</p>
+      ) : null}
+      {dtcControls}
+    </>
+  );
+
+  /** Mobile sheet: full set. */
   const filterControls = (
     <>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <div className="theme-toggle" role="group" aria-label="Тема">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              data-testid={`theme-${t.id}`}
-              className={theme === t.id ? "theme-toggle__btn is-active" : "theme-toggle__btn"}
-              onClick={() => setTheme(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {pushState === "unsupported" || pushState === "unavailable" ? null : (
-          <button
-            type="button"
-            data-testid="push-opt-in"
-            disabled={pushBusy || pushState === "pending"}
-            className={`md-chip ${pushState === "on" ? "md-chip--accent" : ""}`}
-            title={
-              pushState === "on"
-                ? "Отключить уведомления об обновлениях сайта"
-                : "Получать пуш, когда сайт обновится"
-            }
-            onClick={() => {
-              void (async () => {
-                setPushBusy(true);
-                setPushState("pending");
-                try {
-                  if (pushState === "on") {
-                    const r = await disablePushNotifications();
-                    setPushState("off");
-                    setNotice(r.ok ? "Уведомления об обновлениях выключены" : r.error);
-                  } else {
-                    const r = await enablePushNotifications();
-                    if (r.ok) {
-                      setPushState("on");
-                      setNotice("Будем сообщать об обновлениях");
-                    } else {
-                      setPushState(await getPushUiState());
-                      setNotice(r.error);
-                    }
-                  }
-                } finally {
-                  setPushBusy(false);
-                }
-              })();
-            }}
-          >
-            {pushState === "on" ? "Уведомления · вкл" : pushBusy || pushState === "pending" ? "…" : "Уведомления"}
-          </button>
-        )}
-        <label className="flex items-center gap-1 text-[var(--muted)]">Модель
-          <select
-            data-testid="vehicle-model"
-            className="app-input rounded px-1.5 py-1"
-            value={selectedModel}
-            disabled={vinLocked}
-            onChange={(e) => {
-              setVinLocked(false);
-              setSelectedModel(e.target.value);
-              setSelectedYear("");
-              setSelectedEngine("");
-              setSelectedTransmission("");
-            }}
-          >
-            <option value="">—</option>
-            {available.models.map((x) => (
-              <option key={x} value={x}>{x}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1 text-[var(--muted)]">Год
-          <select
-            data-testid="vehicle-year"
-            className="app-input rounded px-1.5 py-1"
-            value={selectedYear}
-            disabled={vinLocked || !selectedModel}
-            onChange={(e) => {
-              setVinLocked(false);
-              setSelectedYear(e.target.value);
-              setSelectedEngine("");
-              setSelectedTransmission("");
-            }}
-          >
-            <option value="">—</option>
-            {available.years.map((x) => (
-              <option key={x} value={x}>{x}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1 text-[var(--muted)]">Двигатель
-          <select
-            data-testid="vehicle-engine"
-            className="app-input rounded px-1.5 py-1"
-            value={selectedEngine}
-            disabled={vinLocked || !selectedYear}
-            onChange={(e) => {
-              setVinLocked(false);
-              setSelectedEngine(e.target.value);
-              setSelectedTransmission("");
-            }}
-          >
-            <option value="">—</option>
-            {available.engines.map((x) => (
-              <option key={x} value={x}>{x}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1 text-[var(--muted)]">КПП
-          <select
-            data-testid="vehicle-transmission"
-            className="app-input rounded px-1.5 py-1"
-            value={selectedTransmission}
-            disabled={vinLocked || !selectedYear}
-            onChange={(e) => {
-              setVinLocked(false);
-              setSelectedTransmission(e.target.value);
-            }}
-          >
-            <option value="">Все КПП / Не важно</option>
-            {available.transmissions.map((t) => (
-              <option key={t.id} value={t.id}>{t.label}</option>
-            ))}
-          </select>
-        </label>
-        {features.vinSearch ? (
-          <>
-            <label className="flex items-center gap-1 text-[var(--muted)]">
-              VIN
-              <input
-                data-testid="vehicle-vin"
-                className="app-input rounded px-1.5 py-1 font-mono w-[11.5rem] tracking-wider"
-                maxLength={17}
-                placeholder="17 символов"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                name="ewd-vin"
-                value={vinInput}
-                onChange={(e) => {
-                  setVinInput(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "").slice(0, 17));
-                  setVinNotice("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void applyVin();
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              data-testid="vin-decode-btn"
-              className="md-btn md-btn--tonal text-[11px] px-2 py-1"
-              onClick={() => void applyVin()}
-            >
-              По VIN
-            </button>
-            {(vinInput || vinLocked) ? (
-              <button
-                type="button"
-                data-testid="vin-clear-btn"
-                className="md-btn md-btn--text text-[11px] px-2 py-1"
-                onClick={clearVin}
-              >
-                Сброс VIN
-              </button>
-            ) : null}
-          </>
-        ) : null}
-        {vinLocked ? (
-          <span className="md-chip" data-testid="vin-chip">из VIN</span>
-        ) : null}
+        {themeAndPushControls}
+        {vehicleQuickFields}
+        {vinControls}
         {selectedModel && selectedYear && (
           <span className="md-chip md-chip--accent ml-auto" data-testid="vehicle-chip">
             {selectedModel} · {selectedYear}
@@ -2261,104 +2431,20 @@ function App() {
       {features.navBrowse ? (
         <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Навигация по узлам</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
-              Зона / жгут
-              <select
-                data-testid="nav-zone"
-                className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-xs text-[var(--text-main)]"
-                value={selectedZone}
-                onChange={(e) => {
-                  setSelectedZone(e.target.value);
-                  setSelectedCode("");
-                  setOwnerWires([]);
-                  setTransitWires([]);
-                  setEwdDiagrams([]);
-                  setNodeInfo(null);
-                  setMode(null);
-                  setCapitalPanel(null);
-                  setActiveSvg(null);
-                  setSelectedPinState(null);
-                }}
-              >
-                <option value="all">Все зоны</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.id}>{z.label}{z.count ? ` (${z.count})` : ""}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
-              Компонент / разъём
-              <select
-                data-testid="nav-component"
-                className="bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-xs text-[var(--text-main)]"
-                value={selectedCode}
-                onChange={(e) => {
-                  const code = e.target.value;
-                  setSelectedCode(code);
-                }}
-              >
-                <option value="">Выберите узел…</option>
-                {navGroups.map((g) =>
-                  g.items.length ? (
-                    <optgroup key={g.id} label={g.label}>
-                      {g.items.map((it) => (
-                        <option key={it.code} value={it.code}>{it.label}</option>
-                      ))}
-                    </optgroup>
-                  ) : null,
-                )}
-              </select>
-              <span className="text-[10px] text-[var(--text-muted)] leading-tight">
-                Пометки: [схема]=графика EWD · [контакты]=FaceView / полость
-              </span>
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 app-bar__quick-filters--stacked">
+            {navQuickFields}
           </div>
+          <p className="text-[10px] text-[var(--text-muted)] leading-tight">
+            Пометки: [схема]=графика EWD · [контакты]=FaceView / полость
+          </p>
         </section>
       ) : null}
-      {features.dtcSearch ? (
-        <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              data-testid="dtc-query"
-              className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-[12rem]"
-              placeholder="ABS-0010, CEM-1A05, P0563, датчик колеса…"
-              value={dtcQuery}
-              onChange={(e) => setDtcQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void searchDtc();
-              }}
-            />
-            <button
-              type="button"
-              data-testid="dtc-search-btn"
-              className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
-              onClick={() => void searchDtc()}
-              disabled={dtcLoading}
-            >
-              {dtcLoading ? "…" : "Найти"}
-            </button>
-            <button
-              type="button"
-              data-testid="dtc-clear-btn"
-              className="md-btn md-btn--text text-[11px] px-2.5 py-1.5"
-              onClick={clearDtc}
-              disabled={!dtcQuery && !dtcResults.length && mode !== "dtc"}
-            >
-              Сброс
-            </button>
-          </div>
-          {dtcNotice ? (
-            <p data-testid="dtc-notice" className="text-[11px] text-[var(--muted)]">{dtcNotice}</p>
-          ) : null}
-        </section>
-      ) : null}
+      {dtcControls}
     </>
   );
 
   function openDtcFromObd(code: string) {
-    setObdModalOpen(false);
+    setObdSurface("closed");
     setDtcQuery(code);
     setMode("dtc");
     void (async () => {
@@ -2391,7 +2477,7 @@ function App() {
     </div>
     <header
       ref={headerRef}
-      className="app-panel app-bar shrink-0 border-b px-3 py-2"
+      className="app-panel app-bar shrink-0 border-b px-3 py-2 is-filters-collapsed"
     >
       <div className="app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]">
         <button
@@ -2417,6 +2503,35 @@ function App() {
           ) : null}
         </button>
         <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0 app-bar__brand">Volvo EWD</span>
+        <div className="desktop-filters-popover">
+          <button
+            ref={desktopFiltersBtnRef}
+            type="button"
+            className="desktop-filters-collapse md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+            data-testid="filters-collapse"
+            aria-expanded={filtersPopoverOpen}
+            aria-controls="desktop-filters-popover-panel"
+            aria-haspopup="dialog"
+            title={filtersPopoverOpen ? "Закрыть фильтры" : "VIN, DTC, тема, уведомления"}
+            onClick={() => {
+              if (filtersPopoverOpen) setFiltersPopoverOpen(false);
+              else openDesktopFiltersPopover();
+            }}
+          >
+            Фильтры {filtersPopoverOpen ? "▴" : "▾"}
+            {filterActiveCount > 0 ? (
+              <span className="desktop-filters-collapse__badge" aria-hidden>
+                {filterActiveCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
+        {!isMobileUi ? (
+          <div className="app-bar__quick-filters" data-testid="desktop-quick-filters" aria-label="Быстрые фильтры">
+            {vehicleQuickFields}
+            {navQuickFields}
+          </div>
+        ) : null}
         {selectedCode ? (
           <button
             type="button"
@@ -2425,6 +2540,7 @@ function App() {
             title="Параметры узла"
             onClick={() => {
               setFiltersSheetOpen(false);
+              setFiltersPopoverOpen(false);
               setToolsSheetOpen(true);
             }}
           >
@@ -2450,6 +2566,7 @@ function App() {
                 }
                 onClick={() => {
                   setFiltersSheetOpen(false);
+                  setFiltersPopoverOpen(false);
                   setToolsSheetOpen(false);
                   setObdSurface("open");
                 }}
@@ -2464,7 +2581,7 @@ function App() {
           ) : null}
         </div>
       </div>
-      {(selectedModel || zoneSummaryLabel) && !selectedCode ? (
+      {isMobileUi && (selectedModel || zoneSummaryLabel) && !selectedCode ? (
         <div
           className="app-bar__summary mx-auto max-w-7xl"
           data-testid="filters-summary-chips"
@@ -2474,6 +2591,7 @@ function App() {
             <span className="md-chip md-chip--accent">
               {selectedModel} · {selectedYear}
               {selectedEngine ? ` · ${selectedEngine}` : ""}
+              {selectedTransmission ? ` · ${selectedTransmission}` : ""}
             </span>
           ) : selectedModel ? (
             <span className="md-chip md-chip--accent">{selectedModel}</span>
@@ -2484,14 +2602,13 @@ function App() {
     </header>
 
     {/*
-      Single filter mount:
-      - desktop: inline panel under header
-      - mobile closed: hidden
-      - mobile open: bottom sheet overlay
+      Mobile filter mount only (bottom sheet).
+      Desktop: popover under «Фильтры» in the app bar.
     */}
     <div
       className={`filters-host${filtersSheetOpen ? " is-sheet-open" : ""}`}
       data-testid="filters-host"
+      aria-hidden={!isMobileUi ? true : undefined}
     >
       <div className="filters-bg-art" aria-hidden="true">
         <div className="filters-bg-art__piece filters-bg-art__piece--a" />
@@ -2542,7 +2659,7 @@ function App() {
           ref={filtersSheetBodyRef}
           className="filters-sheet__body app-panel__filters flex flex-col gap-2"
         >
-          {filterControls}
+          {isMobileUi ? filterControls : null}
         </div>
         <div className="filters-sheet__footer">
           <button
@@ -3203,6 +3320,45 @@ function App() {
       onEspLinkedChange={setObdEspLinked}
       onUseDtcQuery={openDtcFromObd}
     />
+    {filtersPopoverOpen && !isMobileUi
+      ? createPortal(
+          <div className="desktop-filters-layer" data-testid="desktop-filters-layer">
+            <button
+              type="button"
+              className="desktop-filters-scrim"
+              aria-label="Закрыть фильтры"
+              data-testid="desktop-filters-scrim"
+              onClick={() => setFiltersPopoverOpen(false)}
+            />
+            <div
+              id="desktop-filters-popover-panel"
+              className="desktop-filters-window"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Параметры поиска"
+              data-testid="desktop-filters-popover"
+              style={{ top: filtersPopoverPos.top, left: filtersPopoverPos.left }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="desktop-filters-window__header">
+                <span className="desktop-filters-window__title">VIN · DTC · тема</span>
+                <button
+                  type="button"
+                  className="md-btn md-btn--text text-[12px] px-2 py-1"
+                  data-testid="desktop-filters-close"
+                  onClick={() => setFiltersPopoverOpen(false)}
+                >
+                  Закрыть
+                </button>
+              </div>
+              <div className="desktop-filters-window__body app-panel__filters flex flex-col gap-2">
+                {filterPopoverControls}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
   </main>;
 }
 

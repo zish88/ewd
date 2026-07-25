@@ -1307,8 +1307,157 @@ html {
   display: none;
 }
 
+.desktop-filters-collapse {
+  display: none;
+}
+
+.desktop-filters-popover {
+  position: relative;
+  display: none;
+  flex-shrink: 0;
+}
+
+/* Portaled like OBD: full-viewport dim + floating panel above cards */
+.desktop-filters-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  background: transparent;
+  pointer-events: none;
+}
+
+.desktop-filters-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.desktop-filters-window {
+  position: absolute;
+  z-index: 1;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: min(40rem, calc(100vw - 1.5rem));
+  max-height: min(72vh, 34rem);
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--text-main) 6%, transparent),
+    0 22px 56px color-mix(in srgb, #000 40%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.desktop-filters-window__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.desktop-filters-window__title {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.desktop-filters-window__body {
+  padding: 0.65rem 0.75rem 0.85rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
 .app-bar__summary {
   display: none;
+}
+
+/* Desktop: vehicle/zone/node selects stretch across the app bar */
+.app-bar__quick-filters {
+  display: none;
+}
+
+.app-bar__quick-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.app-bar__quick-field > span {
+  font-size: 9px;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-left: 0.35rem;
+}
+
+/* Match Фильтры / OBD tonal pills */
+.app-bar__quick-field .app-input {
+  width: 100%;
+  min-width: 4.5rem;
+  max-width: 9rem;
+  min-height: var(--btn-min-height);
+  padding: 0.375rem 0.75rem;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
+  border: 1px solid var(--outline-variant);
+  color: var(--text-main);
+  box-sizing: border-box;
+}
+
+.app-bar__quick-field .app-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.app-bar__quick-field--grow {
+  flex: 1 1 7.5rem;
+}
+
+.app-bar__quick-field--grow .app-input {
+  max-width: none;
+}
+
+.app-bar__quick-field--wide {
+  flex: 1.35 1 9.5rem;
+}
+
+.app-bar__quick-field--wide .app-input {
+  max-width: none;
+}
+
+.app-bar__quick-filters--stacked .app-bar__quick-field {
+  flex: 1 1 auto;
+}
+
+.app-bar__quick-filters--stacked .app-bar__quick-field .app-input {
+  max-width: none;
+  border-radius: var(--radius-md);
+  min-height: unset;
+  font-weight: 400;
+  background: var(--input-bg);
 }
 
 /* Shared filter host: desktop = inline under header; mobile = bottom sheet */
@@ -2004,9 +2153,54 @@ main.is-filters-sheet-open {
     display: none !important;
   }
 
-  .app-bar__summary,
+  .desktop-filters-popover {
+    display: block;
+  }
+
+  .desktop-filters-collapse {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .desktop-filters-collapse__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--accent);
+  }
+
+  .app-bar__chrome {
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+    align-items: center;
+  }
+
+  .app-bar__quick-filters {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-end;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
   .app-bar__code-chip,
   .mobile-browse-bar {
+    display: none !important;
+  }
+
+  /* Desktop: live selects replace summary chips */
+  .app-bar.is-filters-collapsed .app-bar__summary {
     display: none !important;
   }
 
@@ -2020,22 +2214,9 @@ main.is-filters-sheet-open {
     display: block !important;
   }
 
+  /* Desktop: filters live in popover — hide the old full-width host */
   .filters-host {
-    display: block;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 1;
-    min-height: 0;
-    max-height: min(38vh, 20rem);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    /* translucent so filters-bg-art silhouettes read through */
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--bg-header) 72%, transparent),
-        color-mix(in srgb, var(--bg-main) 78%, transparent)
-      );
+    display: none !important;
   }
 
   .filters-sheet__backdrop,

@@ -65,6 +65,7 @@ app.post("/api/visit", (req, res) => {
     sessionId: body.sessionId,
     path: body.path,
     ip: clientIp(req),
+    userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "",
   });
   if (!result.ok) {
     res.status(400).json({ ok: false, error: result.error });

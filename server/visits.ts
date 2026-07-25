@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { parseUserAgent } from "./userAgent.js";
 
 export type VisitStats = {
   /** Calendar day UTC (date(visited_at) = date('now')). */
@@ -13,7 +14,7 @@ export type VisitStats = {
   total: number;
   /** Distinct sessions with a visit in the last 30 minutes. */
   online30m: number;
-  recent: Array<{ id: number; visitedAt: string; path: string }>;
+  recent: Array<{ id: number; visitedAt: string; path: string; uaLabel: string }>;
 };
 
 let visitsDb: Database.Database | null = null;
@@ -47,11 +48,16 @@ function openVisitsDb(): Database.Database {
       visited_at TEXT NOT NULL DEFAULT (datetime('now')),
       path TEXT NOT NULL DEFAULT '/',
       session_id TEXT NOT NULL,
-      ip_hash TEXT NOT NULL DEFAULT ''
+      ip_hash TEXT NOT NULL DEFAULT '',
+      ua_label TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_visits_at ON visits(visited_at);
     CREATE INDEX IF NOT EXISTS idx_visits_session_at ON visits(session_id, visited_at);
   `);
+  const cols = db.prepare(`PRAGMA table_info(visits)`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "ua_label")) {
+    db.exec(`ALTER TABLE visits ADD COLUMN ua_label TEXT NOT NULL DEFAULT ''`);
+  }
   visitsDb = db;
   visitsDbOpenedPath = path;
   return db;
@@ -73,6 +79,7 @@ export function recordVisit(opts: {
   sessionId: unknown;
   path?: unknown;
   ip?: string;
+  userAgent?: string | null;
 }): { ok: true; recorded: boolean } | { ok: false; error: string } {
   const sessionId = normalizeSessionId(opts.sessionId);
   if (!sessionId) return { ok: false, error: "bad session" };
@@ -93,9 +100,10 @@ export function recordVisit(opts: {
     .get(sessionId) as { id: number } | undefined;
   if (recent) return { ok: true, recorded: false };
 
+  const uaLabel = parseUserAgent(opts.userAgent).label.slice(0, 80);
   db.prepare(
-    `INSERT INTO visits (path, session_id, ip_hash) VALUES (?, ?, ?)`,
-  ).run(path, sessionId, hashIp(opts.ip || ""));
+    `INSERT INTO visits (path, session_id, ip_hash, ua_label) VALUES (?, ?, ?, ?)`,
+  ).run(path, sessionId, hashIp(opts.ip || ""), uaLabel);
   return { ok: true, recorded: true };
 }
 
@@ -132,12 +140,17 @@ export function getVisitStats(limitRecent = 40): VisitStats {
   );
   const recentRows = db
     .prepare(
-      `SELECT id, visited_at AS visitedAt, path
+      `SELECT id, visited_at AS visitedAt, path, ua_label AS uaLabel
        FROM visits
        ORDER BY id DESC
        LIMIT ?`,
     )
-    .all(Math.min(200, Math.max(1, limitRecent))) as Array<{ id: number; visitedAt: string; path: string }>;
+    .all(Math.min(200, Math.max(1, limitRecent))) as Array<{
+    id: number;
+    visitedAt: string;
+    path: string;
+    uaLabel: string;
+  }>;
 
   return {
     today: countOnCalendarDay(`date('now')`),
@@ -146,7 +159,10 @@ export function getVisitStats(limitRecent = 40): VisitStats {
     month: countSince("-30 days"),
     total,
     online30m,
-    recent: recentRows,
+    recent: recentRows.map((r) => ({
+      ...r,
+      uaLabel: r.uaLabel || "",
+    })),
   };
 }
 
