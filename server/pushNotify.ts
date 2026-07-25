@@ -226,10 +226,19 @@ export function readDeployNotes(): DeployNotes | null {
   return null;
 }
 
+function isPublicPushItem(line: string): boolean {
+  const t = String(line || "").trim();
+  if (!t) return false;
+  if (/\badmin\b/i.test(t) || /админк/i.test(t)) return false;
+  if (/\bvapid\b/i.test(t) || /\.env\b/i.test(t)) return false;
+  if (/только в админке/i.test(t) || /скрипт на vps/i.test(t)) return false;
+  return true;
+}
+
 export function buildDeployPushPayload(notes: DeployNotes | null): PushPayload {
   const items = (Array.isArray(notes?.items) ? notes!.items! : [])
     .map((x) => String(x || "").trim())
-    .filter(Boolean)
+    .filter(isPublicPushItem)
     .slice(0, 3);
   const body = items.length
     ? items.map((it) => `• ${it}`).join("\n").slice(0, 400)

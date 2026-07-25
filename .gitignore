@@ -69,6 +69,7 @@ data/ewd/**/*.pdf
 data/ewd/**/*.MDF
 data/ewd/**/*.mdf
 data/ewd/connectivity_samples/
+data/ewd/_vea/
 
 # Keep Capital EWD indexes in git (needed for VPS highlight / FaceView / location)
 !data/ewd/device_index.json

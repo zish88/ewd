@@ -327,32 +327,8 @@ function wireStyle(color: string) {
       }
     : { backgroundColor: colors[a] || "#334155" };
 }
-const getColorStyle = (colorCode: string) => {
-  const code = normalizeWireColorKey(colorCode);
-  const map: Record<string, { bg: string; text: string }> = Object.fromEntries(
-    Object.entries(colors).map(([key, bg]) => [
-      key,
-      { bg, text: ["WH", "W", "YE", "Y"].includes(key) ? "#0f172a" : "#f8fafc" },
-    ]),
-  );
-  if (code.includes("-")) {
-    const [a, b] = code.split("-");
-    const c1 = map[a] ?? { bg: "#475569", text: "#fff" };
-    const c2 = map[b] ?? { bg: "#eab308", text: "#000" };
-    return {
-      background: `linear-gradient(135deg,${c1.bg} 25%,${c2.bg} 25%,${c2.bg} 50%,${c1.bg} 50%,${c1.bg} 75%,${c2.bg} 75%)`,
-      backgroundSize: "16px 16px",
-      color: "#ffffff",
-      textShadow: "0 0 2px #000, 1px 1px 1px #000",
-    };
-  }
-  const result = map[code] ?? { bg: "#475569", text: "#fff" };
-  return {
-    background: result.bg,
-    color: result.text,
-    textShadow: result.text === "#0f172a" ? "none" : "0 0 2px #000, 1px 1px 1px #000",
-  };
-};
+/** Card / chip wire badge — same contrast rules as filter chips (dual WH readable). */
+const getColorStyle = (colorCode: string) => wireColorChipStyle(colorCode);
 
 
 function normalizeCodeLabel(s: string): string {

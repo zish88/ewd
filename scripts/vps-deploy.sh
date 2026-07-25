@@ -106,6 +106,25 @@ if [ -n "${ADMIN_SECRET:-}" ]; then
   ADMIN_ENV_ARGS+=(-e "ADMIN_SECRET=${ADMIN_SECRET}")
 fi
 
+# Push while the named container is still down — nginx keeps serving updating.html.
+# (Startup notify inside the app is a fallback if this step fails.)
+if [ "$BUILD" = "1" ]; then
+  echo "==> Web Push deploy notify (site still on updating page)"
+  NOTIFY_ENV=()
+  if [ -f "${APP_DIR}/.env" ]; then
+    NOTIFY_ENV+=(--env-file "${APP_DIR}/.env")
+  fi
+  docker run --rm \
+    "${NOTIFY_ENV[@]}" \
+    -e NODE_ENV=production \
+    -e DATABASE_PATH=/app/data/wiring.sqlite \
+    -e CLIENT_DIST=/app/client/dist \
+    -v "${APP_DIR}/data:/app/data" \
+    "$IMAGE" \
+    npx tsx scripts/push-deploy-notify.mjs \
+    || echo "WARN: push-deploy-notify failed — will retry on container start"
+fi
+
 echo "==> docker run"
 # Prefer --env-file so SMTP_PASS is not mangled by shell expansion; -e overrides paths.
 ENV_FILE_ARGS=()

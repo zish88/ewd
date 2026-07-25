@@ -10,8 +10,17 @@ SSH может давать timeout — используйте **веб-конс
 |---------------------|----------------------------------------|
 | Код `server/`, `client/`, Docker | `data/ewd/ewd_source/` (SVG, большой архив) |
 | `data/wiring.sqlite` (~0.6 MB) | `data/ewd/EPC.zip`, `imagerepository_Data.MDF` (не обязательны для списка узлов) |
-| `data/dtc.sqlite` (~словарь DTC/OBD из VIDA) | |
+| `data/dtc.sqlite` (~словарь DTC/OBD из VIDA) | Capital tree: **`39363002/1/2`** (основной) + **`39363002/4/5`** (VEA Drive-E add-on) |
 | `data/ewd/*_index.json` | |
+
+Инвентаризация портала / пакетов: [`docs/ewd-portal-inventory.md`](./docs/ewd-portal-inventory.md). После обновления индексов VEA:
+
+```bash
+EWD_PACKAGE_FOLDER=4/5 python scripts/ewd_extract.py --ewd-root data/ewd/ewd_source --out-dir data/ewd/_vea --connectivity-limit 0
+python scripts/ewd/merge_indexes.py --primary data/ewd --secondary data/ewd/_vea
+```
+
+Упаковка runtime (включая `4/5`, если лежит рядом): `node scripts/pack-ewd-bundle.mjs`.
 
 ## 1. Обновить код
 
@@ -251,7 +260,9 @@ VAPID_SUBJECT=mailto:elzidevelop@gmail.com
 
 ### Web Push (уведомления об обновлении)
 
-После `BUILD=1` деплоя контейнер при старте сравнивает SHA из `deploy-notes.json` с `data/push-last-notified.json`. Если SHA новый — рассылает Web Push подписчикам (заголовок «Сайт обновлён» + пункты списка). Первый запуск только записывает SHA, без рассылки.
+После `BUILD=1` деплоя пуш уходит **пока контейнер ещё остановлен** (на экране `updating.html`): `scripts/push-deploy-notify.mjs` внутри нового образа сравнивает SHA из `deploy-notes.json` с `data/push-last-notified.json` и рассылает подписчикам («Сайт обновлён» + пользовательские пункты). При старте контейнера — повторная попытка, если шаг на updating не сработал. Первый запуск только записывает SHA, без рассылки.
+
+В списке на updating и в тексте пуша — только изменения для пользователей (админка, VAPID, SMTP и прочий ops отфильтрованы).
 
 На VPS (ключи сами пишутся в `/opt/ewd-app/.env`, копировать из консоли не нужно):
 

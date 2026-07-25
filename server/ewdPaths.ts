@@ -64,11 +64,31 @@ export function ewdDataDir(): string {
   return candidates[0];
 }
 
-export function safeUnderDataDir(absPath: string): boolean {
-  const root = resolve(ewdDataDir());
+/** Secondary Capital data roots (VEA 4/5, …) — SVG may live outside primary 1/2. */
+export function ewdSecondaryDataDirs(): string[] {
+  const roots = [
+    resolve(EWD_DATA, "ewd_source", "39363002", "4", "5"),
+    resolve("E:\\manual", "ewd_source", "39363002", "4", "5"),
+  ];
+  return roots.filter((p) => existsSync(p));
+}
+
+function underAnyEwdRoot(absPath: string): boolean {
   const target = resolve(absPath);
-  const rel = relative(root, target);
-  return !rel.startsWith("..") && !normalize(rel).startsWith("..");
+  const roots = [resolve(ewdDataDir()), ...ewdSecondaryDataDirs().map((p) => resolve(p))];
+  // Also allow package root (sibling 1/2 ↔ 4/5)
+  for (const root of roots) {
+    const rel = relative(root, target);
+    if (!rel.startsWith("..") && !normalize(rel).startsWith("..")) return true;
+    const pkg = resolve(root, "..", "..");
+    const relPkg = relative(pkg, target);
+    if (!relPkg.startsWith("..") && !normalize(relPkg).startsWith("..")) return true;
+  }
+  return false;
+}
+
+export function safeUnderDataDir(absPath: string): boolean {
+  return underAnyEwdRoot(absPath);
 }
 
 /** Remap absolute Windows paths from JSON indexes onto the live Linux/Windows data dir. */
@@ -89,8 +109,17 @@ export function resolveIndexedPath(stored: string): string | null {
     else if (a.startsWith(`${b}/`)) rel = storedPosix.slice(indexRoot.length).replace(/^\/+/, "");
   }
   if (!rel || rel === ".") {
-    const m = storedPosix.match(/ewd_source\/39363002\/1\/2\/(.+)$/i);
-    if (m) rel = m[1];
+    const m12 = storedPosix.match(/ewd_source\/39363002\/1\/2\/(.+)$/i);
+    if (m12) rel = m12[1];
+  }
+  if (!rel || rel === ".") {
+    const m45 = storedPosix.match(/ewd_source\/39363002\/4\/5\/(.+)$/i);
+    if (m45) {
+      for (const sec of ewdSecondaryDataDirs()) {
+        const candidate = resolve(sec, m45[1]);
+        if (existsSync(candidate)) return candidate;
+      }
+    }
   }
   if (!rel || rel === ".") {
     const parts = storedPosix.split("/").filter(Boolean);
@@ -100,6 +129,10 @@ export function resolveIndexedPath(stored: string): string | null {
 
   const candidate = resolve(root, rel);
   if (existsSync(candidate) && safeUnderDataDir(candidate)) return candidate;
+  for (const sec of ewdSecondaryDataDirs()) {
+    const alt = resolve(sec, rel);
+    if (existsSync(alt)) return alt;
+  }
   return null;
 }
 

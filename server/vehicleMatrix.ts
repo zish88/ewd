@@ -31,6 +31,9 @@ const ENGINE_BY_OPTION: Record<string, string> = {
   "2.0P": "1.6T",
   "1.6P": "1.6T",
   "1.6D": "2.0D D3/D4",
+  /** Capital package 4/5 (VEA / Drive-E) */
+  VEP4: "2.0T Drive-E",
+  VED4: "2.0D Drive-E",
 };
 
 const ENGINE_CODES: Record<string, string[]> = {
@@ -40,6 +43,8 @@ const ENGINE_CODES: Record<string, string[]> = {
   "2.4D D5": ["D5244TX"],
   "2.0D D3/D4": ["D5204TX", "D4162TX"],
   "1.6T": ["B4164TX", "B5204TX"],
+  "2.0T Drive-E": ["B4204TX"],
+  "2.0D Drive-E": ["D4204TX"],
 };
 
 /** Model → years available in this EWD package / SPA P3 range */
@@ -92,20 +97,20 @@ const MODEL_YEAR_ENGINES: Record<string, Record<string, string[]>> = {
     "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4"],
     "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    // B5254T12 T5 AWD (~2014–2017) — label 2.5T; earlier years keep SI6 / diesels / 1.6T
-    "2014+": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    // B5254T12 T5 AWD (~2014–2017); Drive-E sheets live in Capital package 4/5
+    "2014+": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
   },
   S60: {
     "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014+": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    "2014+": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
   },
   V60: {
     "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
     "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014+": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
+    "2014+": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
   },
 };
 
@@ -117,6 +122,8 @@ const ENGINE_TRANSMISSIONS: Record<string, TransmissionId[]> = {
   "2.4D D5": ["TF-80SC", "M66"],
   "2.0D D3/D4": ["TF-80SC", "MPS6", "M66"],
   "1.6T": ["MPS6", "M66", "TF-80SC"],
+  "2.0T Drive-E": ["TF-80SC", "M66"],
+  "2.0D Drive-E": ["TF-80SC", "M66"],
 };
 
 /** EWD optionExpression tokens for the selected powertrain */
@@ -136,7 +143,22 @@ export function optionTokensForSelection(sel: VehicleSelection): string[] {
     if (label === eng) tokens.add(opt);
   }
   for (const code of ENGINE_CODES[eng] || []) tokens.add(code);
-  if (eng.includes("D5") || eng.includes("D3") || eng.includes("D4") || eng.startsWith("2.0D") || eng.startsWith("2.4D")) {
+  if (eng === "2.0T Drive-E") {
+    tokens.add("VEP4");
+    tokens.add("B4204TX");
+  }
+  if (eng === "2.0D Drive-E") {
+    tokens.add("VED4");
+    tokens.add("D4204TX");
+  }
+  if (
+    eng.includes("D5") ||
+    eng.includes("D3") ||
+    eng.includes("D4") ||
+    eng.startsWith("2.0D") ||
+    eng.startsWith("2.4D") ||
+    eng === "2.0D Drive-E"
+  ) {
     tokens.add("DIESEL");
   } else if (eng) {
     tokens.add("PETROL");

@@ -24,6 +24,16 @@
 | Схемы | Capital EWD SVG + JSON-индексы |
 | Прод | Docker на VPS, Nginx → HTTPS |
 
+## AI: план на Frontier → реализация дешёвыми агентами
+
+**Инструкция с нуля (обязательно):** [`docs/ai/HOWTO.md`](docs/ai/HOWTO.md)
+
+Кратко: [`docs/ai/README.md`](docs/ai/README.md) · [`AGENTS.md`](AGENTS.md)
+
+- Разведка/SPEC: skill **feature-planner** (Sol / длинный контекст)
+- Код по SPEC: skill **feature-implementer** (дешёвая модель)
+- `/compact` после плана · `rtk rg` опционально · фича: `scripts/ai-new-feature.ps1`
+
 ## Быстрый старт
 
 ```bash

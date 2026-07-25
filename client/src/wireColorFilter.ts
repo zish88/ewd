@@ -64,6 +64,23 @@ export type WireChipStyle = {
   boxShadow?: string;
 };
 
+/** Readable label on striped dual insulation (esp. WH / YE halves). */
+function dualWireLabelStyle(light: boolean): Pick<WireChipStyle, "color" | "textShadow"> {
+  if (light) {
+    // Dark fill + white halo — stays legible on both pigment and white stripes
+    return {
+      color: "#0f172a",
+      textShadow:
+        "0 0 2px #fff, 0 0 4px #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff",
+    };
+  }
+  return {
+    color: "#f8fafc",
+    textShadow:
+      "0 0 3px #000, 0 0 1px #000, 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 1px 0 #000, -1px -1px 0 #000",
+  };
+}
+
 /** Visual style for a filter chip — dual stripe + contrast border for light colors. */
 export function wireColorChipStyle(wireColor: string): WireChipStyle {
   const parts = wireColorParts(wireColor);
@@ -72,17 +89,18 @@ export function wireColorChipStyle(wireColor: string): WireChipStyle {
   const darkText = light;
   const color = darkText ? "#0f172a" : "#f8fafc";
   const textShadow = darkText
-    ? "none"
+    ? "0 0 2px #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff"
     : "0 0 2px #000, 1px 1px 1px #000";
 
   if (parts.length >= 2) {
     const c1 = wireColorHex(parts[0]);
     const c2 = wireColorHex(parts[1]);
+    const label = dualWireLabelStyle(light);
     return {
       background: `linear-gradient(135deg,${c1} 25%,${c2} 25%,${c2} 50%,${c1} 50%,${c1} 75%,${c2} 75%)`,
       backgroundSize: "16px 16px",
-      color: "#ffffff",
-      textShadow: "0 0 2px #000, 1px 1px 1px #000",
+      color: label.color,
+      textShadow: label.textShadow,
       border: light ? "1px solid var(--border-color)" : "1px solid rgba(0,0,0,0.25)",
       boxShadow: light ? "inset 0 0 0 1px rgba(15,23,42,0.12)" : undefined,
     };

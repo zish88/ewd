@@ -33,6 +33,18 @@ test("filters cascade: XC60 2014+ offers 2.5T (B5254T12 T5 AWD); XC70 never", ()
   assert.ok(!resolveFilters({ model: "XC70", year: "2014+" }).engines.includes("2.5T"));
 });
 
+test("filters cascade: 2014+ Drive-E engines map to Capital 4/5 VEA tokens", () => {
+  const petrol = resolveFilters({ model: "S60", year: "2014+", engine: "2.0T Drive-E" });
+  assert.ok(petrol.engines.includes("2.0T Drive-E"));
+  assert.ok(petrol.optionTokens.includes("VEP4"));
+  assert.ok(petrol.optionTokens.includes("B4204TX"));
+  const diesel = resolveFilters({ model: "V60", year: "2014+", engine: "2.0D Drive-E" });
+  assert.ok(diesel.engines.includes("2.0D Drive-E"));
+  assert.ok(diesel.optionTokens.includes("VED4"));
+  assert.ok(diesel.optionTokens.includes("D4204TX"));
+  assert.ok(diesel.optionTokens.includes("DIESEL"));
+});
+
 test("filters cascade: stale engine cleared when not offered for year", () => {
   const r = resolveFilters({ model: "XC70", year: "2008", engine: "2.5T" });
   assert.equal(r.selection.engine, "");

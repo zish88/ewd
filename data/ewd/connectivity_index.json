@@ -93155,6 +93155,98 @@
       "connectivity33.zip",
       "connectivity333.zip",
       "connectivity36.zip"
+    ],
+    "6/113": [
+      "connectivity11.zip",
+      "connectivity297.zip",
+      "connectivity30.zip",
+      "connectivity37.zip"
+    ],
+    "6/163": [
+      "connectivity14.zip",
+      "connectivity15.zip",
+      "connectivity19.zip",
+      "connectivity20.zip",
+      "connectivity21.zip",
+      "connectivity222.zip",
+      "connectivity305.zip",
+      "connectivity310.zip"
+    ],
+    "6/181": [
+      "connectivity234.zip",
+      "connectivity60.zip",
+      "connectivity61.zip",
+      "connectivity62.zip",
+      "connectivity63.zip",
+      "connectivity64.zip"
+    ],
+    "6/197": [
+      "connectivity192.zip",
+      "connectivity225.zip",
+      "connectivity23.zip",
+      "connectivity29.zip"
+    ],
+    "7/21": [
+      "connectivity161.zip",
+      "connectivity162.zip",
+      "connectivity163.zip",
+      "connectivity295.zip"
+    ],
+    "7/232": [
+      "connectivity158.zip",
+      "connectivity159.zip",
+      "connectivity160.zip",
+      "connectivity177.zip",
+      "connectivity267.zip"
+    ],
+    "7/274": [
+      "connectivity226.zip",
+      "connectivity77.zip",
+      "connectivity78.zip",
+      "connectivity79.zip"
+    ],
+    "8/114": [
+      "connectivity144.zip",
+      "connectivity145.zip",
+      "connectivity146.zip",
+      "connectivity147.zip",
+      "connectivity148.zip",
+      "connectivity257.zip"
+    ],
+    "8/118": [
+      "connectivity125.zip",
+      "connectivity24.zip",
+      "connectivity258.zip"
+    ],
+    "8/166": [
+      "connectivity119.zip",
+      "connectivity23.zip",
+      "connectivity283.zip"
+    ],
+    "8/175": [
+      "connectivity120.zip",
+      "connectivity133.zip",
+      "connectivity250.zip"
+    ],
+    "8/180": [
+      "connectivity121.zip",
+      "connectivity24.zip",
+      "connectivity272.zip"
+    ],
+    "8/197": [
+      "connectivity191.zip",
+      "connectivity23.zip",
+      "connectivity236.zip"
+    ],
+    "8/199": [
+      "connectivity172.zip",
+      "connectivity24.zip",
+      "connectivity249.zip"
+    ],
+    "8/200": [
+      "connectivity122.zip",
+      "connectivity237.zip",
+      "connectivity24.zip"
     ]
   },
   "codeToSystemFiles": {
@@ -104309,6 +104401,134 @@
         "connectivity33.zip",
         "connectivity36.zip"
       ]
+    },
+    "6/113": {
+      "UID7b9aac-142d80b0c7d-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity11.zip",
+        "connectivity297.zip",
+        "connectivity30.zip",
+        "connectivity37.zip"
+      ]
+    },
+    "6/163": {
+      "UID7b9aac-142d80af3a4-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity20.zip",
+        "connectivity21.zip",
+        "connectivity222.zip",
+        "connectivity310.zip"
+      ],
+      "UID7b9aac-142d80b0c7d-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity14.zip",
+        "connectivity15.zip",
+        "connectivity19.zip",
+        "connectivity20.zip",
+        "connectivity21.zip",
+        "connectivity222.zip",
+        "connectivity305.zip",
+        "connectivity310.zip"
+      ]
+    },
+    "6/181": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity234.zip",
+        "connectivity60.zip",
+        "connectivity61.zip",
+        "connectivity62.zip",
+        "connectivity63.zip",
+        "connectivity64.zip"
+      ]
+    },
+    "6/197": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity192.zip",
+        "connectivity225.zip",
+        "connectivity23.zip",
+        "connectivity29.zip"
+      ]
+    },
+    "7/21": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity161.zip",
+        "connectivity162.zip",
+        "connectivity163.zip",
+        "connectivity295.zip"
+      ]
+    },
+    "7/232": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity158.zip",
+        "connectivity159.zip",
+        "connectivity160.zip",
+        "connectivity177.zip",
+        "connectivity267.zip"
+      ]
+    },
+    "7/274": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity226.zip",
+        "connectivity77.zip",
+        "connectivity78.zip",
+        "connectivity79.zip"
+      ]
+    },
+    "8/114": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity144.zip",
+        "connectivity145.zip",
+        "connectivity146.zip",
+        "connectivity147.zip",
+        "connectivity148.zip",
+        "connectivity257.zip"
+      ]
+    },
+    "8/118": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity125.zip",
+        "connectivity24.zip",
+        "connectivity258.zip"
+      ]
+    },
+    "8/166": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity119.zip",
+        "connectivity23.zip",
+        "connectivity283.zip"
+      ]
+    },
+    "8/175": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity120.zip",
+        "connectivity133.zip",
+        "connectivity250.zip"
+      ]
+    },
+    "8/180": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity121.zip",
+        "connectivity24.zip",
+        "connectivity272.zip"
+      ]
+    },
+    "8/197": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity191.zip",
+        "connectivity23.zip",
+        "connectivity236.zip"
+      ]
+    },
+    "8/199": {
+      "UID7b9aac-142d80af623-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity172.zip",
+        "connectivity24.zip",
+        "connectivity249.zip"
+      ]
+    },
+    "8/200": {
+      "UID7b9aac-142d80b1073-486ff4ba2b80e7509641ffe20fa5ea39": [
+        "connectivity122.zip",
+        "connectivity237.zip",
+        "connectivity24.zip"
+      ]
     }
   },
   "fullSamples": [
@@ -104905,5 +105125,8 @@
       ]
     }
   ],
-  "note": "connectivity*.zip are gzip XML; devices+connectors indexed; codeToSystemFiles scopes by sourceDesignUID"
+  "note": "connectivity*.zip are gzip XML; devices+connectors indexed; codeToSystemFiles scopes by sourceDesignUID",
+  "secondary_data_dirs": [
+    "data\\ewd\\ewd_source\\39363002\\4\\5"
+  ]
 }

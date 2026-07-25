@@ -187,7 +187,11 @@ def main() -> int:
 
     if args.step in ("all", "capital", "lang"):
         print("\n=== lang_ru + harness_labels ===")
-        lang_path, harness_path = run_lang(ewd_root)
+        lang_path, harness_path = run_lang(
+            ewd_root,
+            out_lang=out_dir / "lang_ru_index.json",
+            out_harness=out_dir / "harness_labels.json",
+        )
         print(f"Wrote {lang_path}")
         print(f"Wrote {harness_path}")
         report["outputs"]["lang_ru_index"] = str(lang_path)

@@ -164,6 +164,7 @@ Golden: `server/routes/ewd.golden.test.ts` — FaceView cavity → pinUid/wireUi
 ## 9. Ограничения и следующий уровень
 
 - Полный Java-applet Signal Renderer Capital не портируем; мы красим SVG path/groups по UID.
-- Пакет `4/5` (VEA/Drive-E) — после стабилизации `1/2`.
+- Пакет **`4/5` (VEA / Drive-E)** — add-on рядом с `1/2` (`packages.xml`: `39363002 (VEA)`). Не заменяет `1/2`. ETL: `EWD_PACKAGE_FOLDER=4/5` → extract → `scripts/ewd/merge_indexes.py`. См. [ewd-portal-inventory.md](ewd-portal-inventory.md).
+- HTML-портал vidaresources — только каталог TP; в runtime не импортируется.
 - 3D location — только если появится вне TwoDviews.
 - Harness id → zone map улучшит зонный скоуп сверх regex по имени системы.

@@ -8,9 +8,11 @@ import { execSync } from "node:child_process";
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "data", "ewd", "ewd_source", "39363002", "1", "2");
+const SRC_VEA = join(ROOT, "data", "ewd", "ewd_source", "39363002", "4", "5");
 const OUT_DIR = join(ROOT, "dist-upload");
 const STAGE = join(OUT_DIR, "stage");
 const LIVE = join(STAGE, "ewd_source", "39363002", "1", "2");
+const LIVE_VEA = join(STAGE, "ewd_source", "39363002", "4", "5");
 
 function ensureDir(p) {
   mkdirSync(p, { recursive: true });
@@ -24,31 +26,44 @@ function copyOne(absFrom, absTo) {
 
 function resolveStored(stored) {
   const posix = String(stored || "").replace(/\\/g, "/");
-  const m = posix.match(/ewd_source\/39363002\/1\/2\/(.+)$/i);
-  const rel = m ? m[1] : posix.split("/").slice(-2).join("/");
+  const m12 = posix.match(/ewd_source\/39363002\/1\/2\/(.+)$/i);
+  if (m12) {
+    const cand = join(SRC, m12[1]);
+    if (existsSync(cand)) return { abs: cand, rel: m12[1], package: "1/2" };
+  }
+  const m45 = posix.match(/ewd_source\/39363002\/4\/5\/(.+)$/i);
+  if (m45) {
+    const cand = join(SRC_VEA, m45[1]);
+    if (existsSync(cand)) return { abs: cand, rel: m45[1], package: "4/5" };
+  }
+  const rel = posix.split("/").slice(-2).join("/");
   const cand = join(SRC, rel);
-  if (existsSync(cand)) return { abs: cand, rel };
+  if (existsSync(cand)) return { abs: cand, rel, package: "1/2" };
+  const candVea = join(SRC_VEA, rel);
+  if (existsSync(candVea)) return { abs: candVea, rel, package: "4/5" };
   return null;
 }
 
 ensureDir(LIVE);
+if (existsSync(SRC_VEA)) ensureDir(LIVE_VEA);
 let bytes = 0;
 let files = 0;
 const seen = new Set();
 
-function take(abs, rel) {
-  const key = rel.replace(/\\/g, "/");
+function take(abs, rel, pkg = "1/2") {
+  const key = `${pkg}:${rel.replace(/\\/g, "/")}`;
   if (seen.has(key)) return;
   if (!existsSync(abs)) return;
   seen.add(key);
-  bytes += copyOne(abs, join(LIVE, key));
+  const destRoot = pkg === "4/5" ? LIVE_VEA : LIVE;
+  bytes += copyOne(abs, join(destRoot, rel));
   files++;
 }
 
 const svgIdx = JSON.parse(readFileSync(join(ROOT, "data/ewd/svg_desc_index.json"), "utf8"));
 for (const d of Object.values(svgIdx.diagrams || {})) {
   const hit = resolveStored(d.svg);
-  if (hit) take(hit.abs, hit.rel);
+  if (hit) take(hit.abs, hit.rel, hit.package || "1/2");
 }
 
 const connIdx = JSON.parse(readFileSync(join(ROOT, "data/ewd/connectivity_index.json"), "utf8"));
@@ -61,20 +76,27 @@ for (const arr of Object.values(connIdx.codeToConnectivityFiles || {})) fileList
 for (const name of new Set(fileLists.filter(Boolean))) {
   // filenames only — live under dataDir
   const abs = join(SRC, name);
-  if (existsSync(abs)) take(abs, name);
+  if (existsSync(abs)) take(abs, name, "1/2");
   else {
-    // sometimes nested
-    const hit = resolveStored(name);
-    if (hit) take(hit.abs, hit.rel);
+    const absVea = join(SRC_VEA, name);
+    if (existsSync(absVea)) take(absVea, name, "4/5");
+    else {
+      const hit = resolveStored(name);
+      if (hit) take(hit.abs, hit.rel, hit.package || "1/2");
+    }
   }
 }
 
-// Signals folder (highlight / wire names)
-const signals = join(SRC, "Signals");
-if (existsSync(signals)) {
-  execSync(`powershell -NoProfile -Command "Copy-Item -Recurse -Force '${signals}' '${join(LIVE, "Signals")}'"`, {
-    stdio: "inherit",
-  });
+// Signals folder (highlight / wire names) — primary + VEA add-on
+for (const [srcSig, liveSig] of [
+  [join(SRC, "Signals"), join(LIVE, "Signals")],
+  [join(SRC_VEA, "Signals"), join(LIVE_VEA, "Signals")],
+]) {
+  if (existsSync(srcSig)) {
+    execSync(`powershell -NoProfile -Command "Copy-Item -Recurse -Force '${srcSig}' '${liveSig}'"`, {
+      stdio: "inherit",
+    });
+  }
 }
 
 // PDF for tables
