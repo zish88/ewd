@@ -166,6 +166,9 @@ export function createAdminRouter(db: Database.Database) {
     const next = writeSiteSettings({
       siteOpen: body.siteOpen ?? cur.siteOpen,
       features: { ...cur.features, ...(body.features || {}) },
+      appearance: body.appearance
+        ? { ...cur.appearance, ...body.appearance, colors: { ...cur.appearance.colors, ...(body.appearance.colors || {}) } }
+        : cur.appearance,
     });
     res.json(next);
   });

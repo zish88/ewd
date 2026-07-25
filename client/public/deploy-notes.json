@@ -1,9 +1,12 @@
 {
   "version": "2026.07.25",
-  "git": "f4ce9f0f",
+  "git": "58b307f7",
   "items": [
-    "OBD тест: модалка, шлюз ESP и вкладка ELM327",
-    "Полноэкранные схемы и жесты тачпада (Mac)",
-    "Админка: плашки посещений и UX правок заявок"
-  ]
+    "Restore mouse-wheel zoom on schematics without breaking trackpad pan/pinch.",
+    "Mark OBD as beta with a testing badge and keep the accent pulse on prod.",
+    "Show EPC part numbers on node banner and merge connector PN fallback.",
+    "Add OBD test modal/ELM path, ESP firmware docs, and deploy notes on updating page.",
+    "Add scheme fullscreen mode and fix Mac trackpad pan/zoom and card scroll."
+  ],
+  "stamped_at": "2026-07-25T05:50:47.453Z"
 }

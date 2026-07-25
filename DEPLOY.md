@@ -97,13 +97,18 @@ docker start volvo-xc70-wiring
 
 На странице 502 показываются **версия** и краткий список (вшиты в HTML — работает при лежащем контейнере).
 
-1. Отредактируйте [`client/public/deploy-notes.json`](client/public/deploy-notes.json) (`version`, `items` — до 5 пунктов).
-2. Перед коммитом релиза:
+Список **собирается автоматически** скриптом [`scripts/stamp-updating.mjs`](scripts/stamp-updating.mjs) из git:
+
+- `version` — дата сборки `YYYY.MM.DD`
+- `git` — текущий short SHA
+- `items` — до 5 последних subject’ов коммитов на момент stamp (актуальный срез, без диапазона от прошлого деплоя)
+
+1. Локально проверить:
    ```bash
    npm run stamp:updating
    ```
-   Скрипт подставит `git` short SHA и обновит блок в `updating.html`.
-3. При `BUILD=1 bash deploy.sh` stamp вызывается на VPS ещё раз (если есть `node`).
+2. При `BUILD=1 bash deploy.sh` stamp вызывается на VPS сам (если есть `node`) — править `deploy-notes.json` руками не нужно.
+3. Текст пунктов = subject коммита; для русского на updating пишите subjects по-русски.
 
 Nginx snippet менять не нужно.
 

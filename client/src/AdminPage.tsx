@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  applySiteAppearance,
+  type SiteAppearance,
+  type ThemeId,
+  type UiDensity,
+} from "./appearance.js";
+
+type AdminTab = "stats" | "settings" | "edits";
 
 type Features = {
   suggestions: boolean;
@@ -12,8 +20,35 @@ type Features = {
 type Settings = {
   siteOpen: boolean;
   features: Features;
+  appearance: SiteAppearance;
   updatedAt?: string;
 };
+
+const DEFAULT_APPEARANCE: SiteAppearance = {
+  defaultTheme: "caspian",
+  colors: {},
+  fontFamily: "",
+  fontUrl: "",
+  radiusMd: "",
+  radiusLg: "",
+  cardPadding: "",
+  cardGap: "",
+  cardTitleSize: "",
+  appBarHeight: "",
+  chipFontSize: "",
+  btnMinHeight: "",
+  uiDensity: "normal",
+};
+
+const COLOR_FIELDS: Array<{ key: keyof NonNullable<SiteAppearance["colors"]>; label: string }> = [
+  { key: "accent", label: "Accent" },
+  { key: "bgMain", label: "Фон сайта" },
+  { key: "bgCard", label: "Фон карточки" },
+  { key: "textMain", label: "Текст" },
+  { key: "textMuted", label: "Приглушённый" },
+  { key: "border", label: "Рамка" },
+  { key: "cta", label: "CTA кнопка" },
+];
 
 type VisitStats = {
   today: number;
@@ -84,6 +119,23 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
+const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
+  { key: "stats", label: "Статистика" },
+  { key: "settings", label: "Настройки" },
+  { key: "edits", label: "Правки" },
+];
+
+function parseAdminTab(value: string | null): AdminTab {
+  return value === "settings" || value === "edits" || value === "stats" ? value : "stats";
+}
+
+function normalizeAppearance(appearance?: SiteAppearance | null): SiteAppearance {
+  return {
+    ...DEFAULT_APPEARANCE,
+    ...(appearance || {}),
+    colors: { ...DEFAULT_APPEARANCE.colors, ...(appearance?.colors || {}) },
+  };
+}
 
 const emptyWireForm = (): WireForm => ({
   pin_number: "",
@@ -129,9 +181,14 @@ function wireToForm(w: WireRow): WireForm {
 export function AdminPage() {
   const [configured, setConfigured] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (typeof window === "undefined") return "stats";
+    return parseAdminTab(new URLSearchParams(window.location.search).get("tab"));
+  });
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [draftSettings, setDraftSettings] = useState<Settings | null>(null);
   const [visits, setVisits] = useState<VisitStats | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketCounts, setTicketCounts] = useState<Record<string, number>>({});
@@ -170,8 +227,11 @@ export function AdminPage() {
   async function loadSettings() {
     const r = await fetch("/api/admin/settings", { credentials: "include" });
     if (!r.ok) return;
-    const d = await r.json();
-    setSettings(d as Settings);
+    const d = (await r.json()) as Settings;
+    d.appearance = normalizeAppearance(d.appearance);
+    setSettings(d);
+    setDraftSettings(d);
+    applySiteAppearance(d.appearance);
   }
 
   async function loadVisits() {
@@ -343,8 +403,11 @@ export function AdminPage() {
     } catch {
       /* ignore */
     }
+    // Drop unsaved draft preview; keep last saved tokens for the public site.
+    if (settings) applySiteAppearance(settings.appearance);
     setAdmin(false);
     setSettings(null);
+    setDraftSettings(null);
     setVisits(null);
     setTickets([]);
     setActiveTicket(null);
@@ -388,6 +451,13 @@ export function AdminPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", activeTab);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [activeTab]);
+
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setNotice("");
@@ -428,11 +498,48 @@ export function AdminPage() {
       setNotice(d.error || "Не удалось сохранить");
       return;
     }
-    setSettings(d as Settings);
+    const saved = d as Settings;
+    saved.appearance = normalizeAppearance(saved.appearance);
+    setSettings(saved);
+    setDraftSettings(saved);
+    applySiteAppearance(saved.appearance);
     setNotice("Настройки сохранены");
   }
 
+  function mergeAppearance(patch: Partial<SiteAppearance>): SiteAppearance {
+    const cur = draftSettings?.appearance || DEFAULT_APPEARANCE;
+    return {
+      ...DEFAULT_APPEARANCE,
+      ...cur,
+      ...patch,
+      colors: { ...(cur.colors || {}), ...(patch.colors || {}) },
+    };
+  }
+
+  function updateDraftSettings(patch: Partial<Settings>) {
+    if (!draftSettings) return;
+    setDraftSettings({ ...draftSettings, ...patch });
+  }
+
+  function updateDraftFeatures(key: keyof Features, value: boolean) {
+    if (!draftSettings) return;
+    setDraftSettings({
+      ...draftSettings,
+      features: { ...draftSettings.features, [key]: value },
+    });
+  }
+
+  function updateDraftAppearance(patch: Partial<SiteAppearance>) {
+    if (!draftSettings) return;
+    const appearance = mergeAppearance(patch);
+    setDraftSettings({ ...draftSettings, appearance });
+    applySiteAppearance(appearance);
+  }
+
   const inputClass = "rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 w-full";
+  const settingsDirty = Boolean(
+    settings && draftSettings && JSON.stringify(draftSettings) !== JSON.stringify(settings),
+  );
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] px-4 py-6">
@@ -486,6 +593,35 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
           </form>
         ) : (
           <>
+            <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1" role="tablist" aria-label="Разделы админки">
+                  {ADMIN_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab.key}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                        activeTab === tab.key
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-[var(--border-color)] text-[var(--text-muted)]"
+                      }`}
+                      onClick={() => setActiveTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {settingsDirty && activeTab === "settings" ? (
+                  <span className="text-xs font-medium text-amber-700">Есть несохранённые изменения</span>
+                ) : null}
+              </div>
+              {notice ? <p className="text-sm text-amber-700">{notice}</p> : null}
+            </section>
+
+            {activeTab === "edits" ? (
+              <>
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Заявки на правку</h2>
@@ -725,23 +861,12 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                   ) : null}
                 </div>
               </details>
-
-              <div className="rounded-lg border border-[var(--border-color)] p-3 space-y-1 text-[var(--text-muted)]">
-                <div>
-                  Правок за сутки (оверлей): <strong className="text-[var(--text-main)]">{syncInfo?.today ?? "—"}</strong>
-                </div>
-                <div>
-                  Последний ночной/ручной накат:{" "}
-                  {syncInfo?.lastSync
-                    ? `${formatVisitAt(syncInfo.lastSync.ran_at)} · ${syncInfo.lastSync.applied_count} · ${syncInfo.lastSync.note}`
-                    : "ещё не было"}
-                </div>
-                <button type="button" className="text-emerald-700 underline" onClick={() => void runSyncNow()}>
-                  Накатить оверлей сейчас
-                </button>
-              </div>
             </section>
+              </>
+            ) : null}
 
+            {activeTab === "stats" ? (
+              <>
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Посещения</h2>
@@ -790,20 +915,49 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
               )}
             </section>
 
+            <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 text-sm">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Сводка</h2>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-[var(--border-color)] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Правок сегодня</div>
+                  <div className="text-xl font-semibold tabular-nums text-[var(--accent)]">{syncInfo?.today ?? "—"}</div>
+                </div>
+                <div className="rounded-lg border border-[var(--border-color)] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Заявки ждут</div>
+                  <div className="text-xl font-semibold tabular-nums text-[var(--accent)]">{ticketCounts.pending || 0}</div>
+                </div>
+                <div className="rounded-lg border border-[var(--border-color)] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Приняты</div>
+                  <div className="text-xl font-semibold tabular-nums text-[var(--accent)]">{ticketCounts.approved || 0}</div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-[var(--border-color)] p-3 space-y-1 text-[var(--text-muted)]">
+                <div>
+                  Последний ночной/ручной накат:{" "}
+                  {syncInfo?.lastSync
+                    ? `${formatVisitAt(syncInfo.lastSync.ran_at)} · ${syncInfo.lastSync.applied_count} · ${syncInfo.lastSync.note}`
+                    : "ещё не было"}
+                </div>
+                <button type="button" className="text-emerald-700 underline" onClick={() => void runSyncNow()}>
+                  Накатить оверлей сейчас
+                </button>
+              </div>
+            </section>
+              </>
+            ) : null}
+
+            {activeTab === "settings" ? (
+              <>
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Доступность сайта</h2>
-              {settings ? (
+              {draftSettings ? (
                 <>
                   <label className="flex items-center justify-between gap-3 text-sm">
                     <span>Сайт открыт для посетителей</span>
                     <input
                       type="checkbox"
-                      checked={settings.siteOpen}
-                      onChange={(e) => {
-                        const next = { ...settings, siteOpen: e.target.checked };
-                        setSettings(next);
-                        void saveSettings(next);
-                      }}
+                      checked={draftSettings.siteOpen}
+                      onChange={(e) => updateDraftSettings({ siteOpen: e.target.checked })}
                     />
                   </label>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-2">Функции</h3>
@@ -813,15 +967,8 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                         <span>{FEATURE_LABELS[key]}</span>
                         <input
                           type="checkbox"
-                          checked={settings.features[key]}
-                          onChange={(e) => {
-                            const next = {
-                              ...settings,
-                              features: { ...settings.features, [key]: e.target.checked },
-                            };
-                            setSettings(next);
-                            void saveSettings(next);
-                          }}
+                          checked={draftSettings.features[key]}
+                          onChange={(e) => updateDraftFeatures(key, e.target.checked)}
                         />
                       </label>
                     ))}
@@ -832,6 +979,231 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
               )}
             </section>
 
+            <section
+              className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3"
+              data-testid="admin-appearance"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Внешний вид</h2>
+                {draftSettings ? (
+                  <button
+                    type="button"
+                    className="md-btn md-btn--text text-[11px] px-2 py-1"
+                    onClick={() => {
+                      const appearance = { ...DEFAULT_APPEARANCE };
+                      setDraftSettings({ ...draftSettings, appearance });
+                      applySiteAppearance(appearance);
+                    }}
+                  >
+                    Сбросить к пресету
+                  </button>
+                ) : null}
+              </div>
+              {draftSettings?.appearance ? (
+                <>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Тема по умолчанию для новых посетителей; цвета и размеры перекрывают пресет на всём сайте.
+                  </p>
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-[10px] uppercase text-[var(--muted)]">Тема по умолчанию</span>
+                    <select
+                      className={inputClass}
+                      value={draftSettings.appearance.defaultTheme || "caspian"}
+                      onChange={(e) =>
+                        updateDraftAppearance({ defaultTheme: e.target.value as ThemeId })
+                      }
+                    >
+                      <option value="caspian">Caspian</option>
+                      <option value="charcoal">Charcoal</option>
+                      <option value="amber">Amber</option>
+                    </select>
+                  </label>
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-[10px] uppercase text-[var(--muted)]">Плотность UI</span>
+                    <select
+                      className={inputClass}
+                      value={draftSettings.appearance.uiDensity || "normal"}
+                      onChange={(e) =>
+                        updateDraftAppearance({ uiDensity: e.target.value as UiDensity })
+                      }
+                    >
+                      <option value="compact">Компактная</option>
+                      <option value="normal">Обычная</option>
+                      <option value="comfortable">Просторная</option>
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {COLOR_FIELDS.map(({ key, label }) => {
+                      const val = draftSettings.appearance.colors?.[key] || "";
+                      return (
+                        <label key={key} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="color"
+                            className="h-9 w-10 shrink-0 cursor-pointer rounded border border-[var(--border-color)] bg-transparent"
+                            value={/^#[0-9a-f]{6}$/i.test(val) ? val : "#34d399"}
+                            onChange={(e) =>
+                              updateDraftAppearance({
+                                colors: { ...(draftSettings.appearance.colors || {}), [key]: e.target.value },
+                              })
+                            }
+                          />
+                          <span className="min-w-[5.5rem] text-[11px] text-[var(--text-muted)]">{label}</span>
+                          <input
+                            className={`${inputClass} font-mono text-[11px]`}
+                            placeholder="#hex"
+                            value={val}
+                            onChange={(e) =>
+                              updateDraftAppearance({
+                                colors: {
+                                  ...(draftSettings.appearance.colors || {}),
+                                  [key]: e.target.value.trim(),
+                                },
+                              })
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-[10px] uppercase text-[var(--muted)]">Шрифт (CSS stack)</span>
+                    <input
+                      className={inputClass}
+                      placeholder='"Segoe UI", Candara, sans-serif'
+                      value={draftSettings.appearance.fontFamily || ""}
+                      onChange={(e) => updateDraftAppearance({ fontFamily: e.target.value })}
+                    />
+                  </label>
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-[10px] uppercase text-[var(--muted)]">Google Fonts CSS URL</span>
+                    <input
+                      className={inputClass}
+                      placeholder="https://fonts.googleapis.com/css2?family=..."
+                      value={draftSettings.appearance.fontUrl || ""}
+                      onChange={(e) => updateDraftAppearance({ fontUrl: e.target.value })}
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Радиус md</span>
+                      <input
+                        className={inputClass}
+                        placeholder="12px"
+                        value={draftSettings.appearance.radiusMd || ""}
+                        onChange={(e) => updateDraftAppearance({ radiusMd: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Радиус lg</span>
+                      <input
+                        className={inputClass}
+                        placeholder="16px"
+                        value={draftSettings.appearance.radiusLg || ""}
+                        onChange={(e) => updateDraftAppearance({ radiusLg: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Отступ карточки</span>
+                      <input
+                        className={inputClass}
+                        placeholder="0.65rem"
+                        value={draftSettings.appearance.cardPadding || ""}
+                        onChange={(e) => updateDraftAppearance({ cardPadding: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Зазор карточки</span>
+                      <input
+                        className={inputClass}
+                        placeholder="0.45rem"
+                        value={draftSettings.appearance.cardGap || ""}
+                        onChange={(e) => updateDraftAppearance({ cardGap: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Размер заголовка карточки</span>
+                      <input
+                        className={inputClass}
+                        placeholder="0.8125rem"
+                        value={draftSettings.appearance.cardTitleSize || ""}
+                        onChange={(e) => updateDraftAppearance({ cardTitleSize: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Высота app bar</span>
+                      <input
+                        className={inputClass}
+                        placeholder="3.5rem"
+                        value={draftSettings.appearance.appBarHeight || ""}
+                        onChange={(e) => updateDraftAppearance({ appBarHeight: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Размер чипов</span>
+                      <input
+                        className={inputClass}
+                        placeholder="0.75rem"
+                        value={draftSettings.appearance.chipFontSize || ""}
+                        onChange={(e) => updateDraftAppearance({ chipFontSize: e.target.value })}
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-[10px] uppercase text-[var(--muted)]">Мин. высота кнопок</span>
+                      <input
+                        className={inputClass}
+                        placeholder="2.25rem"
+                        value={draftSettings.appearance.btnMinHeight || ""}
+                        onChange={(e) => updateDraftAppearance({ btnMinHeight: e.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <div
+                    className="rounded border border-[var(--border-color)] p-3 space-y-1"
+                    style={{
+                      background: "var(--bg-card)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "var(--card-pad)",
+                      gap: "var(--card-gap)",
+                    }}
+                    data-testid="admin-appearance-preview"
+                  >
+                    <p
+                      className="font-semibold"
+                      style={{ fontSize: "var(--text-card-title)", color: "var(--text-main)" }}
+                    >
+                      Превью карточки
+                    </p>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      Accent: <span style={{ color: "var(--accent)" }}>Volvo EWD</span>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">Загрузка…</p>
+              )}
+            </section>
+            <div className="sticky bottom-0 z-10 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]/95 p-3 shadow-lg backdrop-blur">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs text-[var(--text-muted)]">
+                  {settingsDirty ? "Настройки изменены, сохраните их вручную." : "Все изменения сохранены."}
+                </span>
+                <button
+                  type="button"
+                  disabled={!settingsDirty || !draftSettings}
+                  className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  onClick={() => {
+                    if (!draftSettings) return;
+                    saveSettings(draftSettings).catch(() => setNotice("Не удалось сохранить"));
+                  }}
+                >
+                  Сохранить изменения
+                </button>
+              </div>
+            </div>
+              </>
+            ) : null}
+
+            {activeTab === "edits" ? (
             <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3 text-xs">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Добавить узел / провод</h2>
               <div className="grid grid-cols-2 gap-2">
@@ -890,10 +1262,11 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                 Выйти
               </button>
             </section>
+            ) : null}
           </>
         )}
 
-        {notice ? <p className="text-sm text-amber-700">{notice}</p> : null}
+        {!admin && notice ? <p className="text-sm text-amber-700">{notice}</p> : null}
       </div>
     </main>
   );

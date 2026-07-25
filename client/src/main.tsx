@@ -29,6 +29,7 @@ import { AdminPage } from "./AdminPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
+import { applySiteAppearance, siteDefaultTheme } from "./appearance.js";
 
 type CardParts = {
   code?: string;
@@ -1239,6 +1240,17 @@ function App() {
       .then((d) => {
         setSiteOpen(d.siteOpen !== false);
         if (d.features) setFeatures((f) => ({ ...f, ...d.features }));
+        if (d.appearance) {
+          applySiteAppearance(d.appearance);
+          const siteTheme = siteDefaultTheme(d.appearance);
+          if (siteTheme) {
+            try {
+              if (!localStorage.getItem("volvoTheme")) setTheme(siteTheme);
+            } catch {
+              setTheme(siteTheme);
+            }
+          }
+        }
       })
       .catch(() => setSiteOpen(false));
     trackVisitOnce();

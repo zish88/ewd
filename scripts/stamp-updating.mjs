@@ -1,7 +1,10 @@
 /**
- * Embed deploy-notes.json into updating.html between DEPLOY_META markers.
+ * Auto-build deploy notes from git and embed into updating.html.
  * Usage: node scripts/stamp-updating.mjs
- * Sets git short SHA from `git rev-parse --short HEAD` when available.
+ *
+ * - version: YYYY.MM.DD (deploy machine local date)
+ * - git: always current short HEAD
+ * - items: up to 5 latest commit subjects (Merge filtered out)
  */
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -14,6 +17,7 @@ const htmlPath = join(root, "client/public/updating.html");
 
 const START = "<!-- DEPLOY_META_START -->";
 const END = "<!-- DEPLOY_META_END -->";
+const MAX_ITEMS = 5;
 
 function esc(s) {
   return String(s)
@@ -23,36 +27,70 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
-let notes;
-try {
-  notes = JSON.parse(readFileSync(notesPath, "utf8"));
-} catch (e) {
-  console.error("Failed to read deploy-notes.json:", e.message);
-  process.exit(1);
+function git(cmd) {
+  return execSync(cmd, { cwd: root, encoding: "utf8" }).trim();
 }
 
-let git = String(notes.git || "").trim();
-if (!git) {
+function todayVersion() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
+}
+
+function normalizeSubject(raw) {
+  return String(raw || "")
+    .replace(/\r/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function isNoiseSubject(s) {
+  if (!s) return true;
+  if (/^merge\b/i.test(s)) return true;
+  return false;
+}
+
+/** Latest commit subjects only — no range from previous stamp. */
+function latestCommitSubjects() {
   try {
-    git = execSync("git rev-parse --short HEAD", { cwd: root, encoding: "utf8" }).trim();
+    const out = git(`git log -20 --pretty=format:%s`);
+    if (!out) return [];
+    const seen = new Set();
+    const items = [];
+    for (const line of out.split("\n")) {
+      const s = normalizeSubject(line);
+      if (isNoiseSubject(s)) continue;
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(s);
+      if (items.length >= MAX_ITEMS) break;
+    }
+    return items;
   } catch {
-    git = "local";
+    return [];
   }
 }
 
-const version = String(notes.version || "").trim() || "dev";
-const items = (Array.isArray(notes.items) ? notes.items : [])
-  .map((x) => String(x || "").trim())
-  .filter(Boolean)
-  .slice(0, 5);
+let gitShort = "local";
+try {
+  gitShort = git("git rev-parse --short HEAD");
+} catch {
+  gitShort = "local";
+}
+
+const version = todayVersion();
+const items = latestCommitSubjects();
 
 const listHtml = items.length
   ? `<ul class="deploy-meta__list">${items.map((it) => `<li>${esc(it)}</li>`).join("")}</ul>`
   : "";
 
 const block = `${START}
-      <div class="deploy-meta" id="deploy-meta" data-version="${esc(version)}" data-git="${esc(git)}">
-        <p class="deploy-meta__ver">версия ${esc(version)} · ${esc(git)}</p>
+      <div class="deploy-meta" id="deploy-meta" data-version="${esc(version)}" data-git="${esc(gitShort)}">
+        <p class="deploy-meta__ver">версия ${esc(version)} · ${esc(gitShort)}</p>
         ${listHtml}
       </div>
 ${END}`;
@@ -70,8 +108,13 @@ const re = new RegExp(
 html = html.replace(re, block);
 writeFileSync(htmlPath, html, { encoding: "utf8" });
 
-// Keep git field in JSON for humans / next stamp (preserve Cyrillic)
-notes.git = git;
+const notes = {
+  version,
+  git: gitShort,
+  items,
+  stamped_at: new Date().toISOString(),
+};
 writeFileSync(notesPath, `${JSON.stringify(notes, null, 2)}\n`, { encoding: "utf8" });
 
-console.log(`stamped updating.html → version ${version} · ${git} (${items.length} items)`);
+console.log(`stamped updating.html → version ${version} · ${gitShort} (${items.length} items)`);
+for (const it of items) console.log(`  • ${it}`);
