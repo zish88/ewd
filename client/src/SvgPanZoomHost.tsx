@@ -8,6 +8,22 @@ import { syncPinMarkerScreenSize } from "./ewdHighlight.js";
 
 type Pt = { x: number; y: number };
 
+/** True for a physical mouse wheel notch; false for trackpad two-finger pixel scroll. */
+function isDiscreteMouseWheel(e: WheelEvent): boolean {
+  if (e.deltaMode === WheelEvent.DOM_DELTA_LINE || e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return true;
+  }
+  if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return false;
+  const ax = Math.abs(e.deltaX);
+  const ay = Math.abs(e.deltaY);
+  // Trackpad pans often include a horizontal component or small continuous steps.
+  if (ax > 1 || ay < 40) return false;
+  // Chrome/Edge Windows mouse: typically 100/120 per notch (sometimes multiples).
+  const notches = [90, 96, 100, 108, 120, 150];
+  if (notches.includes(ay)) return true;
+  return ay >= 100 && (ay % 100 === 0 || ay % 120 === 0);
+}
+
 type SvgPanZoomHostProps = {
   /** Inner SVG/HTML markup (applied via DOM, not React dangerouslySetInnerHTML). */
   markup: string;
@@ -241,12 +257,11 @@ export function SvgPanZoomHost({
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // Mac trackpad pinch → wheel + ctrlKey; keep FABs/buttons for discrete zoom.
+      // Mac trackpad pinch → wheel + ctrlKey.
       const pinchZoom = e.ctrlKey || e.metaKey;
-      // Mouse wheel is usually LINE/PAGE; pixel deltas without ctrl are two-finger pan.
-      const mouseWheel =
-        !pinchZoom &&
-        (e.deltaMode === WheelEvent.DOM_DELTA_LINE || e.deltaMode === WheelEvent.DOM_DELTA_PAGE);
+      // Mouse wheel zoom: LINE/PAGE (Firefox) or discrete PIXEL notches (Chrome/Edge).
+      // Continuous PIXEL without ctrl (Mac/Windows trackpad two-finger) stays pan.
+      const mouseWheel = !pinchZoom && isDiscreteMouseWheel(e);
       if (pinchZoom || mouseWheel) {
         const factor = pinchZoom
           ? Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.01)))
