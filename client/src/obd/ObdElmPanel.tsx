@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { bleObdSupported, scanElmBleAt } from "./elmBle.js";
+import { useEffect, useState } from "react";
+import {
+  bleObdSupported,
+  connectElmBle,
+  disconnectElmBle,
+  elmBleLinked,
+  scanElmBleAt,
+  subscribeElmBleLink,
+} from "./elmBle.js";
 import { parseElmResponse } from "./elmParse.js";
 import { enrichScanViaApi } from "./enrichScan.js";
 import { ObdScanResults } from "./ObdScanResults.js";
@@ -9,14 +16,18 @@ type Props = {
   onUseDtcQuery?: (code: string) => void;
 };
 
+const SAMPLE_PASTE = "43 01 33 00\n41 05 5B";
+
 export function ObdElmPanel({ onUseDtcQuery }: Props) {
-  const [channel, setChannel] = useState<"wifi" | "ble">("wifi");
+  const [channel, setChannel] = useState<"paste" | "ble">("paste");
   const [paste, setPaste] = useState("");
-  const [wifiHint] = useState("192.168.0.10:35000");
   const [scan, setScan] = useState<ObdScanPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [bleLinked, setBleLinked] = useState(() => elmBleLinked());
   const bleOk = bleObdSupported();
+
+  useEffect(() => subscribeElmBleLink(setBleLinked), []);
 
   async function applyScan(raw: ObdScanPayload) {
     setBusy(true);
@@ -25,7 +36,10 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
       const enriched = await enrichScanViaApi(raw);
       setScan(enriched);
       const n = enriched.dtcs?.length ?? 0;
-      setNotice(enriched.error || `ELM: DTC ${n}${enriched.live?.coolantC != null ? ` · ОЖ ${enriched.live.coolantC}°C` : ""}`);
+      setNotice(
+        enriched.error ||
+          `ELM: DTC ${n}${enriched.live?.coolantC != null ? ` · ОЖ ${enriched.live.coolantC}°C` : ""}`,
+      );
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     } finally {
@@ -41,7 +55,20 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
     }
   }
 
-  async function runBle() {
+  async function runBleConnect() {
+    setBusy(true);
+    setNotice("Подключение BLE…");
+    try {
+      const name = await connectElmBle();
+      setNotice(`BLE подключен: ${name}`);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runBleScan() {
     setBusy(true);
     setNotice("Запрос BLE…");
     try {
@@ -54,21 +81,26 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
     }
   }
 
-  return (
-    <div className="space-y-3" data-testid="obd-elm-panel">
-      <p className="text-[11px] text-[var(--text-muted)]">
-        Классический ELM327: браузер не открывает TCP Wi‑Fi и Bluetooth Classic (SPP). Вставьте ответ AT / Mode 03
-        или подключите <strong>BLE</strong>-адаптер (Android Chrome).
-      </p>
+  async function runBleDisconnect() {
+    setBusy(true);
+    try {
+      await disconnectElmBle();
+      setNotice("BLE отключен.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      <div className="flex flex-wrap gap-2">
+  return (
+    <div className="space-y-2.5" data-testid="obd-elm-panel">
+      <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
-          className={`md-btn text-[11px] px-2.5 py-1.5 ${channel === "wifi" ? "md-btn--filled" : "md-btn--tonal"}`}
-          data-testid="obd-elm-tab-wifi"
-          onClick={() => setChannel("wifi")}
+          className={`md-btn text-[11px] px-2.5 py-1.5 ${channel === "paste" ? "md-btn--filled" : "md-btn--tonal"}`}
+          data-testid="obd-elm-tab-paste"
+          onClick={() => setChannel("paste")}
         >
-          Wi‑Fi ELM
+          Вставка ответа
         </button>
         <button
           type="button"
@@ -80,49 +112,75 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
         </button>
       </div>
 
-      {channel === "wifi" ? (
-        <div className="rounded border border-[var(--border-color)] p-2 space-y-1 text-[11px] text-[var(--text-muted)]">
-          <p>
-            Типичный SoftAP адаптера: <span className="font-mono text-[var(--text-main)]">{wifiHint}</span> (TCP AT).
-            Прямой connect из сайта невозможен — используйте терминал/приложение и вставьте вывод ниже, либо будущий
-            локальный мост.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded border border-[var(--border-color)] p-2 space-y-2 text-[11px]">
-          <p className="text-[var(--text-muted)]">
-            Classic BT (большинство дешёвых ELM) Web Bluetooth не поддерживает. Нужен BLE UART OBD.
-            {!bleOk ? " В этом браузере Web Bluetooth недоступен." : ""}
-          </p>
+      {channel === "paste" ? (
+        <p className="text-[11px] text-[var(--text-muted)] leading-snug">
+          Вставьте ответ ELM (<span className="font-mono">03</span>, <span className="font-mono">0105</span>) из
+          терминала / приложения.{" "}
           <button
             type="button"
-            className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
-            disabled={busy || !bleOk}
-            data-testid="obd-elm-ble-connect"
-            onClick={() => void runBle()}
+            className="text-[var(--accent)] underline underline-offset-2"
+            data-testid="obd-elm-sample"
+            onClick={() => setPaste(SAMPLE_PASTE)}
           >
-            {busy ? "…" : "Подключить BLE и считать 03 / 0105"}
+            Пример P0133 · ОЖ
           </button>
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[11px] text-[var(--text-muted)] leading-snug">
+            Нужен BLE UART. Classic BT из браузера недоступен.
+            {!bleOk ? " Web Bluetooth здесь недоступен." : ""}
+            {bleLinked ? <span className="text-emerald-700"> Связь активна.</span> : null}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {!bleLinked ? (
+              <button
+                type="button"
+                className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
+                disabled={busy || !bleOk}
+                data-testid="obd-elm-ble-connect"
+                onClick={() => void runBleConnect()}
+              >
+                {busy ? "…" : "Подключить"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+                disabled={busy}
+                data-testid="obd-elm-ble-disconnect"
+                onClick={() => void runBleDisconnect()}
+              >
+                Отключить
+              </button>
+            )}
+            <button
+              type="button"
+              className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
+              disabled={busy || !bleOk}
+              data-testid="obd-elm-ble-scan"
+              onClick={() => void runBleScan()}
+            >
+              {busy ? "…" : "Считать 03 / 0105"}
+            </button>
+          </div>
         </div>
       )}
 
       <label className="block space-y-1">
-        <span className="text-[10px] uppercase text-[var(--muted)]">Ответ ELM (AT / hex)</span>
+        <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Ответ ELM</span>
         <textarea
-          className="app-input w-full rounded px-2 py-1.5 text-[11px] font-mono min-h-[5rem]"
+          className="app-input w-full rounded-lg px-2.5 py-2 text-[11px] font-mono min-h-[4.5rem]"
           value={paste}
           onChange={(e) => setPaste(e.target.value)}
-          placeholder={"Вставьте ответ ELM (hex), например:\n43 01 33 00\n41 05 5B"}
+          placeholder={"43 01 33 00\n41 05 5B"}
           data-testid="obd-elm-paste"
         />
       </label>
-      <p className="text-[10px] text-[var(--text-muted)]">
-        Подсказка (не подставляется сама): <span className="font-mono">43 01 33 00</span> → P0133,{" "}
-        <span className="font-mono">41 05 5B</span> → ОЖ.
-      </p>
+
       <button
         type="button"
-        className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+        className="md-btn md-btn--tonal text-[11px] px-3 py-1.5 w-full sm:w-auto"
         disabled={busy || !paste.trim()}
         data-testid="obd-elm-parse"
         onClick={() => void applyPaste()}

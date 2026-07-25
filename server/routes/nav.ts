@@ -35,6 +35,13 @@ type DevicePartsIndex = {
   devices?: Record<string, { device_part_number?: string; name_en?: string; name_ru?: string }>;
 };
 
+type ConnectorPartsIndex = {
+  connectors?: Record<
+    string,
+    { part_number?: string; part_number_mate?: string; name_en?: string; name_ru?: string }
+  >;
+};
+
 type CardParts = {
   code: string;
   device?: string;
@@ -45,6 +52,7 @@ type CardParts = {
 
 let connectorBomCache: ConnectorBomIndex | null | undefined;
 let devicePartsCache: DevicePartsIndex | null | undefined;
+let connectorPartsCache: ConnectorPartsIndex | null | undefined;
 
 function loadConnectorBom(): ConnectorBomIndex {
   if (connectorBomCache !== undefined) return connectorBomCache || {};
@@ -74,6 +82,32 @@ function loadDeviceParts(): DevicePartsIndex {
     devicePartsCache = null;
   }
   return devicePartsCache || {};
+}
+
+function loadConnectorParts(): ConnectorPartsIndex {
+  if (connectorPartsCache !== undefined) return connectorPartsCache || {};
+  const path = join(process.cwd(), "data", "vida_connector_parts.json");
+  if (!existsSync(path)) {
+    connectorPartsCache = null;
+    return {};
+  }
+  try {
+    connectorPartsCache = JSON.parse(readFileSync(path, "utf-8")) as ConnectorPartsIndex;
+  } catch {
+    connectorPartsCache = null;
+  }
+  return connectorPartsCache || {};
+}
+
+/** Fill empty SQLite housing/mate maps from EPC JSON (lamps, modules, …). */
+function mergeConnectorPartsMaps(partByCode: Map<string, string>, mateByCode: Map<string, string>) {
+  const connectors = loadConnectorParts().connectors || {};
+  for (const [code, rec] of Object.entries(connectors)) {
+    const pn = String(rec?.part_number || "").trim();
+    const mate = String(rec?.part_number_mate || "").trim();
+    if (pn && !partByCode.has(code)) partByCode.set(code, pn);
+    if (mate && !mateByCode.has(code)) mateByCode.set(code, mate);
+  }
 }
 
 function relatedPartsForCode(code: string): RelatedPart[] {
@@ -773,9 +807,15 @@ export function createNavRouter(db: Database.Database) {
       const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
       // part_number = connector/housing; device_part_number = assembly when EPC has one
       const devicePn = devicePartForCode(c.component_code);
+      const jsonConn = loadConnectorParts().connectors?.[c.component_code];
+      const housingPn =
+        String(c.part_number || "").trim() || String(jsonConn?.part_number || "").trim();
+      const matePn =
+        String(c.part_number_mate || "").trim() || String(jsonConn?.part_number_mate || "").trim();
       const pnBits: string[] = [];
       if (devicePn) pnBits.push(`деталь ${devicePn}`);
-      if (c.part_number) pnBits.push(`разъём ${c.part_number}`);
+      if (housingPn) pnBits.push(`корпус ${housingPn}`);
+      if (matePn && matePn !== housingPn) pnBits.push(`ответная ${matePn}`);
       const pn = pnBits.length ? ` [${pnBits.join(" · ")}]` : "";
       const has_pinout = pinoutCodes.has(c.component_code);
       const has_diagram = false; // PDF diagram pages removed — Capital SVG only
@@ -881,6 +921,7 @@ export function createNavRouter(db: Database.Database) {
     const mateByCode = new Map(
       partRows.filter((r) => r.part_number_mate).map((r) => [r.component_code, r.part_number_mate]),
     );
+    mergeConnectorPartsMaps(partByCode, mateByCode);
     const nameByCode = new Map(
       partRows.filter((r) => r.name_ru).map((r) => [r.component_code, r.name_ru]),
     );

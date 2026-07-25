@@ -1,6 +1,7 @@
 /**
  * Best-effort Web Bluetooth connection to BLE ELM / UART-style OBD dongles.
  * Classic BT SPP is not supported by Web Bluetooth.
+ * Session can stay open across UI minimize; disconnect on hard close.
  */
 
 const UART_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
@@ -22,6 +23,20 @@ type BleChar = {
   value?: DataView;
 };
 
+type BleServer = {
+  connected: boolean;
+  getPrimaryService: (u: string) => Promise<{ getCharacteristic: (u: string) => Promise<BleChar> }>;
+  disconnect: () => void;
+};
+
+type BleDevice = {
+  id: string;
+  name?: string;
+  gatt?: { connect: () => Promise<BleServer>; connected?: boolean };
+  addEventListener: (type: string, listener: () => void) => void;
+  removeEventListener: (type: string, listener: () => void) => void;
+};
+
 export function bleObdSupported(): boolean {
   return typeof navigator !== "undefined" && Boolean((navigator as { bluetooth?: unknown }).bluetooth);
 }
@@ -39,11 +54,71 @@ async function writeChunk(ch: BleChar, text: string): Promise<void> {
   }
 }
 
-export async function scanElmBleAt(): Promise<string> {
+type Session = {
+  device: BleDevice;
+  server: BleServer;
+  rx: BleChar;
+  tx: BleChar;
+  onDisconnect: () => void;
+};
+
+let session: Session | null = null;
+const linkListeners = new Set<(linked: boolean) => void>();
+
+function notifyLink() {
+  const linked = Boolean(session?.server.connected);
+  for (const fn of linkListeners) fn(linked);
+}
+
+export function subscribeElmBleLink(fn: (linked: boolean) => void): () => void {
+  linkListeners.add(fn);
+  fn(Boolean(session?.server.connected));
+  return () => {
+    linkListeners.delete(fn);
+  };
+}
+
+export function elmBleLinked(): boolean {
+  return Boolean(session?.server.connected);
+}
+
+export async function disconnectElmBle(): Promise<void> {
+  const s = session;
+  session = null;
+  if (!s) {
+    notifyLink();
+    return;
+  }
+  s.device.removeEventListener("gattserverdisconnected", s.onDisconnect);
+  try {
+    await s.rx.stopNotifications();
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (s.server.connected) s.server.disconnect();
+  } catch {
+    /* ignore */
+  }
+  notifyLink();
+}
+
+export async function connectElmBle(): Promise<string> {
   if (!bleObdSupported()) {
     throw new Error("Web Bluetooth недоступен (нужен Chrome/Edge на Android или desktop).");
   }
-  const bluetooth = (navigator as { bluetooth: { requestDevice: (o: object) => Promise<{ gatt?: { connect: () => Promise<{ getPrimaryService: (u: string) => Promise<{ getCharacteristic: (u: string) => Promise<BleChar> }> }> } }> } }).bluetooth;
+  if (session?.server.connected) {
+    return session.device.name || session.device.id || "BLE ELM";
+  }
+  await disconnectElmBle();
+
+  const bluetooth = (
+    navigator as {
+      bluetooth: {
+        requestDevice: (o: object) => Promise<BleDevice>;
+      };
+    }
+  ).bluetooth;
   const device = await bluetooth.requestDevice({
     acceptAllDevices: true,
     optionalServices: [UART_SERVICE, NUS_SERVICE],
@@ -63,6 +138,27 @@ export async function scanElmBleAt(): Promise<string> {
     tx = await service.getCharacteristic(NUS_TX);
   }
 
+  await rx.startNotifications();
+  const onDisconnect = () => {
+    if (session?.device === device) {
+      session = null;
+      notifyLink();
+    }
+  };
+  device.addEventListener("gattserverdisconnected", onDisconnect);
+  session = { device, server, rx, tx, onDisconnect };
+  notifyLink();
+  return device.name || device.id || "BLE ELM";
+}
+
+/** Run AT init + Mode 01 PID 05 + Mode 03 on an open (or freshly opened) BLE session. */
+export async function scanElmBleAt(): Promise<string> {
+  if (!session?.server.connected) {
+    await connectElmBle();
+  }
+  const s = session;
+  if (!s?.server.connected) throw new Error("BLE не подключен.");
+
   let buf = "";
   const onVal = (ev: Event) => {
     const target = ev.target as BleChar;
@@ -70,25 +166,23 @@ export async function scanElmBleAt(): Promise<string> {
     if (!v) return;
     buf += new TextDecoder().decode(v.buffer);
   };
-  await rx.startNotifications();
-  rx.addEventListener("characteristicvaluechanged", onVal);
+  s.rx.addEventListener("characteristicvaluechanged", onVal);
 
   const cmds = ["ATZ", "ATE0", "ATL0", "ATH0", "0105", "03"];
-  for (const cmd of cmds) {
-    buf = "";
-    await writeChunk(tx, cmd);
-    await new Promise((r) => setTimeout(r, cmd === "ATZ" ? 1500 : 800));
-  }
-
-  rx.removeEventListener("characteristicvaluechanged", onVal);
+  let last = "";
   try {
-    await rx.stopNotifications();
-  } catch {
-    /* ignore */
+    for (const cmd of cmds) {
+      buf = "";
+      await writeChunk(s.tx, cmd);
+      await new Promise((r) => setTimeout(r, cmd === "ATZ" ? 1500 : 800));
+      last = buf;
+    }
+  } finally {
+    s.rx.removeEventListener("characteristicvaluechanged", onVal);
   }
 
-  if (!buf.trim()) {
+  if (!last.trim()) {
     throw new Error("BLE-устройство ответило пусто. Classic SPP ELM из браузера недоступен — нужен BLE UART.");
   }
-  return buf;
+  return last;
 }

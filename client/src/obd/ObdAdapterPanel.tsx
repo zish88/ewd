@@ -7,10 +7,11 @@ const DEFAULT_GW = "http://192.168.4.1";
 
 type Props = {
   onUseDtcQuery?: (code: string) => void;
+  onLinkedChange?: (linked: boolean) => void;
 };
 
 /** ESP SoftAP gateway panel (HTTP /scan). Used inside ObdTestModal. */
-export function ObdAdapterPanel({ onUseDtcQuery }: Props) {
+export function ObdAdapterPanel({ onUseDtcQuery, onLinkedChange }: Props) {
   const [gatewayUrl, setGatewayUrl] = useState(DEFAULT_GW);
   const [paste, setPaste] = useState("");
   const [scan, setScan] = useState<ObdScanPayload | null>(null);
@@ -32,6 +33,7 @@ export function ObdAdapterPanel({ onUseDtcQuery }: Props) {
           ? enriched.error
           : `Скан: ECU online ${online}/${enriched.ecus?.length ?? 0}, DTC ${n}`,
       );
+      if (!enriched.error) onLinkedChange?.(true);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     } finally {

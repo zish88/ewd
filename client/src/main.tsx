@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEven
 import { createRoot } from "react-dom/client";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
-import { ObdTestModal } from "./obd/ObdTestModal.js";
+import { subscribeElmBleLink } from "./obd/elmBle.js";
+import { ObdTestModal, type ObdSurface } from "./obd/ObdTestModal.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
 import {
@@ -469,6 +470,99 @@ async function copyPartNumber(pn: string, setNotice: (v: string) => void) {
   }
 }
 
+function hasCardParts(parts?: CardParts | null): boolean {
+  return Boolean(parts && (parts.device || parts.housing || parts.mate || parts.terminals?.length));
+}
+
+function PartsCatalogList({
+  parts,
+  testId,
+  setNotice,
+  className = "parts-catalog parts-catalog--card",
+}: {
+  parts: CardParts;
+  testId: string;
+  setNotice: (v: string) => void;
+  className?: string;
+}) {
+  if (!hasCardParts(parts)) return null;
+  return (
+    <ul className={className} data-testid={testId}>
+      {parts.device ? (
+        <li className="parts-catalog__chip">
+          <span className="parts-catalog__role">Деталь</span>
+          <span className="parts-catalog__pn-row">
+            <span className="parts-catalog__pn font-mono">{parts.device}</span>
+            <button
+              type="button"
+              className="parts-catalog__copy"
+              title="Скопировать"
+              aria-label={`Скопировать ${parts.device}`}
+              onClick={() => void copyPartNumber(parts.device!, setNotice)}
+            >
+              <CopyIcon />
+            </button>
+          </span>
+        </li>
+      ) : null}
+      {parts.housing ? (
+        <li className="parts-catalog__chip">
+          <span className="parts-catalog__role">Корпус</span>
+          <span className="parts-catalog__pn-row">
+            <span className="parts-catalog__pn font-mono">{parts.housing}</span>
+            <button
+              type="button"
+              className="parts-catalog__copy"
+              title="Скопировать"
+              aria-label={`Скопировать ${parts.housing}`}
+              onClick={() => void copyPartNumber(parts.housing!, setNotice)}
+            >
+              <CopyIcon />
+            </button>
+          </span>
+        </li>
+      ) : null}
+      {parts.mate ? (
+        <li className="parts-catalog__chip">
+          <span className="parts-catalog__role">Ответная</span>
+          <span className="parts-catalog__pn-row">
+            <span className="parts-catalog__pn font-mono">{parts.mate}</span>
+            <button
+              type="button"
+              className="parts-catalog__copy"
+              title="Скопировать"
+              aria-label={`Скопировать ${parts.mate}`}
+              onClick={() => void copyPartNumber(parts.mate!, setNotice)}
+            >
+              <CopyIcon />
+            </button>
+          </span>
+        </li>
+      ) : null}
+      {(parts.terminals || []).map((t) => (
+        <li key={t.part_number} className="parts-catalog__chip">
+          <span className="parts-catalog__role">Клемма</span>
+          <span className="parts-catalog__pn-row">
+            <span className="parts-catalog__pn font-mono">{t.part_number}</span>
+            <button
+              type="button"
+              className="parts-catalog__copy"
+              title="Скопировать"
+              aria-label={`Скопировать ${t.part_number}`}
+              onClick={() => void copyPartNumber(t.part_number, setNotice)}
+            >
+              <CopyIcon />
+            </button>
+          </span>
+          {t.name_ru || t.name_en ? (
+            <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function renderWireCard(
   item: Result,
   index: number,
@@ -671,80 +765,8 @@ function renderWireCard(
             <span>Сечение: <span className="ewd-data font-mono text-[var(--text-main)]">{item.wire_gauge} мм²</span></span>
           </div>
         ) : null}
-        {item.parts && (item.parts.device || item.parts.housing || item.parts.mate || item.parts.terminals?.length) ? (
-          <ul className="parts-catalog parts-catalog--card" data-testid="card-parts">
-            {item.parts.device ? (
-              <li className="parts-catalog__chip">
-                <span className="parts-catalog__role">Деталь</span>
-                <span className="parts-catalog__pn-row">
-                  <span className="parts-catalog__pn font-mono">{item.parts.device}</span>
-                  <button
-                    type="button"
-                    className="parts-catalog__copy"
-                    title="Скопировать"
-                    aria-label={`Скопировать ${item.parts.device}`}
-                    onClick={() => void copyPartNumber(item.parts!.device!, setNotice)}
-                  >
-                    <CopyIcon />
-                  </button>
-                </span>
-              </li>
-            ) : null}
-            {item.parts.housing ? (
-              <li className="parts-catalog__chip">
-                <span className="parts-catalog__role">Корпус</span>
-                <span className="parts-catalog__pn-row">
-                  <span className="parts-catalog__pn font-mono">{item.parts.housing}</span>
-                  <button
-                    type="button"
-                    className="parts-catalog__copy"
-                    title="Скопировать"
-                    aria-label={`Скопировать ${item.parts.housing}`}
-                    onClick={() => void copyPartNumber(item.parts!.housing!, setNotice)}
-                  >
-                    <CopyIcon />
-                  </button>
-                </span>
-              </li>
-            ) : null}
-            {item.parts.mate ? (
-              <li className="parts-catalog__chip">
-                <span className="parts-catalog__role">Ответная</span>
-                <span className="parts-catalog__pn-row">
-                  <span className="parts-catalog__pn font-mono">{item.parts.mate}</span>
-                  <button
-                    type="button"
-                    className="parts-catalog__copy"
-                    title="Скопировать"
-                    aria-label={`Скопировать ${item.parts.mate}`}
-                    onClick={() => void copyPartNumber(item.parts!.mate!, setNotice)}
-                  >
-                    <CopyIcon />
-                  </button>
-                </span>
-              </li>
-            ) : null}
-            {(item.parts.terminals || []).map((t) => (
-              <li key={t.part_number} className="parts-catalog__chip">
-                <span className="parts-catalog__role">Клемма</span>
-                <span className="parts-catalog__pn-row">
-                  <span className="parts-catalog__pn font-mono">{t.part_number}</span>
-                  <button
-                    type="button"
-                    className="parts-catalog__copy"
-                    title="Скопировать"
-                    aria-label={`Скопировать ${t.part_number}`}
-                    onClick={() => void copyPartNumber(t.part_number, setNotice)}
-                  >
-                    <CopyIcon />
-                  </button>
-                </span>
-                {t.name_ru || t.name_en ? (
-                  <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+        {item.parts ? (
+          <PartsCatalogList parts={item.parts} testId="card-parts" setNotice={setNotice} />
         ) : null}
       </div>
       <div className="card-actions flex gap-2 mt-0.5">
@@ -892,6 +914,7 @@ function App() {
     pin_count: { owner: number; transit: number; total: number };
     wire_gauges: string[];
     zoneEmptyFallback?: boolean;
+    parts?: CardParts;
   };
   const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
   const [ownerWires, setOwnerWires] = useState<Result[]>([]);
@@ -967,7 +990,10 @@ function App() {
   const [schemeContext, setSchemeContext] = useState<SchemeContext | null>(null);
   /** Mobile (<768px) tab: cards list vs scheme canvas */
   const [mobileView, setMobileView] = useState<"cards" | "scheme">("cards");
-  const [obdModalOpen, setObdModalOpen] = useState(false);
+  const [obdSurface, setObdSurface] = useState<ObdSurface>("closed");
+  const [obdEspLinked, setObdEspLinked] = useState(false);
+  const [obdBleLinked, setObdBleLinked] = useState(false);
+  const obdLinked = obdBleLinked || obdEspLinked;
   const [diagramPickerOpen, setDiagramPickerOpen] = useState(false);
   const diagramPickerRef = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<ThemeId>(() => {
@@ -1007,6 +1033,8 @@ function App() {
     () => filterCardsByWireColor(transitWires, wireColorFilter),
     [transitWires, wireColorFilter],
   );
+
+  useEffect(() => subscribeElmBleLink(setObdBleLinked), []);
 
   // Drop selection / marker when the active card is hidden by the color filter
   useEffect(() => {
@@ -1921,6 +1949,12 @@ function App() {
         transit: transitRaw.length,
         total: ownerRaw.length + transitRaw.length,
       };
+      const nodeParts: CardParts = {
+        code,
+        device: String(infoSource.device_part_number || "").trim() || undefined,
+        housing: String(infoSource.part_number || "").trim() || undefined,
+        mate: String(infoSource.part_number_mate || "").trim() || undefined,
+      };
       setNodeInfo({
         code,
         name_ru: String(infoSource.name_ru || ""),
@@ -1933,6 +1967,7 @@ function App() {
           ? infoSource.wire_gauges.map(String)
           : [],
         zoneEmptyFallback,
+        parts: hasCardParts(nodeParts) ? nodeParts : undefined,
       });
       const n = ownerRaw.length + transitRaw.length;
       const nameRu = String(infoSource.name_ru || "").trim();
@@ -2340,16 +2375,24 @@ function App() {
           {features.obdAdapter !== false ? (
             <button
               type="button"
-              className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+              className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5${obdLinked ? " obd-btn--live" : ""}`}
               data-testid="obd-test-open"
-              title="OBD тест — шлюз ESP или ELM327"
+              title={
+                obdLinked
+                  ? "OBD: соединение активно"
+                  : "OBD тест — шлюз ESP или ELM327"
+              }
               onClick={() => {
                 setFiltersSheetOpen(false);
                 setToolsSheetOpen(false);
-                setObdModalOpen(true);
+                setObdSurface("open");
               }}
             >
-              OBD тест
+              {obdSurface === "minimized"
+                ? obdLinked
+                  ? "OBD · online"
+                  : "OBD · свёрнут"
+                : "OBD тест"}
             </button>
           ) : null}
         </div>
@@ -2630,6 +2673,14 @@ function App() {
               </span>
             ) : null}
           </div>
+          {nodeInfo.parts ? (
+            <PartsCatalogList
+              parts={nodeInfo.parts}
+              testId="node-parts"
+              setNotice={setNotice}
+              className="parts-catalog parts-catalog--card parts-catalog--node"
+            />
+          ) : null}
           {nodeInfo.zoneEmptyFallback ? (
             <button
               type="button"
@@ -3078,7 +3129,13 @@ function App() {
         onClose={() => setEditingItem(null)}
       />
     )}
-    <ObdTestModal open={obdModalOpen} onClose={() => setObdModalOpen(false)} onUseDtcQuery={openDtcFromObd} />
+    <ObdTestModal
+      surface={obdSurface}
+      onSurfaceChange={setObdSurface}
+      espLinked={obdEspLinked}
+      onEspLinkedChange={setObdEspLinked}
+      onUseDtcQuery={openDtcFromObd}
+    />
   </main>;
 }
 
