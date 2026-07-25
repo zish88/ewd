@@ -4,7 +4,7 @@
  *
  * - version: YYYY.MM.DD (deploy machine local date)
  * - git: always current short HEAD
- * - items: up to 5 latest commit subjects (Merge filtered out)
+ * - items: up to 5 latest commit subjects (Merge filtered), shown in Russian
  */
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -18,6 +18,32 @@ const htmlPath = join(root, "client/public/updating.html");
 const START = "<!-- DEPLOY_META_START -->";
 const END = "<!-- DEPLOY_META_END -->";
 const MAX_ITEMS = 5;
+
+/** Exact Russian lines for known English commit subjects (display only). */
+const RU_BY_SUBJECT = new Map(
+  Object.entries({
+    "Add admin appearance CMS, tabbed settings save, and fresher deploy notes.":
+      "Админка: настройка внешнего вида, вкладки и сохранение черновика; актуальные заметки деплоя.",
+    "Restore mouse-wheel zoom on schematics without breaking trackpad pan/pinch.":
+      "Восстановлен зум колёсиком на схемах без поломки жестов трекпада.",
+    "Mark OBD as beta with a testing badge and keep the accent pulse on prod.":
+      "OBD помечен как beta с бейджем тестирования; пульс кнопки на проде сохранён.",
+    "Show EPC part numbers on node banner and merge connector PN fallback.":
+      "Номера деталей EPC на баннере узла и запасной PN разъёма.",
+    "Add OBD test modal/ELM path, ESP firmware docs, and deploy notes on updating page.":
+      "Тестовое окно OBD/ELM, документация прошивки ESP и заметки на странице обновления.",
+    "Add scheme fullscreen mode and fix Mac trackpad pan/zoom and card scroll.":
+      "Полноэкранный режим схем и исправления pan/zoom трекпада Mac и скролла карточек.",
+    "Serve branded updating page on deploy 502 errors.":
+      "Фирменная страница «сайт на обновлении» при ошибках деплоя 502.",
+    "Improve admin visit tiles and collapse the card-edit panel after approve/reject.":
+      "Улучшены плитки посещений в админке; панель правки сворачивается после решения по заявке.",
+    "Polish updating page: edge fade, no road, brand pulse, warm status glow.":
+      "Доработана страница обновления: мягкие края, пульс бренда, тёплое свечение статуса.",
+    "Add soft blur to the updating-page car animation.":
+      "Мягкое размытие краёв анимации авто на странице обновления.",
+  }).map(([en, ru]) => [en.toLowerCase(), ru]),
+);
 
 function esc(s) {
   return String(s)
@@ -52,6 +78,63 @@ function isNoiseSubject(s) {
   return false;
 }
 
+function hasCyrillic(s) {
+  return /[а-яё]/i.test(s);
+}
+
+/** Russian line for the updating page (keeps Cyrillic subjects as-is). */
+function toRussianDeployNote(subject) {
+  const s = normalizeSubject(subject);
+  if (!s) return s;
+  if (hasCyrillic(s)) return s;
+
+  const exact = RU_BY_SUBJECT.get(s.toLowerCase());
+  if (exact) return exact;
+
+  let t = s.replace(/\.$/, "");
+  const verb = [
+    [/^Add\b/i, "Добавлено:"],
+    [/^Fix(ed)?\b/i, "Исправлено:"],
+    [/^Restore\b/i, "Восстановлено:"],
+    [/^Show\b/i, "Показано:"],
+    [/^Mark\b/i, "Помечено:"],
+    [/^Improve\b/i, "Улучшено:"],
+    [/^Polish\b/i, "Доработано:"],
+    [/^Update\b/i, "Обновлено:"],
+    [/^Serve\b/i, "Добавлено:"],
+    [/^Remove\b/i, "Удалено:"],
+    [/^Refactor\b/i, "Рефакторинг:"],
+  ];
+  for (const [re, ru] of verb) {
+    if (re.test(t)) {
+      t = t.replace(re, ru);
+      break;
+    }
+  }
+
+  t = t
+    .replace(/\badmin(istration)?\b/gi, "админка")
+    .replace(/\bappearance\b/gi, "внешний вид")
+    .replace(/\bsettings?\b/gi, "настройки")
+    .replace(/\bschematics?\b/gi, "схемы")
+    .replace(/\bschemes?\b/gi, "схемы")
+    .replace(/\bdeploy notes\b/gi, "заметки деплоя")
+    .replace(/\bupdating page\b/gi, "страница обновления")
+    .replace(/\bmouse-wheel zoom\b/gi, "зум колёсиком")
+    .replace(/\btrackpad\b/gi, "трекпад")
+    .replace(/\bfullscreen\b/gi, "полноэкранный режим")
+    .replace(/\bpart numbers?\b/gi, "номера деталей")
+    .replace(/\bwithout breaking\b/gi, "без поломки")
+    .replace(/\band\b/gi, "и")
+    .replace(/\bwith\b/gi, "с")
+    .replace(/\bon\b/gi, "на")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!/[.!?…]$/.test(t)) t += ".";
+  return t;
+}
+
 /** Latest commit subjects only — no range from previous stamp. */
 function latestCommitSubjects() {
   try {
@@ -65,7 +148,7 @@ function latestCommitSubjects() {
       const key = s.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      items.push(s);
+      items.push(toRussianDeployNote(s));
       if (items.length >= MAX_ITEMS) break;
     }
     return items;

@@ -1,12 +1,12 @@
 {
   "version": "2026.07.25",
-  "git": "58b307f7",
+  "git": "9fc42054",
   "items": [
-    "Restore mouse-wheel zoom on schematics without breaking trackpad pan/pinch.",
-    "Mark OBD as beta with a testing badge and keep the accent pulse on prod.",
-    "Show EPC part numbers on node banner and merge connector PN fallback.",
-    "Add OBD test modal/ELM path, ESP firmware docs, and deploy notes on updating page.",
-    "Add scheme fullscreen mode and fix Mac trackpad pan/zoom and card scroll."
+    "Админка: настройка внешнего вида, вкладки и сохранение черновика; актуальные заметки деплоя.",
+    "Восстановлен зум колёсиком на схемах без поломки жестов трекпада.",
+    "OBD помечен как beta с бейджем тестирования; пульс кнопки на проде сохранён.",
+    "Номера деталей EPC на баннере узла и запасной PN разъёма.",
+    "Тестовое окно OBD/ELM, документация прошивки ESP и заметки на странице обновления."
   ],
-  "stamped_at": "2026-07-25T05:50:47.453Z"
+  "stamped_at": "2026-07-25T06:00:18.143Z"
 }

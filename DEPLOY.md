@@ -101,14 +101,14 @@ docker start volvo-xc70-wiring
 
 - `version` — дата сборки `YYYY.MM.DD`
 - `git` — текущий short SHA
-- `items` — до 5 последних subject’ов коммитов на момент stamp (актуальный срез, без диапазона от прошлого деплоя)
+- `items` — до 5 последних коммитов на момент stamp, **по-русски** (актуальный срез, без диапазона от прошлого деплоя)
 
 1. Локально проверить:
    ```bash
    npm run stamp:updating
    ```
 2. При `BUILD=1 bash deploy.sh` stamp вызывается на VPS сам (если есть `node`) — править `deploy-notes.json` руками не нужно.
-3. Текст пунктов = subject коммита; для русского на updating пишите subjects по-русски.
+3. Subjects на английском переводятся для updating (точные строки + эвристика); кириллица в subject остаётся как есть.
 
 Nginx snippet менять не нужно.
 
