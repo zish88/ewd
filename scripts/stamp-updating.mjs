@@ -93,6 +93,7 @@ function isNoiseSubject(s) {
   if (/updating\.html stamp/i.test(s)) return true;
   if (/^Refresh updating-page notes\b/i.test(s)) return true;
   if (/^Sync updating\.html\b/i.test(s)) return true;
+  if (/^Stamp updating\.html\b/i.test(s)) return true;
   return false;
 }
 
