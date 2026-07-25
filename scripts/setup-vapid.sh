@@ -61,8 +61,29 @@ if [ "$gen_ok" != "1" ]; then
   docker run --rm node:22-alpine npx --yes web-push generate-vapid-keys >"$TMP"
 fi
 
-PUBLIC_KEY="$(sed -n 's/^[[:space:]]*Public Key:[[:space:]]*//p' "$TMP" | tr -d '\r' | head -n1)"
-PRIVATE_KEY="$(sed -n 's/^[[:space:]]*Private Key:[[:space:]]*//p' "$TMP" | tr -d '\r' | head -n1)"
+# web-push prints either "Public Key: XXX" or "Public Key:\nXXX"
+parse_vapid() {
+  local label="$1" file="$2"
+  awk -v label="$label" '
+    BEGIN { IGNORECASE = 0 }
+    {
+      line = $0
+      sub(/\r$/, "", line)
+    }
+    index(line, label) == 1 {
+      rest = substr(line, length(label) + 1)
+      sub(/^[[:space:]]*/, "", rest)
+      if (rest != "") { print rest; exit }
+      getline line
+      sub(/\r$/, "", line)
+      sub(/^[[:space:]]*/, "", line)
+      if (line != "" && line !~ /^=+$/) { print line; exit }
+    }
+  ' "$file"
+}
+
+PUBLIC_KEY="$(parse_vapid "Public Key:" "$TMP" | tr -d '[:space:]')"
+PRIVATE_KEY="$(parse_vapid "Private Key:" "$TMP" | tr -d '[:space:]')"
 
 if [ -z "$PUBLIC_KEY" ] || [ -z "$PRIVATE_KEY" ]; then
   echo "ERROR: failed to parse keys. Raw output:"
