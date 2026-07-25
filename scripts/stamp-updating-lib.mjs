@@ -44,6 +44,10 @@ export const RU_BY_SUBJECT = new Map(
       "Ноутбук: фильтры по центру в два ряда; белые и бело-цветные провода видны на схемах.",
     "Make dual-color wire badge text readable on light stripe pigments.":
       "Читаемые подписи на двухцветных проводах (белый/жёлтый).",
+    "Ship dual-wire badge contrast, user-only deploy notes, and push during updating.":
+      "Читаемые подписи на двухцветных проводах; пуш при обновлении сайта.",
+    "Stamp updating.html with user-facing dual-wire and push-notify notes.":
+      "Читаемые подписи на двухцветных проводах; пуш при обновлении сайта.",
   }).map(([en, ru]) => [en.toLowerCase(), ru]),
 );
 
