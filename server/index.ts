@@ -11,6 +11,7 @@ import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
 import { createObdRouter } from "./routes/obd.js";
+import { createPushRouter } from "./routes/push.js";
 import { dtcStats } from "./dtcDb.js";
 import { adminConfigured, isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
@@ -30,11 +31,13 @@ import {
   ensureAdminCorrectionsStore,
   startNightlyCorrectionsScheduler,
 } from "./adminCorrections.js";
+import { ensurePushStore, maybeNotifyDeployUpdate } from "./pushNotify.js";
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
 ensureVisitsStore();
+ensurePushStore();
 ensureAdminCorrectionsStore();
 // Re-apply durable admin edits after fixdb / fresh wiring.sqlite from git
 try {
@@ -79,7 +82,8 @@ app.use("/api", (req, res, next) => {
     path === "/health" ||
     path === "/site-status" ||
     path === "/visit" ||
-    path.startsWith("/admin")
+    path.startsWith("/admin") ||
+    path.startsWith("/push")
   ) {
     next();
     return;
@@ -117,6 +121,7 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
+app.use("/api/push", createPushRouter());
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
@@ -346,4 +351,7 @@ app.listen(port, () => {
   console.log(`  EWD_DATA_DIR=${process.env.EWD_DATA_DIR ?? "data/ewd"}`);
   console.log(`  CLIENT_DIST=${clientDist}`);
   console.log(`  adminConfigured=${adminConfigured() ? "yes" : "no"}`);
+  void maybeNotifyDeployUpdate().catch((e) => {
+    console.error("[push] deploy notify failed:", e);
+  });
 });

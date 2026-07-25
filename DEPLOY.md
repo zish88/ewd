@@ -238,10 +238,28 @@ SMTP_SECURE=false
 SMTP_USER=elzidevelop@gmail.com
 SMTP_PASS=xxxx-xxxx-xxxx-xxxx
 SMTP_FROM=elzidevelop@gmail.com
+
+# Web Push (уведомление «Сайт обновлён» после деплоя)
+# Один раз сгенерировать: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:elzidevelop@gmail.com
 ```
 
 После правок `.env` перезапустите контейнер: `BUILD=1 bash scripts/vps-deploy.sh` или `bash fixdb.sh`  
 (скрипты подхватывают `.env` через `docker --env-file`).
+
+### Web Push (уведомления об обновлении)
+
+После `BUILD=1` деплоя контейнер при старте сравнивает SHA из `deploy-notes.json` с `data/push-last-notified.json`. Если SHA новый — рассылает Web Push подписчикам (заголовок «Сайт обновлён» + пункты списка). Первый запуск только записывает SHA, без рассылки.
+
+1. Сгенерировать ключи: `npx web-push generate-vapid-keys`
+2. Прописать `VAPID_*` в `/opt/ewd-app/.env` (см. блок выше)
+3. Перезапустить контейнер (`bash deploy.sh` достаточно, если образ уже есть)
+4. На сайте: в фильтрах кнопка «Уведомления» → разрешить в браузере
+5. В `/admin` → Статистика: счётчик подписчиков и «Тестовое уведомление»
+
+iOS/Safari: пуши только у PWA, добавленного на Home Screen. Подписки хранятся в `data/push.sqlite` (не в wiring.sqlite).
 
 Проверка SMTP в консоли VPS:
 

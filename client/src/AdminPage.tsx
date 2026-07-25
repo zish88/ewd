@@ -205,6 +205,10 @@ export function AdminPage() {
     today: number;
     lastSync: { ran_at: string; applied_count: number; note: string } | null;
   } | null>(null);
+  const [pushStats, setPushStats] = useState<{
+    configured: boolean;
+    subscribers: number;
+  } | null>(null);
   const [form, setForm] = useState({
     subject_code: "",
     pin_number: "",
@@ -253,6 +257,16 @@ export function AdminPage() {
     if (!r.ok) return;
     const d = await r.json();
     setSyncInfo({ today: Number(d.today) || 0, lastSync: d.lastSync || null });
+  }
+
+  async function loadPushStats() {
+    const r = await fetch("/api/admin/push/stats", { credentials: "include" });
+    if (!r.ok) return;
+    const d = (await r.json()) as { configured?: boolean; subscribers?: number };
+    setPushStats({
+      configured: Boolean(d.configured),
+      subscribers: Number(d.subscribers) || 0,
+    });
   }
 
   function flashEditBadge(tone: "ok" | "bad", text: string) {
@@ -435,6 +449,7 @@ export function AdminPage() {
         await loadVisits();
         await loadTickets();
         await loadCorrections();
+        await loadPushStats();
       } else {
         try {
           sessionStorage.removeItem(ADMIN_UI_SESSION_KEY);
@@ -484,6 +499,7 @@ export function AdminPage() {
     await loadVisits();
     await loadTickets();
     await loadCorrections();
+    await loadPushStats();
   }
 
   async function saveSettings(next: Settings) {
@@ -940,6 +956,38 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                 </div>
                 <button type="button" className="text-emerald-700 underline" onClick={() => void runSyncNow()}>
                   Накатить оверлей сейчас
+                </button>
+              </div>
+              <div className="rounded-lg border border-[var(--border-color)] p-3 space-y-2">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Web Push</div>
+                <div className="text-[var(--text-muted)]">
+                  {pushStats == null
+                    ? "Загрузка…"
+                    : pushStats.configured
+                      ? `Подписчиков: ${pushStats.subscribers}`
+                      : "VAPID не настроен — пуши выключены (см. DEPLOY.md)"}
+                </div>
+                <button
+                  type="button"
+                  className="rounded border border-[var(--border-color)] px-3 py-1.5 text-emerald-700 disabled:opacity-50"
+                  disabled={!pushStats?.configured || (pushStats.subscribers || 0) < 1}
+                  onClick={() => {
+                    void (async () => {
+                      const r = await fetch("/api/admin/push/test", {
+                        method: "POST",
+                        credentials: "include",
+                      });
+                      const d = await r.json();
+                      if (!r.ok) {
+                        setNotice(d.error || "Тест пуша не удался");
+                        return;
+                      }
+                      setNotice(`Тест пуша: sent=${d.sent}, failed=${d.failed}, pruned=${d.pruned}`);
+                      await loadPushStats();
+                    })();
+                  }}
+                >
+                  Тестовое уведомление
                 </button>
               </div>
             </section>

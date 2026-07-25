@@ -27,7 +27,8 @@
     "pdfjs-dist": "^6.1.200",
     "react": "latest",
     "react-dom": "latest",
-    "tsx": "latest"
+    "tsx": "latest",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "latest",
@@ -38,6 +39,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/supertest": "latest",
+    "@types/web-push": "^3.6.4",
     "concurrently": "latest",
     "playwright": "^1.61.1",
     "supertest": "latest",

@@ -22,6 +22,13 @@ import {
   upsertCorrection,
   type WirePatch,
 } from "../adminCorrections.js";
+import {
+  broadcastPush,
+  buildDeployPushPayload,
+  isPushConfigured,
+  readDeployNotes,
+  subscriptionCount,
+} from "../pushNotify.js";
 
 type TicketRow = {
   id: number;
@@ -446,6 +453,25 @@ export function createAdminRouter(db: Database.Database) {
     upsertCorrection({ wireId: newId, patch: { ...patch, subject_code: subject, pin_number: pin } });
     markCorrectionApplied(newId);
     res.json({ ok: true, id: newId });
+  });
+
+  router.get("/push/stats", requireAdmin, (_req, res) => {
+    res.json({
+      configured: isPushConfigured(),
+      subscribers: subscriptionCount(),
+      notes: readDeployNotes(),
+    });
+  });
+
+  router.post("/push/test", requireAdmin, async (_req, res) => {
+    if (!isPushConfigured()) {
+      res.status(503).json({ ok: false, error: "VAPID не настроен на сервере." });
+      return;
+    }
+    const payload = buildDeployPushPayload(readDeployNotes());
+    payload.title = `Тест · ${payload.title}`;
+    const result = await broadcastPush(payload);
+    res.json({ ok: true, ...result, payload });
   });
 
   return router;

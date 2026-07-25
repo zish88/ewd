@@ -30,6 +30,12 @@ import { MaintenancePage } from "./MaintenancePage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
 import { applySiteAppearance, siteDefaultTheme } from "./appearance.js";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushUiState,
+  type PushUiState,
+} from "./pushSubscribe.js";
 
 type CardParts = {
   code?: string;
@@ -1005,6 +1011,8 @@ function App() {
     }
     return "caspian";
   });
+  const [pushState, setPushState] = useState<PushUiState>("unavailable");
+  const [pushBusy, setPushBusy] = useState(false);
   const vehicle = {
     model: selectedModel,
     year: selectedYear,
@@ -1254,6 +1262,7 @@ function App() {
       })
       .catch(() => setSiteOpen(false));
     trackVisitOnce();
+    void getPushUiState().then(setPushState);
   }, []);
 
   // Restore filters: URL query > localStorage (survives F5). Lazy-init already applied state;
@@ -2079,6 +2088,45 @@ function App() {
             </button>
           ))}
         </div>
+        {pushState === "unsupported" || pushState === "unavailable" ? null : (
+          <button
+            type="button"
+            data-testid="push-opt-in"
+            disabled={pushBusy || pushState === "pending"}
+            className={`md-chip ${pushState === "on" ? "md-chip--accent" : ""}`}
+            title={
+              pushState === "on"
+                ? "Отключить уведомления об обновлениях сайта"
+                : "Получать пуш, когда сайт обновится"
+            }
+            onClick={() => {
+              void (async () => {
+                setPushBusy(true);
+                setPushState("pending");
+                try {
+                  if (pushState === "on") {
+                    const r = await disablePushNotifications();
+                    setPushState("off");
+                    setNotice(r.ok ? "Уведомления об обновлениях выключены" : r.error);
+                  } else {
+                    const r = await enablePushNotifications();
+                    if (r.ok) {
+                      setPushState("on");
+                      setNotice("Будем сообщать об обновлениях");
+                    } else {
+                      setPushState(await getPushUiState());
+                      setNotice(r.error);
+                    }
+                  }
+                } finally {
+                  setPushBusy(false);
+                }
+              })();
+            }}
+          >
+            {pushState === "on" ? "Уведомления · вкл" : pushBusy || pushState === "pending" ? "…" : "Уведомления"}
+          </button>
+        )}
         <label className="flex items-center gap-1 text-[var(--muted)]">Модель
           <select
             data-testid="vehicle-model"

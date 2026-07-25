@@ -1,5 +1,5 @@
 /* Shell-only service worker: caches app shell, never /api/* or EWD SVG assets. */
-const CACHE = "volvo-ewd-shell-v2";
+const CACHE = "volvo-ewd-shell-v3";
 const SHELL = [
   "/",
   "/index.html",
@@ -69,6 +69,66 @@ self.addEventListener("fetch", (event) => {
         }
         return res;
       });
+    })
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let data = { title: "Volvo EWD", body: "Сайт обновлён", url: "/" };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = {
+        title: String(parsed.title || data.title),
+        body: String(parsed.body || data.body),
+        url: String(parsed.url || "/"),
+      };
+    }
+  } catch {
+    try {
+      const text = event.data && event.data.text();
+      if (text) data.body = text;
+    } catch {
+      /* keep defaults */
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url },
+      tag: "ewd-deploy",
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const raw = (event.notification.data && event.notification.data.url) || "/";
+  let target = "/";
+  try {
+    target = new URL(raw, self.location.origin).pathname + new URL(raw, self.location.origin).search;
+  } catch {
+    target = "/";
+  }
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          if ("navigate" in client && client.url !== target) {
+            try {
+              client.navigate(target);
+            } catch {
+              /* ignore */
+            }
+          }
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+      return undefined;
     })
   );
 });
