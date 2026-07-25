@@ -70,10 +70,16 @@ fi
 
 if [ "$BUILD" = "1" ]; then
   echo "==> stamp updating.html deploy notes"
+  # Host node preferred. Runtime image has no git — use node:22-bookworm + git when needed.
+  # If stamp fails, nginx still serves the committed updating.html from the last push.
   if command -v node >/dev/null 2>&1; then
     node scripts/stamp-updating.mjs || echo "WARN: stamp-updating failed (using committed updating.html)"
+  elif command -v docker >/dev/null 2>&1; then
+    docker run --rm -v "${APP_DIR}:/app" -w /app node:22-bookworm \
+      bash -lc 'apt-get update -qq && apt-get install -y -qq git >/dev/null && node scripts/stamp-updating.mjs' \
+      || echo "WARN: stamp-updating via docker failed (using committed updating.html)"
   else
-    echo "WARN: node not found — skip stamp-updating"
+    echo "WARN: node/docker missing — using committed updating.html"
   fi
   echo "==> freeing docker disk before build"
   docker system prune -af || true

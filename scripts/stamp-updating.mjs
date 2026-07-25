@@ -42,6 +42,18 @@ const RU_BY_SUBJECT = new Map(
       "Доработана страница обновления: мягкие края, пульс бренда, тёплое свечение статуса.",
     "Add soft blur to the updating-page car animation.":
       "Мягкое размытие краёв анимации авто на странице обновления.",
+    "Stretch laptop filters into the app bar and keep browser UA in admin visits.":
+      "Ноутбук: быстрые фильтры в шапке; браузер и устройство — только в админке у посещений.",
+    "Fix VAPID key parsing when web-push prints keys on the next line.":
+      "Исправлено чтение VAPID-ключей, когда web-push печатает их со следующей строки.",
+    "Add VPS script to generate and write VAPID keys into .env.":
+      "Скрипт на VPS: генерация VAPID-ключей и запись в .env.",
+    "Add Web Push notifications after site updates.":
+      "Web Push-уведомления после обновления сайта.",
+    "Show Russian deploy notes on the updating page.":
+      "Русские заметки деплоя на странице обновления.",
+    "Refresh updating-page notes for laptop filters, push, and VAPID.":
+      "Обновлены заметки на странице деплоя: фильтры ноутбука, push и VAPID.",
   }).map(([en, ru]) => [en.toLowerCase(), ru]),
 );
 
