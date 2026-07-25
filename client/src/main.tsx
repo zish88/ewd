@@ -2443,6 +2443,39 @@ function App() {
     </>
   );
 
+  const obdBarControl =
+    features.obdAdapter !== false ? (
+      <div className="obd-btn-wrap" data-testid="obd-test-wrap">
+        <span className="obd-beta-badge" aria-hidden>
+          Тестирование
+        </span>
+        <button
+          type="button"
+          className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 obd-btn--live${
+            obdLinked ? " obd-btn--online" : ""
+          }`}
+          data-testid="obd-test-open"
+          title={
+            obdLinked
+              ? "OBD: соединение активно (бета)"
+              : "OBD — функция в тестировании (ESP / ELM327)"
+          }
+          onClick={() => {
+            setFiltersSheetOpen(false);
+            setFiltersPopoverOpen(false);
+            setToolsSheetOpen(false);
+            setObdSurface("open");
+          }}
+        >
+          {obdSurface === "minimized"
+            ? obdLinked
+              ? "OBD · online"
+              : "OBD · свёрнут"
+            : "OBD"}
+        </button>
+      </div>
+    ) : null;
+
   function openDtcFromObd(code: string) {
     setObdSurface("closed");
     setDtcQuery(code);
@@ -2479,7 +2512,11 @@ function App() {
       ref={headerRef}
       className="app-panel app-bar shrink-0 border-b px-3 py-2 is-filters-collapsed"
     >
-      <div className="app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]">
+      <div
+        className={`app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]${
+          isMobileUi ? "" : " app-bar__chrome--desktop"
+        }`}
+      >
         <button
           ref={filtersToggleRef}
           type="button"
@@ -2503,33 +2540,38 @@ function App() {
           ) : null}
         </button>
         <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0 app-bar__brand">Volvo EWD</span>
-        <div className="desktop-filters-popover">
-          <button
-            ref={desktopFiltersBtnRef}
-            type="button"
-            className="desktop-filters-collapse md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
-            data-testid="filters-collapse"
-            aria-expanded={filtersPopoverOpen}
-            aria-controls="desktop-filters-popover-panel"
-            aria-haspopup="dialog"
-            title={filtersPopoverOpen ? "Закрыть фильтры" : "VIN, DTC, тема, уведомления"}
-            onClick={() => {
-              if (filtersPopoverOpen) setFiltersPopoverOpen(false);
-              else openDesktopFiltersPopover();
-            }}
-          >
-            Фильтры {filtersPopoverOpen ? "▴" : "▾"}
-            {filterActiveCount > 0 ? (
-              <span className="desktop-filters-collapse__badge" aria-hidden>
-                {filterActiveCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
         {!isMobileUi ? (
-          <div className="app-bar__quick-filters" data-testid="desktop-quick-filters" aria-label="Быстрые фильтры">
-            {vehicleQuickFields}
-            {navQuickFields}
+          <div className="app-bar__desktop-cluster" data-testid="desktop-quick-filters" aria-label="Быстрые фильтры">
+            <div className="app-bar__quick-row">
+              <div className="desktop-filters-popover">
+                <button
+                  ref={desktopFiltersBtnRef}
+                  type="button"
+                  className="desktop-filters-collapse md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+                  data-testid="filters-collapse"
+                  aria-expanded={filtersPopoverOpen}
+                  aria-controls="desktop-filters-popover-panel"
+                  aria-haspopup="dialog"
+                  title={filtersPopoverOpen ? "Закрыть фильтры" : "VIN, DTC, тема, уведомления"}
+                  onClick={() => {
+                    if (filtersPopoverOpen) setFiltersPopoverOpen(false);
+                    else openDesktopFiltersPopover();
+                  }}
+                >
+                  Фильтры {filtersPopoverOpen ? "▴" : "▾"}
+                  {filterActiveCount > 0 ? (
+                    <span className="desktop-filters-collapse__badge" aria-hidden>
+                      {filterActiveCount}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+              {vehicleQuickFields}
+            </div>
+            <div className="app-bar__quick-row">
+              {navQuickFields}
+              {obdBarControl ? <div className="app-bar__quick-obd">{obdBarControl}</div> : null}
+            </div>
           </div>
         ) : null}
         {selectedCode ? (
@@ -2547,39 +2589,9 @@ function App() {
             {selectedCode}
           </button>
         ) : null}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          {features.obdAdapter !== false ? (
-            <div className="obd-btn-wrap" data-testid="obd-test-wrap">
-              <span className="obd-beta-badge" aria-hidden>
-                Тестирование
-              </span>
-              <button
-                type="button"
-                className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 obd-btn--live${
-                  obdLinked ? " obd-btn--online" : ""
-                }`}
-                data-testid="obd-test-open"
-                title={
-                  obdLinked
-                    ? "OBD: соединение активно (бета)"
-                    : "OBD — функция в тестировании (ESP / ELM327)"
-                }
-                onClick={() => {
-                  setFiltersSheetOpen(false);
-                  setFiltersPopoverOpen(false);
-                  setToolsSheetOpen(false);
-                  setObdSurface("open");
-                }}
-              >
-                {obdSurface === "minimized"
-                  ? obdLinked
-                    ? "OBD · online"
-                    : "OBD · свёрнут"
-                  : "OBD"}
-              </button>
-            </div>
-          ) : null}
-        </div>
+        {isMobileUi && obdBarControl ? (
+          <div className="ml-auto flex items-center gap-2 shrink-0">{obdBarControl}</div>
+        ) : null}
       </div>
       {isMobileUi && (selectedModel || zoneSummaryLabel) && !selectedCode ? (
         <div

@@ -12,12 +12,22 @@ test("dualHighlightSpec: dual wire colors get solid + dashed overlay colors", ()
   assert.ok(vtOg.secondary);
   assert.notEqual(vtOg.primary, vtOg.secondary);
   assert.equal(vtOg.dash, "6 4");
+  assert.equal(vtOg.underlay, false);
 });
 
 test("dualHighlightSpec: single color has no overlay", () => {
   const ye = dualHighlightSpec("YE");
   assert.ok(ye.primary);
   assert.equal(ye.secondary, null);
+  assert.equal(ye.underlay, false);
+});
+
+test("dualHighlightSpec: white / white-dual get dark underlay on light sheets", () => {
+  assert.equal(dualHighlightSpec("WH").underlay, true);
+  assert.equal(dualHighlightSpec("W").underlay, true);
+  assert.equal(dualHighlightSpec("WH-BK").underlay, true);
+  assert.equal(dualHighlightSpec("GN-WH").underlay, true);
+  assert.equal(dualHighlightSpec("RD").underlay, false);
 });
 
 test("allowWireColorFallback: disabled when pin + wireUid (no foreign VT extend)", () => {

@@ -54,6 +54,8 @@ const RU_BY_SUBJECT = new Map(
       "Русские заметки деплоя на странице обновления.",
     "Refresh updating-page notes for laptop filters, push, and VAPID.":
       "Обновлены заметки на странице деплоя: фильтры ноутбука, push и VAPID.",
+    "Center desktop filter chips in two rows and outline white wires on schematics.":
+      "Ноутбук: фильтры по центру в два ряда; белые и бело-цветные провода видны на схемах.",
   }).map(([en, ru]) => [en.toLowerCase(), ru]),
 );
 
@@ -87,6 +89,10 @@ function normalizeSubject(raw) {
 function isNoiseSubject(s) {
   if (!s) return true;
   if (/^merge\b/i.test(s)) return true;
+  // Meta commits that only refresh updating.html — skip from public notes
+  if (/updating\.html stamp/i.test(s)) return true;
+  if (/^Refresh updating-page notes\b/i.test(s)) return true;
+  if (/^Sync updating\.html\b/i.test(s)) return true;
   return false;
 }
 

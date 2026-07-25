@@ -6,7 +6,10 @@ import {
   normalizeWireColorKey,
   wireColorHex,
   wireColorParts,
+  wireNeedsContrastBorder,
 } from "./wireColors.js";
+
+export { wireNeedsContrastBorder } from "./wireColors.js";
 
 export type WireColorCard = {
   wire_color?: string | null;
@@ -49,24 +52,6 @@ export function cardMatchesWireColorFilter(
   const want = normalizeWireColorKey(selectedColor || "");
   if (!want) return true;
   return cardWireColorKey(card) === want;
-}
-
-function relativeLuminance(hex: string): number {
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
-  if (!m) return 0.3;
-  const n = parseInt(m[1], 16);
-  const srgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
-}
-
-/** Light / white-ish wires need a visible outline on light UI (e.g. WH). */
-export function wireNeedsContrastBorder(wireColor: string): boolean {
-  const parts = wireColorParts(wireColor);
-  if (!parts.length) return false;
-  return parts.some((p) => relativeLuminance(wireColorHex(p, "#808080")) >= 0.72);
 }
 
 export type WireChipStyle = {

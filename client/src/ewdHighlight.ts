@@ -5,7 +5,12 @@
  * No hardcoded connector/pin/model literals; all values come from the card payload.
  */
 
-import { normalizeWireColorKey, wireBorderColors, wireColorsMatch } from "./wireColors.js";
+import {
+  normalizeWireColorKey,
+  wireBorderColors,
+  wireColorsMatch,
+  wireNeedsContrastBorder,
+} from "./wireColors.js";
 
 export type Pt = { x: number; y: number };
 
@@ -1007,7 +1012,7 @@ function resolveMarkerAnchor(
 }
 
 function clearHighlights(root: Element, svg: SVGSVGElement): void {
-  root.querySelectorAll(".ewd-highlight-dual").forEach((el) => el.remove());
+  root.querySelectorAll(".ewd-highlight-dual, .ewd-highlight-underlay").forEach((el) => el.remove());
   root.querySelectorAll(".ewd-highlight").forEach((el) => {
     el.classList.remove("ewd-highlight");
     const s = (el as SVGElement).style;
@@ -1027,18 +1032,27 @@ export function dualHighlightSpec(wireColor: string): {
   primary: string;
   secondary: string | null;
   dash: string;
+  /** Dark understroke so WH / light dual pigments read on white SVG sheets. */
+  underlay: boolean;
 } {
   const borders = wireBorderColors(wireColor || "GN");
   return {
     primary: borders[0] || "#10b981",
     secondary: borders.length > 1 ? borders[1] ?? null : null,
     dash: "6 4",
+    underlay: wireNeedsContrastBorder(wireColor || ""),
   };
 }
 
 function applyStrokeHighlight(el: Element, wireColor: string): void {
-  const { primary, secondary, dash } = dualHighlightSpec(wireColor);
-  // Drop prior dual overlay clones for this path
+  const { primary, secondary, dash, underlay } = dualHighlightSpec(wireColor);
+  // Drop prior underlay / dual overlay clones for this path
+  let prev = el.previousElementSibling;
+  while (prev?.classList.contains("ewd-highlight-underlay")) {
+    const doomed = prev;
+    prev = prev.previousElementSibling;
+    doomed.remove();
+  }
   let sib = el.nextElementSibling;
   while (sib?.classList.contains("ewd-highlight-dual")) {
     const doomed = sib;
@@ -1053,6 +1067,20 @@ function applyStrokeHighlight(el: Element, wireColor: string): void {
   s.setProperty("fill", "none", "important");
   s.setProperty("vector-effect", "non-scaling-stroke", "important");
   s.removeProperty("stroke-dasharray");
+  if (underlay) {
+    const under = el.cloneNode(true) as Element;
+    under.removeAttribute("id");
+    under.classList.add("ewd-highlight", "ewd-highlight-underlay");
+    under.classList.remove("ewd-highlight-dual");
+    const us = (under as SVGElement).style;
+    us.setProperty("stroke", "rgba(15, 23, 42, 0.9)", "important");
+    us.setProperty("stroke-width", "4.2", "important");
+    us.setProperty("stroke-opacity", "1", "important");
+    us.setProperty("fill", "none", "important");
+    us.setProperty("vector-effect", "non-scaling-stroke", "important");
+    us.removeProperty("stroke-dasharray");
+    el.parentNode?.insertBefore(under, el);
+  }
   if (secondary) {
     const clone = el.cloneNode(true) as Element;
     clone.removeAttribute("id");
