@@ -93,6 +93,20 @@ docker start volvo-xc70-wiring
 
 Закрытие сайта в админке по-прежнему: «сайт на профилактических работах». При 502 — статическая `updating.html`.
 
+### Версия и список изменений на updating
+
+На странице 502 показываются **версия** и краткий список (вшиты в HTML — работает при лежащем контейнере).
+
+1. Отредактируйте [`client/public/deploy-notes.json`](client/public/deploy-notes.json) (`version`, `items` — до 5 пунктов).
+2. Перед коммитом релиза:
+   ```bash
+   npm run stamp:updating
+   ```
+   Скрипт подставит `git` short SHA и обновит блок в `updating.html`.
+3. При `BUILD=1 bash deploy.sh` stamp вызывается на VPS ещё раз (если есть `node`).
+
+Nginx snippet менять не нужно.
+
 ## 3. Схемы (SVG) и таблицы (PDF) — без прямого доступа ПК→VPS
 
 Список узлов = SQLite. Схемы/таблицы = архив ~287 MB.

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEven
 import { createRoot } from "react-dom/client";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
+import { ObdTestModal } from "./obd/ObdTestModal.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
 import {
@@ -938,6 +939,7 @@ function App() {
     vinSearch: true,
     navBrowse: true,
     dtcSearch: true,
+    obdAdapter: true,
   });
   /** Mobile bottom-sheet for filters; desktop ignores (filters always inline). */
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
@@ -965,6 +967,7 @@ function App() {
   const [schemeContext, setSchemeContext] = useState<SchemeContext | null>(null);
   /** Mobile (<768px) tab: cards list vs scheme canvas */
   const [mobileView, setMobileView] = useState<"cards" | "scheme">("cards");
+  const [obdModalOpen, setObdModalOpen] = useState(false);
   const [diagramPickerOpen, setDiagramPickerOpen] = useState(false);
   const diagramPickerRef = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<ThemeId>(() => {
@@ -2259,6 +2262,24 @@ function App() {
     </>
   );
 
+  function openDtcFromObd(code: string) {
+    setObdModalOpen(false);
+    setDtcQuery(code);
+    setMode("dtc");
+    void (async () => {
+      setDtcLoading(true);
+      try {
+        const data = await fetch(`/api/dtc/search?q=${encodeURIComponent(code)}&limit=50`).then((r) => r.json());
+        setDtcResults(Array.isArray(data.results) ? data.results : []);
+        setDtcNotice(data.results?.length ? "" : "В словаре нет точного совпадения — смотрите сырой код скана.");
+      } catch {
+        setDtcNotice("Не удалось запросить словарь DTC.");
+      } finally {
+        setDtcLoading(false);
+      }
+    })();
+  }
+
   return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
     <InstallAppBanner />
     <div className="desktop-bg-art" aria-hidden="true">
@@ -2315,7 +2336,23 @@ function App() {
             {selectedCode}
           </button>
         ) : null}
-        <div className="app-bar__desktop-spacer ml-auto" aria-hidden="true" />
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {features.obdAdapter !== false ? (
+            <button
+              type="button"
+              className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+              data-testid="obd-test-open"
+              title="OBD тест — шлюз ESP или ELM327"
+              onClick={() => {
+                setFiltersSheetOpen(false);
+                setToolsSheetOpen(false);
+                setObdModalOpen(true);
+              }}
+            >
+              OBD тест
+            </button>
+          ) : null}
+        </div>
       </div>
       {(selectedModel || zoneSummaryLabel) && !selectedCode ? (
         <div
@@ -3041,6 +3078,7 @@ function App() {
         onClose={() => setEditingItem(null)}
       />
     )}
+    <ObdTestModal open={obdModalOpen} onClose={() => setObdModalOpen(false)} onUseDtcQuery={openDtcFromObd} />
   </main>;
 }
 

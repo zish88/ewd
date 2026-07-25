@@ -14,6 +14,8 @@ export type SiteFeatures = {
   navBrowse: boolean;
   /** DTC / OBD fault-code dictionary search. */
   dtcSearch: boolean;
+  /** Live ESP32 OBD gateway scan panel (enrich + UI). */
+  obdAdapter: boolean;
 };
 
 export type SiteSettings = {
@@ -32,6 +34,7 @@ const DEFAULTS: SiteSettings = {
     vinSearch: true,
     navBrowse: true,
     dtcSearch: true,
+    obdAdapter: true,
   },
 };
 

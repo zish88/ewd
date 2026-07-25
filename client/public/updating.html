@@ -84,6 +84,39 @@
         0 0 18px rgba(251, 146, 60, 0.45),
         0 0 36px rgba(239, 68, 68, 0.28);
     }
+    .deploy-meta {
+      margin: 0.15rem 0 0;
+      width: min(100%, 22rem);
+      text-align: center;
+    }
+    .deploy-meta__ver {
+      margin: 0;
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      color: color-mix(in srgb, #f8fafc 55%, var(--accent));
+    }
+    .deploy-meta__list {
+      margin: 0.55rem 0 0;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: color-mix(in srgb, #f8fafc 72%, transparent);
+    }
+    .deploy-meta__list li {
+      position: relative;
+      padding-left: 0.85rem;
+      margin: 0.28rem 0;
+    }
+    .deploy-meta__list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      opacity: 0.85;
+    }
     @keyframes scene-fade-in {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
@@ -374,6 +407,12 @@
         </div>
       </div>
       <p class="maintenance-msg">сайт на обновлении</p>
+<!-- DEPLOY_META_START -->
+      <div class="deploy-meta" id="deploy-meta" data-version="2026.07.25" data-git="f4ce9f0f">
+        <p class="deploy-meta__ver">версия 2026.07.25 · f4ce9f0f</p>
+        <ul class="deploy-meta__list"><li>OBD тест: модалка, шлюз ESP и вкладка ELM327</li><li>Полноэкранные схемы и жесты тачпада (Mac)</li><li>Админка: плашки посещений и UX правок заявок</li></ul>
+      </div>
+<!-- DEPLOY_META_END -->
     </div>
   </main>
 </body>

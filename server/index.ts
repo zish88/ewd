@@ -10,6 +10,7 @@ import { createEwdRouter } from "./routes/ewd.js";
 import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
+import { createObdRouter } from "./routes/obd.js";
 import { dtcStats } from "./dtcDb.js";
 import { adminConfigured, isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
@@ -109,6 +110,10 @@ app.use("/api", (req, res, next) => {
     res.status(403).json({ error: "Поиск DTC отключён." });
     return;
   }
+  if (settings.features.obdAdapter === false && path.startsWith("/obd")) {
+    res.status(403).json({ error: "Скан OBD-адаптера отключён." });
+    return;
+  }
   next();
 });
 
@@ -117,6 +122,7 @@ app.use("/api/nav", createNavRouter(db));
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());
+app.use("/api/obd", createObdRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
 app.get("/api/health", (_req, res) => {

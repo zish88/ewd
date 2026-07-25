@@ -69,6 +69,12 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
 fi
 
 if [ "$BUILD" = "1" ]; then
+  echo "==> stamp updating.html deploy notes"
+  if command -v node >/dev/null 2>&1; then
+    node scripts/stamp-updating.mjs || echo "WARN: stamp-updating failed (using committed updating.html)"
+  else
+    echo "WARN: node not found — skip stamp-updating"
+  fi
   echo "==> freeing docker disk before build"
   docker system prune -af || true
   echo "==> docker build --no-cache"

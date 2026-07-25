@@ -6,6 +6,7 @@ type Features = {
   vinSearch: boolean;
   navBrowse: boolean;
   dtcSearch: boolean;
+  obdAdapter: boolean;
 };
 
 type Settings = {
@@ -79,6 +80,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   vinSearch: "Поиск по VIN",
   navBrowse: "Навигация по зонам и узлам",
   dtcSearch: "Поиск DTC / OBD кодов",
+  obdAdapter: "Скан с адаптера OBD (ESP32)",
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";

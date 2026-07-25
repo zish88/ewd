@@ -1,0 +1,18 @@
+{
+  "vin": null,
+  "bus": "HS-CAN",
+  "device": "esp32-s3-n16r8",
+  "readOnlyDefault": true,
+  "ecus": [
+    { "id": "ECM", "req": "0x7E0", "rsp": "0x7E8", "online": true },
+    { "id": "TCM", "req": "0x7E1", "rsp": "0x7E9", "online": true },
+    { "id": "ABS", "req": "0x760", "rsp": "0x768", "online": true },
+    { "id": "CEM", "req": "0x726", "rsp": "0x72E", "online": false },
+    { "id": "DIM", "req": "0x734", "rsp": "0x73C", "online": true }
+  ],
+  "dtcs": [
+    { "ecu": "ECM", "code": "P0420", "status": "confirmed", "raw": "042000:01" },
+    { "ecu": "ABS", "code": "C0035", "status": "stored", "raw": "403500:00" }
+  ],
+  "live": { "coolantC": 91 }
+}
