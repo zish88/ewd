@@ -26,6 +26,7 @@ import {
   broadcastPush,
   buildDeployPushPayload,
   isPushConfigured,
+  pushFailureHint,
   readDeployNotes,
   subscriptionCount,
 } from "../pushNotify.js";
@@ -471,7 +472,9 @@ export function createAdminRouter(db: Database.Database) {
     const payload = buildDeployPushPayload(readDeployNotes());
     payload.title = `Тест · ${payload.title}`;
     const result = await broadcastPush(payload);
-    res.json({ ok: true, ...result, payload });
+    const hint =
+      result.failed > 0 && result.sent === 0 ? pushFailureHint(result.errors) : undefined;
+    res.json({ ok: result.sent > 0, ...result, payload, hint });
   });
 
   return router;

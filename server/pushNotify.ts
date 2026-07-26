@@ -164,13 +164,56 @@ function pruneEndpoint(endpoint: string) {
   }
 }
 
+export type PushSendError = {
+  status: number;
+  message: string;
+  endpointHost?: string;
+};
+
+function pushErrorDetails(e: unknown): PushSendError {
+  const err = e as { statusCode?: number; body?: string; message?: string };
+  const status = Number(err.statusCode || 0);
+  let message = String(err.message || e || "unknown");
+  const body = String(err.body || "").trim();
+  if (body) message = body.slice(0, 240);
+  let endpointHost: string | undefined;
+  try {
+    // web-push sometimes embeds endpoint in message
+    const m = message.match(/https:\/\/[^\s"']+/);
+    if (m) endpointHost = new URL(m[0]).host;
+  } catch {
+    /* ignore */
+  }
+  return { status, message, endpointHost };
+}
+
+function shouldPrunePushStatus(status: number): boolean {
+  // Gone / not found, or VAPID/auth mismatch after key rotation — drop stale row.
+  return status === 404 || status === 410 || status === 401 || status === 403;
+}
+
+export function pushFailureHint(errors: PushSendError[]): string {
+  const statuses = new Set(errors.map((e) => e.status).filter(Boolean));
+  if (statuses.has(401) || statuses.has(403)) {
+    return "Подписка не совпадает с VAPID-ключами сервера. На сайте выключите и снова включите «Уведомления», затем повторите тест.";
+  }
+  if (statuses.has(404) || statuses.has(410)) {
+    return "Подписка протухла и удалена. Подпишитесь заново на сайте.";
+  }
+  if (errors.length) {
+    return `Ошибка push: ${errors[0].status || "?"} ${errors[0].message}`;
+  }
+  return "Отправка не удалась.";
+}
+
 export async function broadcastPush(payload: PushPayload): Promise<{
   sent: number;
   failed: number;
   pruned: number;
+  errors: PushSendError[];
 }> {
   if (!isPushConfigured()) {
-    return { sent: 0, failed: 0, pruned: 0 };
+    return { sent: 0, failed: 0, pruned: 0, errors: [] };
   }
   const body = JSON.stringify({
     title: payload.title.slice(0, 120),
@@ -180,6 +223,7 @@ export async function broadcastPush(payload: PushPayload): Promise<{
   let sent = 0;
   let failed = 0;
   let pruned = 0;
+  const errors: PushSendError[] = [];
   for (const row of listSubscriptions()) {
     try {
       await webpush.sendNotification(
@@ -193,16 +237,25 @@ export async function broadcastPush(payload: PushPayload): Promise<{
       sent += 1;
     } catch (e) {
       failed += 1;
-      const status = Number((e as { statusCode?: number }).statusCode || 0);
-      if (status === 404 || status === 410) {
+      const details = pushErrorDetails(e);
+      try {
+        details.endpointHost = new URL(row.endpoint).host;
+      } catch {
+        /* ignore */
+      }
+      errors.push(details);
+      if (shouldPrunePushStatus(details.status)) {
         pruneEndpoint(row.endpoint);
         pruned += 1;
-      } else {
-        console.warn("[push] send failed:", status || (e instanceof Error ? e.message : e));
       }
+      console.warn(
+        "[push] send failed:",
+        details.status || details.message,
+        details.endpointHost || "",
+      );
     }
   }
-  return { sent, failed, pruned };
+  return { sent, failed, pruned, errors };
 }
 
 function deployNotesCandidates(): string[] {

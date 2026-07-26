@@ -71,13 +71,20 @@ export async function enablePushNotifications(): Promise<{ ok: true } | { ok: fa
     return { ok: false, error: "Разрешение на уведомления отклонено" };
   }
   const reg = await navigator.serviceWorker.ready;
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-    });
+  // Always resubscribe with the current server VAPID public key.
+  // Reusing an old PushSubscription after VAPID rotation → FCM 403 on send.
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) {
+    try {
+      await existing.unsubscribe();
+    } catch {
+      /* ignore */
+    }
   }
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+  });
   const json = sub.toJSON();
   const r = await fetch("/api/push/subscribe", {
     method: "POST",

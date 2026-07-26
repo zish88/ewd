@@ -976,6 +976,12 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                       ? `Подписчиков: ${pushStats.subscribers}`
                       : "VAPID не настроен на сервере — пуши выключены (на VPS: bash scripts/setup-vapid.sh)"}
                 </div>
+                {pushStats?.configured ? (
+                  <p className="text-[11px] text-[var(--muted)] leading-snug">
+                    Если тест даёт failed и sent=0 — на сайте выключите и снова включите «Уведомления»
+                    (после смены VAPID старая подписка не работает).
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="rounded border border-[var(--border-color)] px-3 py-1.5 text-emerald-700 disabled:opacity-50"
@@ -986,12 +992,25 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                         method: "POST",
                         credentials: "include",
                       });
-                      const d = await r.json();
-                      if (!r.ok) {
-                        setNotice(d.error || "Тест пуша не удался");
+                      const d = (await r.json()) as {
+                        error?: string;
+                        hint?: string;
+                        sent?: number;
+                        failed?: number;
+                        pruned?: number;
+                        errors?: Array<{ status?: number; message?: string }>;
+                      };
+                      if (!r.ok && d.error) {
+                        setNotice(d.error);
                         return;
                       }
-                      setNotice(`Тест пуша: sent=${d.sent}, failed=${d.failed}, pruned=${d.pruned}`);
+                      const summary = `Тест пуша: sent=${d.sent ?? 0}, failed=${d.failed ?? 0}, pruned=${d.pruned ?? 0}`;
+                      const detail =
+                        d.hint ||
+                        (d.errors?.[0]
+                          ? `${d.errors[0].status || "?"} ${d.errors[0].message || ""}`.trim()
+                          : "");
+                      setNotice(detail ? `${summary}. ${detail}` : summary);
                       await loadPushStats();
                     })();
                   }}
