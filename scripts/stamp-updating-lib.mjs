@@ -72,6 +72,7 @@ export function isNoiseSubject(s) {
   if (/^Stamp updating\.html\b/i.test(s)) return true;
   if (/^Skip stamp-only\b/i.test(s)) return true;
   if (/\bmeta deploy-note\b/i.test(s)) return true;
+  if (/\bdeploy note\b/i.test(s)) return true;
   return false;
 }
 
@@ -88,6 +89,11 @@ export function isInternalDeploySubject(s) {
   if (/\badmin\b/i.test(t)) return true;
   if (/админк/i.test(t)) return true;
   if (/\/admin\b/i.test(t)) return true;
+
+  // Repo hygiene / internal housekeeping — nothing a site visitor should see
+  if (/\binternal\b/i.test(t)) return true;
+  if (/\bpublic repo\b/i.test(t)) return true;
+  if (/\bportal\b/i.test(t)) return true;
 
   // Ops / keys / deploy tooling (not end-user product)
   if (/\bvapid\b/i.test(t)) return true;
