@@ -31,7 +31,17 @@ function esc(s) {
 }
 
 function git(cmd) {
-  return execSync(cmd, { cwd: root, encoding: "utf8" }).trim();
+  // Windows consoles often emit CP1251/CP866; force UTF-8 subject bytes into Node.
+  return execSync(cmd, {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
+      GIT_UTF8: "1",
+    },
+  }).trim();
 }
 
 function todayVersion() {
@@ -45,7 +55,7 @@ function todayVersion() {
 /** Latest commit subjects only — no range from previous stamp. */
 function latestCommitSubjects() {
   try {
-    const out = git(`git log -40 --pretty=format:%s`);
+    const out = git(`git -c i18n.logOutputEncoding=utf-8 log -40 --pretty=format:%s`);
     if (!out) return [];
     return out.split("\n");
   } catch {
