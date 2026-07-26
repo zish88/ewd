@@ -974,7 +974,7 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                     ? "Загрузка…"
                     : pushStats.configured
                       ? `Подписчиков: ${pushStats.subscribers}`
-                      : "VAPID не настроен — пуши выключены (см. DEPLOY.md)"}
+                      : "VAPID не настроен на сервере — пуши выключены (на VPS: bash scripts/setup-vapid.sh)"}
                 </div>
                 <button
                   type="button"
