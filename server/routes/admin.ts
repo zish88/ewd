@@ -471,6 +471,7 @@ export function createAdminRouter(db: Database.Database) {
     }
     const payload = buildDeployPushPayload(readDeployNotes());
     payload.title = `Тест · ${payload.title}`;
+    payload.requireInteraction = true;
     const result = await broadcastPush(payload);
     const hint =
       result.failed > 0 && result.sent === 0 ? pushFailureHint(result.errors) : undefined;

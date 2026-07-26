@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { dtcStats, getDtcByCode, searchDtcCodes } from "../dtcDb.js";
+import { dtcStats, getDtcByCode, getDtcDetails, searchDtcCodes } from "../dtcDb.js";
 
 export function createDtcRouter(): Router {
   const router = Router();
@@ -31,6 +31,15 @@ export function createDtcRouter(): Router {
       return;
     }
     res.json(row);
+  });
+
+  router.get("/code/:code/details", (req, res) => {
+    const details = getDtcDetails(req.params.code);
+    if (!details) {
+      res.status(404).json({ error: "Код не найден." });
+      return;
+    }
+    res.json(details);
   });
 
   return router;

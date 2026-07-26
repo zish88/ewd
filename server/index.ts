@@ -329,6 +329,18 @@ app.post("/api/tickets", async (req, res) => {
 
 // Production: serve Vite build + SPA fallback (API routes registered above)
 if (isProd || existsSync(resolve(clientDist, "index.html"))) {
+  // Service worker must never be cached for 1h — stale SW = push arrives but no banner.
+  app.get("/sw.js", (_req, res) => {
+    const swPath = resolve(clientDist, "sw.js");
+    if (!existsSync(swPath)) {
+      res.status(404).type("text").send("sw.js missing");
+      return;
+    }
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Service-Worker-Allowed", "/");
+    res.type("application/javascript");
+    res.sendFile(swPath);
+  });
   app.use(express.static(clientDist, { index: false, maxAge: isProd ? "1h" : 0 }));
   app.get(/^(?!\/api\/).*/, (req, res) => {
     // Do not SPA-fallback asset URLs (og:image etc.) — crawlers need real 404/PNG, not HTML

@@ -132,6 +132,13 @@ export function resetHarnessLabelCache(): void {
   cachedLabels = undefined;
 }
 
+/** Resolve raw Capital harness id to a human label from harness_labels.json when present. */
+export function resolveHarnessLabel(raw: string | null | undefined): string {
+  const id = String(raw || "").trim();
+  if (!id) return "";
+  return String(loadHarnessLabels()[id] || "").trim();
+}
+
 function classifyByRules(text: string): ZoneId | null {
   const s = String(text || "").trim();
   if (!s) return null;
@@ -165,7 +172,7 @@ export function extractCapitalHarnessId(raw: string): string | null {
 
 function zoneFromCapitalId(id: string): ZoneId | null {
   if (CAPITAL_HARNESS_ZONE[id]) return CAPITAL_HARNESS_ZONE[id];
-  const label = loadHarnessLabels()[id];
+  const label = resolveHarnessLabel(id);
   if (label) {
     const z = classifyByRules(label);
     if (z) return z;
@@ -189,7 +196,7 @@ export function harnessToZone(harness: string | null | undefined): ZoneId {
   if (byRules) return byRules;
 
   // Label-only resolve when harness is a known id without explicit map
-  const label = loadHarnessLabels()[s];
+  const label = resolveHarnessLabel(s);
   if (label) {
     const z = classifyByRules(label);
     if (z) return z;

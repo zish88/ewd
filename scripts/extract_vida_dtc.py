@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import re
 import sqlite3
@@ -25,6 +26,7 @@ DEFAULT_MDF = Path(r"E:\vida_extract\diagswdl\DiagSwdlRepository_Data.MDF")
 DEFAULT_LDF = Path(r"E:\vida_extract\diagswdl\DiagSwdlRepository_log.LDF")
 OUT_SQLITE = ROOT / "data" / "dtc.sqlite"
 OUT_JSON = ROOT / "data" / "dtc_codes.json"
+OUT_METADATA_PROBE = ROOT / "data" / "vida_dtc_metadata_probe.json"
 
 # InformationQualifier 20 = "Diagnostic Trouble Codes and Associated Procedures"
 IQ_DTC = 20
@@ -38,6 +40,8 @@ CODE_RE = re.compile(
     re.I,
 )
 OBD_IN_BODY = re.compile(r"^([PCBU])([0-9A-F]{4,6})$", re.I)
+METADATA_TABLE_RE = re.compile(r"(dtc|appl|script|proced|cause|check|symptom|qualifier|title)", re.I)
+METADATA_COLUMN_RE = re.compile(r"(dtc|appl|script|proced|cause|check|symptom|qualifier|title|fkie|fkie\b|fkinformationqualifier)", re.I)
 
 
 def log(msg: str) -> None:
@@ -125,6 +129,69 @@ def fetch_titles(server: str) -> dict[str, dict[str, str]]:
     conn.close()
     log(f"  IE with parseable DTC titles: {len(by_ie)} (skipped non-code titles: {skipped})")
     return by_ie
+
+
+def probe_dtc_metadata(server: str) -> dict:
+    """Inspect DiagSWDL schema for DTC detail/procedure/applicability candidates."""
+    conn = get_odbc_connection(server, "DiagSWDL")
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT s.name, t.name
+        FROM sys.tables t
+        JOIN sys.schemas s ON s.schema_id = t.schema_id
+        ORDER BY s.name, t.name
+        """
+    )
+    table_rows = cur.fetchall()
+    candidates = []
+    for schema_name, table_name in table_rows:
+        cur.execute(
+            """
+            SELECT c.name, ty.name
+            FROM sys.columns c
+            JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+            JOIN sys.tables tb ON tb.object_id = c.object_id
+            JOIN sys.schemas s ON s.schema_id = tb.schema_id
+            WHERE s.name = ? AND tb.name = ?
+            ORDER BY c.column_id
+            """,
+            schema_name,
+            table_name,
+        )
+        columns = [{"name": name, "type": typ} for name, typ in cur.fetchall()]
+        hit_columns = [col["name"] for col in columns if METADATA_COLUMN_RE.search(col["name"])]
+        if not (METADATA_TABLE_RE.search(table_name) or hit_columns):
+            continue
+        candidates.append(
+            {
+                "table": f"{schema_name}.{table_name}",
+                "hit_columns": hit_columns,
+                "columns": columns,
+            }
+        )
+
+    iq20_ie_count = None
+    try:
+        cur.execute("SELECT COUNT(*) FROM dbo.IE WHERE fkInformationQualifier = ?", IQ_DTC)
+        iq20_ie_count = int(cur.fetchone()[0])
+    except Exception:
+        iq20_ie_count = None
+
+    conn.close()
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "database": "DiagSWDL",
+        "iq_dtc": IQ_DTC,
+        "iq20_ie_count": iq20_ie_count,
+        "candidate_tables": candidates,
+    }
+
+
+def write_metadata_probe(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    log(f"  wrote metadata probe {path}")
 
 
 def write_sqlite(rows: list[dict], path: Path) -> None:
@@ -243,6 +310,9 @@ def main() -> int:
     ap.add_argument("--out-sqlite", type=Path, default=OUT_SQLITE)
     ap.add_argument("--out-json", type=Path, default=OUT_JSON)
     ap.add_argument("--no-json", action="store_true")
+    ap.add_argument("--probe-metadata", action="store_true")
+    ap.add_argument("--probe-only", action="store_true")
+    ap.add_argument("--probe-out", type=Path, default=OUT_METADATA_PROBE)
     args = ap.parse_args()
 
     pipe = localdb_named_pipe("MSSQLLocalDB")
@@ -253,6 +323,12 @@ def main() -> int:
         ensure_attached(args.server, args.mdf, args.ldf)
     if args.attach_only:
         return 0
+
+    if args.probe_metadata:
+        log("Probing DiagSWDL for DTC metadata candidates…")
+        write_metadata_probe(args.probe_out, probe_dtc_metadata(args.server))
+        if args.probe_only:
+            return 0
 
     log("Fetching DTC titles (IQ=20, ru+en)…")
     by_ie = fetch_titles(args.server)

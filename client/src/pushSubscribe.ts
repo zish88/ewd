@@ -33,13 +33,24 @@ async function fetchVapidPublicKey(): Promise<string | null> {
   }
 }
 
+async function ensureServiceWorker(): Promise<ServiceWorkerRegistration> {
+  const existing = await navigator.serviceWorker.getRegistration("/");
+  if (!existing) {
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  } else if (existing.active) {
+    // Ask waiting/updated worker to take over so push handler is current.
+    existing.update().catch(() => {});
+  }
+  return navigator.serviceWorker.ready;
+}
+
 export async function getPushUiState(): Promise<PushUiState> {
   if (!pushFeatureSupported()) return "unsupported";
   const key = await fetchVapidPublicKey();
   if (!key) return "unavailable";
   if (Notification.permission === "denied") return "unavailable";
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await ensureServiceWorker();
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
       try {
@@ -70,7 +81,7 @@ export async function enablePushNotifications(): Promise<{ ok: true } | { ok: fa
   if (permission !== "granted") {
     return { ok: false, error: "Разрешение на уведомления отклонено" };
   }
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await ensureServiceWorker();
   // Always resubscribe with the current server VAPID public key.
   // Reusing an old PushSubscription after VAPID rotation → FCM 403 on send.
   const existing = await reg.pushManager.getSubscription();
@@ -86,6 +97,9 @@ export async function enablePushNotifications(): Promise<{ ok: true } | { ok: fa
     applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
   });
   const json = sub.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    return { ok: false, error: "Браузер не вернул ключи подписки" };
+  }
   const r = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,6 +116,16 @@ export async function enablePushNotifications(): Promise<{ ok: true } | { ok: fa
     localStorage.setItem(LS_KEY, "1");
   } catch {
     /* ignore */
+  }
+  // Local smoke: OS must allow banners (Windows «Фокусировка» часто глушит тосты).
+  try {
+    await reg.showNotification("Volvo EWD", {
+      body: "Уведомления включены. Если это видно — пуш работает.",
+      tag: "ewd-push-opt-in",
+      icon: "/icons/icon-192.png",
+    });
+  } catch {
+    /* permission edge cases */
   }
   return { ok: true };
 }

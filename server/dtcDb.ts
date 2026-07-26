@@ -38,6 +38,23 @@ export type DtcCodeRow = {
   variants: number;
 };
 
+export type DtcEntryRow = {
+  ie_id: string;
+  code: string;
+  ecu: string;
+  obd_code: string;
+  title_ru: string;
+  title_en: string;
+  source: string;
+  fault_state?: string;
+};
+
+export type DtcCodeDetails = {
+  summary: DtcCodeRow;
+  matched_by: "code" | "obd_code";
+  entries: DtcEntryRow[];
+};
+
 function sanitizeFtsQuery(raw: string): string {
   const tokens = String(raw || "")
     .trim()
@@ -48,6 +65,41 @@ function sanitizeFtsQuery(raw: string): string {
   if (!tokens.length) return "";
   // Prefix match each token
   return tokens.map((t) => `"${t}"*`).join(" AND ");
+}
+
+function extractFaultState(titleRu: string, titleEn: string): string {
+  const blob = `${titleRu} ${titleEn}`.toLowerCase();
+  if (!blob.trim()) return "";
+  if (/intermittent|периодическ|прерывист/.test(blob)) return "intermittent";
+  if (/permanent|постоянн/.test(blob)) return "permanent";
+  if (/signal too low|сигнал слишком слаб|слишком низк/.test(blob)) return "signal_low";
+  if (/signal too high|слишком сильн|слишком высок/.test(blob)) return "signal_high";
+  if (/signal missing|сигнал отсутств|обрыв|missing/.test(blob)) return "signal_missing";
+  if (/internal fault|внутренн.*неисправ/.test(blob)) return "internal_fault";
+  if (/faulty signal|неверн.*сигнал/.test(blob)) return "faulty_signal";
+  return "";
+}
+
+function enrichEntry(row: DtcEntryRow): DtcEntryRow {
+  const fault_state = extractFaultState(row.title_ru, row.title_en);
+  return fault_state ? { ...row, fault_state } : row;
+}
+
+function lookupDtcCodeRow(db: Database.Database, code: string): { row: DtcCodeRow; matched_by: "code" | "obd_code" } | null {
+  const byCode = db
+    .prepare(
+      `SELECT code, ecu, obd_code, title_ru, title_en, variants FROM dtc_codes WHERE code = ? COLLATE NOCASE`,
+    )
+    .get(code) as DtcCodeRow | undefined;
+  if (byCode) return { row: byCode, matched_by: "code" };
+
+  const byObd = db
+    .prepare(
+      `SELECT code, ecu, obd_code, title_ru, title_en, variants FROM dtc_codes WHERE obd_code = ? COLLATE NOCASE ORDER BY code LIMIT 1`,
+    )
+    .get(code) as DtcCodeRow | undefined;
+  if (byObd) return { row: byObd, matched_by: "obd_code" };
+  return null;
 }
 
 export function searchDtcCodes(query: string, limit = 40): DtcCodeRow[] {
@@ -106,13 +158,37 @@ export function getDtcByCode(code: string): DtcCodeRow | null {
   if (!db) return null;
   const c = String(code || "").trim().toUpperCase();
   if (!c) return null;
-  return (
-    (db
-      .prepare(
-        `SELECT code, ecu, obd_code, title_ru, title_en, variants FROM dtc_codes WHERE code = ? COLLATE NOCASE`,
-      )
-      .get(c) as DtcCodeRow | undefined) ?? null
-  );
+  return lookupDtcCodeRow(db, c)?.row ?? null;
+}
+
+export function getDtcDetails(code: string): DtcCodeDetails | null {
+  const db = openDtcDatabase();
+  if (!db) return null;
+  const c = String(code || "").trim().toUpperCase();
+  if (!c) return null;
+  const hit = lookupDtcCodeRow(db, c);
+  if (!hit) return null;
+  const entries = db
+    .prepare(
+      `SELECT ie_id, code, ecu, obd_code, title_ru, title_en, source
+       FROM dtc_entries
+       WHERE code = ? COLLATE NOCASE
+       ORDER BY
+         CASE
+           WHEN title_ru != '' THEN 0
+           WHEN title_en != '' THEN 1
+           ELSE 2
+         END,
+         title_ru,
+         title_en,
+         ie_id`,
+    )
+    .all(hit.row.code) as DtcEntryRow[];
+  return {
+    summary: hit.row,
+    matched_by: hit.matched_by,
+    entries: entries.map(enrichEntry),
+  };
 }
 
 export function dtcStats(): { available: boolean; codes: number; withObd: number; path: string } {

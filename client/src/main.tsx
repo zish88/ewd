@@ -881,6 +881,28 @@ const THEMES = [
 ] as const;
 type ThemeId = (typeof THEMES)[number]["id"];
 
+const DTC_FAULT_STATE_LABELS: Record<string, string> = {
+  intermittent: "прерывистая",
+  permanent: "постоянная",
+  signal_low: "сигнал низкий",
+  signal_high: "сигнал высокий",
+  signal_missing: "сигнал отсутствует",
+  internal_fault: "внутренняя неисправность",
+  faulty_signal: "неверный сигнал",
+};
+
+function faultStateLabel(value?: string): string {
+  if (!value) return "";
+  return DTC_FAULT_STATE_LABELS[value] ?? value.replace(/_/g, " ");
+}
+
+function describeDtcVariants(count: number): string {
+  if (count > 1) {
+    return `В VIDA под этим кодом ${count} отдельных записей. Это не языки RU/EN, а разные IE-варианты с отличающимися формулировками или состоянием неисправности.`;
+  }
+  return "В VIDA для этого кода найдена одна запись. RU/EN ниже - это только локализации одной и той же записи.";
+}
+
 function migrateThemeId(raw: string | null): ThemeId {
   if (raw === "charcoal" || raw === "caspian" || raw === "amber") return raw;
   if (raw === "volvo-charcoal") return "charcoal";
@@ -932,10 +954,28 @@ function App() {
     title_en: string;
     variants: number;
   };
+  type DtcVariant = {
+    ie_id: string;
+    code: string;
+    ecu: string;
+    obd_code: string;
+    title_ru: string;
+    title_en: string;
+    source: string;
+    fault_state?: string;
+  };
+  type DtcDetails = {
+    summary: DtcHit;
+    matched_by: "code" | "obd_code";
+    entries: DtcVariant[];
+  };
   const [dtcQuery, setDtcQuery] = useState("");
   const [dtcResults, setDtcResults] = useState<DtcHit[]>([]);
   const [dtcLoading, setDtcLoading] = useState(false);
   const [dtcNotice, setDtcNotice] = useState("");
+  const [dtcOpenCode, setDtcOpenCode] = useState("");
+  const [dtcDetailsByCode, setDtcDetailsByCode] = useState<Record<string, DtcDetails | null>>({});
+  const [dtcDetailsLoadingCode, setDtcDetailsLoadingCode] = useState("");
   type NodeInfo = {
     code: string;
     name_ru: string;
@@ -1531,13 +1571,39 @@ function App() {
     setNodeInfo(null);
     setDtcResults([]);
     setDtcNotice("");
+    setDtcOpenCode("");
+    setDtcDetailsByCode({});
+    setDtcDetailsLoadingCode("");
   };
 
   function clearDtc() {
     setDtcQuery("");
     setDtcResults([]);
     setDtcNotice("");
+    setDtcOpenCode("");
+    setDtcDetailsByCode({});
+    setDtcDetailsLoadingCode("");
     if (mode === "dtc") setMode(null);
+  }
+
+  async function toggleDtcDetails(code: string) {
+    const normalized = String(code || "").trim().toUpperCase();
+    if (!normalized) return;
+    if (dtcOpenCode === normalized) {
+      setDtcOpenCode("");
+      return;
+    }
+    setDtcOpenCode(normalized);
+    if (Object.prototype.hasOwnProperty.call(dtcDetailsByCode, normalized)) return;
+    setDtcDetailsLoadingCode(normalized);
+    try {
+      const data = await fetch(`/api/dtc/code/${encodeURIComponent(normalized)}/details`).then((r) => r.json());
+      setDtcDetailsByCode((cur) => ({ ...cur, [normalized]: data && !data.error ? (data as DtcDetails) : null }));
+    } catch {
+      setDtcDetailsByCode((cur) => ({ ...cur, [normalized]: null }));
+    } finally {
+      setDtcDetailsLoadingCode((cur) => (cur === normalized ? "" : cur));
+    }
   }
 
   function clearVin() {
@@ -1569,6 +1635,9 @@ function App() {
       }
       const results = Array.isArray(data.results) ? (data.results as DtcHit[]) : [];
       setDtcResults(results);
+      setDtcOpenCode("");
+      setDtcDetailsByCode({});
+      setDtcDetailsLoadingCode("");
       setDtcNotice(results.length ? `Найдено: ${results.length}` : "Ничего не найдено.");
     } catch {
       setDtcResults([]);
@@ -2755,6 +2824,70 @@ function App() {
               </p>
               {row.title_ru && row.title_en ? (
                 <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{row.title_en}</p>
+              ) : null}
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  className="md-btn md-btn--text text-[11px] text-[var(--accent)]"
+                  onClick={() => void toggleDtcDetails(row.code)}
+                >
+                  {dtcOpenCode === row.code ? "Скрыть детали" : "Подробнее"}
+                </button>
+                {dtcDetailsLoadingCode === row.code ? (
+                  <span className="text-[11px] text-[var(--text-muted)]">Загружаем варианты…</span>
+                ) : null}
+              </div>
+              {dtcOpenCode === row.code ? (
+                <div className="mt-2 rounded-md border border-[var(--border-color)] bg-[var(--input-bg)] p-2 text-[11px]">
+                  <p className="mb-2 text-[var(--text-muted)]">
+                    {describeDtcVariants(row.variants)}
+                  </p>
+                  {dtcDetailsByCode[row.code]?.matched_by === "obd_code" ? (
+                    <p className="text-[var(--text-muted)] mb-2">
+                      Точное совпадение найдено по OBD-алиасу, не по Volvo-коду.
+                    </p>
+                  ) : null}
+                  <dl className="mb-2 grid gap-x-3 gap-y-1 text-[11px] sm:grid-cols-2">
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Основной RU title</dt>
+                      <dd className="text-[var(--text-main)]">{row.title_ru || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-wide text-[var(--muted)]">EN title</dt>
+                      <dd className="text-[var(--text-main)]">{row.title_en || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-wide text-[var(--muted)]">ECU</dt>
+                      <dd className="text-[var(--text-main)]">{row.ecu || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-wide text-[var(--muted)]">OBD alias</dt>
+                      <dd className="text-[var(--text-main)]">{row.obd_code || "—"}</dd>
+                    </div>
+                  </dl>
+                  {dtcDetailsByCode[row.code]?.entries?.length ? (
+                    <div className="space-y-2">
+                      {dtcDetailsByCode[row.code]!.entries.map((entry, index) => (
+                        <div key={`${entry.ie_id}-${index}`} className="rounded border border-[var(--border-color)] bg-[var(--bg-card)] px-2 py-1.5">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <span className="font-medium text-[var(--text-main)]">Вариант {index + 1}</span>
+                            {entry.fault_state ? (
+                              <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                                {faultStateLabel(entry.fault_state)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-[var(--text-main)]">{entry.title_ru || entry.title_en || "—"}</p>
+                          {entry.title_ru && entry.title_en ? (
+                            <p className="mt-1 text-[var(--text-muted)]">{entry.title_en}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : dtcDetailsLoadingCode === row.code ? null : (
+                    <p className="text-[var(--text-muted)]">Детали вариантов недоступны.</p>
+                  )}
+                </div>
               ) : null}
             </article>
           ))}

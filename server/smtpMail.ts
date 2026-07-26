@@ -62,7 +62,7 @@ export function createSmtpTransport(cfg: SmtpConfig) {
     socketTimeout: 25_000,
     tls: { minVersion: "TLSv1.2" },
     family: 4,
-  });
+  } as any);
 }
 
 export function formatSmtpError(error: unknown): string {

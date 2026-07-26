@@ -25,6 +25,8 @@ export type PushPayload = {
   title: string;
   body: string;
   url?: string;
+  /** Keep banner visible until user interacts (useful for admin test). */
+  requireInteraction?: boolean;
 };
 
 let pushDb: Database.Database | null = null;
@@ -219,6 +221,7 @@ export async function broadcastPush(payload: PushPayload): Promise<{
     title: payload.title.slice(0, 120),
     body: payload.body.slice(0, 400),
     url: payload.url || "/",
+    requireInteraction: Boolean(payload.requireInteraction),
   });
   let sent = 0;
   let failed = 0;

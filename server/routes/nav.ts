@@ -591,69 +591,13 @@ function componentGroup(code: string): "modules" | "connectors" | "other" {
   return "other";
 }
 
-export function createNavRouter(db: Database.Database) {
-  const router = Router();
+type NavGroupPayload = { id: "modules" | "connectors" | "other"; label: string; items: NavListItem[] };
 
-  router.get("/zones", (_req, res) => {
-    const rows = db
-      .prepare(
-        `SELECT IFNULL(w.harness_left,'') AS harness_left,
-                IFNULL(w.harness_right,'') AS harness_right,
-                IFNULL(p.system_name,'') AS system_name
-         FROM wire_connections w
-         JOIN pages p ON p.id = w.page_id`,
-      )
-      .all() as Array<{ harness_left: string; harness_right: string; system_name: string }>;
-
-    const counts = new Map<ZoneId, number>();
-    for (const id of Object.keys(ZONE_LABELS) as ZoneId[]) counts.set(id, 0);
-
-    for (const row of rows) {
-      const zones = new Set<ZoneId>();
-      if (row.harness_left) zones.add(harnessToZone(row.harness_left));
-      if (row.harness_right) zones.add(harnessToZone(row.harness_right));
-      // Fallback when harness columns are empty (common on older sqlite dumps)
-      if (!row.harness_left && !row.harness_right) {
-        const fromPage = classifySystemText(row.system_name);
-        if (fromPage) zones.add(fromPage);
-      }
-      for (const z of zones) counts.set(z, (counts.get(z) || 0) + 1);
-    }
-
-    // Prefer component home_zone counts when sufficiently populated (phase 3)
-    try {
-      const homeFilled = Number(
-        (db.prepare(`SELECT COUNT(*) AS n FROM components WHERE TRIM(IFNULL(home_zone,'')) != ''`).get() as { n: number })
-          .n,
-      );
-      if (homeFilled >= 80) {
-        const homeRows = db
-          .prepare(
-            `SELECT home_zone AS z, COUNT(*) AS n FROM components
-             WHERE TRIM(IFNULL(home_zone,'')) != '' GROUP BY home_zone`,
-          )
-          .all() as Array<{ z: string; n: number }>;
-        for (const id of Object.keys(ZONE_LABELS) as ZoneId[]) counts.set(id, 0);
-        for (const r of homeRows) {
-          if (ZONE_LABELS[r.z as ZoneId]) counts.set(r.z as ZoneId, r.n);
-        }
-      }
-    } catch {
-      /* column may be missing on very old DB before migrate */
-    }
-
-    const zones = (Object.keys(ZONE_LABELS) as ZoneId[]).map((id) => ({
-      id,
-      label: ZONE_LABELS[id],
-      count: counts.get(id) || 0,
-    }));
-
-    res.json({ zones });
-  });
-
-  router.get("/components", (req, res) => {
-    const zone = String(req.query.zone || "").trim();
-    const wireRows = db
+function buildNavComponentPayload(
+  db: Database.Database,
+  zone: string,
+): { zone: string; groups: NavGroupPayload[] } {
+  const wireRows = db
       .prepare(
         `SELECT w.from_component_id, w.to_component_id, w.via_component_id,
                 IFNULL(w.subject_code,'') AS subject_code,
@@ -688,7 +632,7 @@ export function createNavRouter(db: Database.Database) {
       via_code: string;
     }>;
 
-    const comps = db
+  const comps = db
       .prepare(
         `SELECT id, component_code, component_type_ru, description_en, description_ru,
                 IFNULL(name_ru,'') AS name_ru, IFNULL(part_number,'') AS part_number,
@@ -707,105 +651,100 @@ export function createNavRouter(db: Database.Database) {
       part_number_mate: string;
       home_zone: string;
     }>;
-    const homeByCode = new Map(
-      comps.map((c) => [
-        c.component_code,
-        c.home_zone && ZONE_LABELS[c.home_zone as ZoneId] ? c.home_zone : "",
-      ]),
-    );
+  const homeByCode = new Map(
+    comps.map((c) => [
+      c.component_code,
+      c.home_zone && ZONE_LABELS[c.home_zone as ZoneId] ? c.home_zone : "",
+    ]),
+  );
 
-    const zoneFilter = zone && zone !== "all";
-    const idSet = new Set<number>();
-    const subjectCodes = new Set<string>();
-    /** Codes that have ≥1 zone-matching wire (owner or endpoint) — symmetry with /wires. */
-    const codesWithZoneWires = new Set<string>();
+  const zoneFilter = zone && zone !== "all";
+  const idSet = new Set<number>();
+  const subjectCodes = new Set<string>();
+  /** Codes that have ≥1 zone-matching wire (owner or endpoint) — symmetry with /wires. */
+  const codesWithZoneWires = new Set<string>();
 
-    /** Majority harness zone per subject (owner rows) — gates subjectCodes into a zone list. */
-    const majorityBySubject = new Map<string, ZoneId>();
-    {
-      const votes = new Map<string, Map<ZoneId, number>>();
-      for (const w of wireRows) {
-        const subj = String(w.subject_code || "").trim();
-        if (!subj) continue;
-        const bucket = votes.get(subj) || new Map<ZoneId, number>();
-        for (const h of [w.harness_left, w.harness_right]) {
-          const zid = harnessToZone(h);
-          if (zid === "other") continue;
-          bucket.set(zid, (bucket.get(zid) || 0) + 1);
-        }
-        if (bucket.size) votes.set(subj, bucket);
-      }
-      for (const [subj, bucket] of votes) {
-        const total = [...bucket.values()].reduce((a, b) => a + b, 0);
-        if (!total) continue;
-        const ranked = [...bucket.entries()].sort(
-          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-        );
-        const [best, bestN] = ranked[0];
-        // Strict majority of all harness votes — one boundary cable cannot flip the subject.
-        if (bestN * 2 > total) majorityBySubject.set(subj, best);
-      }
-    }
-
+  /** Majority harness zone per subject (owner rows) — gates subjectCodes into a zone list. */
+  const majorityBySubject = new Map<string, ZoneId>();
+  {
+    const votes = new Map<string, Map<ZoneId, number>>();
     for (const w of wireRows) {
-      const zoneOk =
-        !zoneFilter ||
-        wireMatchesZone(w.harness_left, w.harness_right, zone) ||
-        ((!w.harness_left && !w.harness_right) &&
-          (textBelongsToZone(w.system_name, zone) ||
-            textBelongsToZone(`${w.from_detail} ${w.to_detail} ${w.function_text}`, zone)));
-      if (!zoneOk) continue;
-
-      if (w.subject_code) {
-        const subjHome =
-          homeByCode.get(w.subject_code) || majorityBySubject.get(w.subject_code) || "";
-        // Known foreign majority/home → exclude. Unknown (no majority yet) → allow on zone-matching wire.
-        if (!zoneFilter || !subjHome || subjHome === zone) {
-          subjectCodes.add(w.subject_code);
-          codesWithZoneWires.add(w.subject_code);
-        }
+      const subj = String(w.subject_code || "").trim();
+      if (!subj) continue;
+      const bucket = votes.get(subj) || new Map<ZoneId, number>();
+      for (const h of [w.harness_left, w.harness_right]) {
+        const zid = harnessToZone(h);
+        if (zid === "other") continue;
+        bucket.set(zid, (bucket.get(zid) || 0) + 1);
       }
+      if (bucket.size) votes.set(subj, bucket);
+    }
+    for (const [subj, bucket] of votes) {
+      const total = [...bucket.values()].reduce((a, b) => a + b, 0);
+      if (!total) continue;
+      const ranked = [...bucket.entries()].sort(
+        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+      );
+      const [best, bestN] = ranked[0];
+      if (bestN * 2 > total) majorityBySubject.set(subj, best);
+    }
+  }
 
-      if (!zoneFilter) {
-        for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
-          if (id) idSet.add(id);
-        }
-        for (const code of [w.from_code, w.to_code, w.via_code, w.subject_code]) {
-          if (code) codesWithZoneWires.add(code);
-        }
-        continue;
-      }
+  for (const w of wireRows) {
+    const zoneOk =
+      !zoneFilter ||
+      wireMatchesZone(w.harness_left, w.harness_right, zone) ||
+      ((!w.harness_left && !w.harness_right) &&
+        (textBelongsToZone(w.system_name, zone) ||
+          textBelongsToZone(`${w.from_detail} ${w.to_detail} ${w.function_text}`, zone)));
+    if (!zoneOk) continue;
 
-      // Do NOT dump every peer on a zone-matching wire (that leaked SCL into front_bumper).
-      if (w.from_component_id && endpointBelongsToZone(w.from_detail, zone)) {
-        idSet.add(w.from_component_id);
-        if (w.from_code) codesWithZoneWires.add(w.from_code);
-      }
-      if (w.to_component_id && endpointBelongsToZone(w.to_detail, zone)) {
-        idSet.add(w.to_component_id);
-        if (w.to_code) codesWithZoneWires.add(w.to_code);
+    if (w.subject_code) {
+      const subjHome =
+        homeByCode.get(w.subject_code) || majorityBySubject.get(w.subject_code) || "";
+      if (!zoneFilter || !subjHome || subjHome === zone) {
+        subjectCodes.add(w.subject_code);
+        codesWithZoneWires.add(w.subject_code);
       }
     }
 
-    const byCode = new Map<string, (typeof comps)[0]>();
-    for (const c of comps) {
-      if (!zoneFilter) {
-        if (idSet.has(c.id) || subjectCodes.has(c.component_code)) {
-          byCode.set(c.component_code, c);
-        }
-        continue;
+    if (!zoneFilter) {
+      for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
+        if (id) idSet.add(id);
       }
-      const home = homeByCode.get(c.component_code) || "";
-      if (home && home !== zone) continue;
-      // Symmetry: never list a code that has zero wires under this zone filter.
-      // Pure home_zone without zone wires → omit (was the empty-contacts root cause).
-      const listed =
-        (subjectCodes.has(c.component_code) || idSet.has(c.id)) &&
-        codesWithZoneWires.has(c.component_code);
-      if (listed) byCode.set(c.component_code, c);
+      for (const code of [w.from_code, w.to_code, w.via_code, w.subject_code]) {
+        if (code) codesWithZoneWires.add(code);
+      }
+      continue;
     }
 
-    const pinoutCodes = new Set(
+    if (w.from_component_id && endpointBelongsToZone(w.from_detail, zone)) {
+      idSet.add(w.from_component_id);
+      if (w.from_code) codesWithZoneWires.add(w.from_code);
+    }
+    if (w.to_component_id && endpointBelongsToZone(w.to_detail, zone)) {
+      idSet.add(w.to_component_id);
+      if (w.to_code) codesWithZoneWires.add(w.to_code);
+    }
+  }
+
+  const byCode = new Map<string, (typeof comps)[0]>();
+  for (const c of comps) {
+    if (!zoneFilter) {
+      if (idSet.has(c.id) || subjectCodes.has(c.component_code)) {
+        byCode.set(c.component_code, c);
+      }
+      continue;
+    }
+    const home = homeByCode.get(c.component_code) || "";
+    if (home && home !== zone) continue;
+    const listed =
+      (subjectCodes.has(c.component_code) || idSet.has(c.id)) &&
+      codesWithZoneWires.has(c.component_code);
+    if (listed) byCode.set(c.component_code, c);
+  }
+
+  const pinoutCodes = new Set(
       (
         db
           .prepare(
@@ -815,68 +754,83 @@ export function createNavRouter(db: Database.Database) {
           .all() as Array<{ code: string }>
       ).map((r) => r.code),
     );
-    const diagramCodes = new Set(
+  const diagramCodes = new Set(
       (
         db.prepare(`SELECT DISTINCT component_code AS code FROM component_diagram_pages`).all() as Array<{
           code: string;
         }>
       ).map((r) => r.code),
     );
-    const ewdCodes = loadEwdCodeSet();
+  const ewdCodes = loadEwdCodeSet();
 
-    const groups = {
-      modules: [] as NavListItem[],
-      connectors: [] as NavListItem[],
-      other: [] as NavListItem[],
+  const groups = {
+    modules: [] as NavListItem[],
+    connectors: [] as NavListItem[],
+    other: [] as NavListItem[],
+  };
+
+  for (const c of [...byCode.values()].sort((a, b) =>
+    a.component_code.localeCompare(b.component_code, undefined, { numeric: true }),
+  )) {
+    const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
+    const devicePn = devicePartForCode(c.component_code);
+    const jsonConn = loadConnectorParts().connectors?.[c.component_code];
+    const housingPn =
+      String(c.part_number || "").trim() || String(jsonConn?.part_number || "").trim();
+    const matePn =
+      String(c.part_number_mate || "").trim() || String(jsonConn?.part_number_mate || "").trim();
+    const pnBits: string[] = [];
+    if (devicePn) pnBits.push(`деталь ${devicePn}`);
+    if (housingPn) pnBits.push(`корпус ${housingPn}`);
+    if (matePn && matePn !== housingPn) pnBits.push(`ответная ${matePn}`);
+    const pn = pnBits.length ? ` [${pnBits.join(" · ")}]` : "";
+    const has_pinout = pinoutCodes.has(c.component_code);
+    const has_diagram = false;
+    const has_ewd = ewdCodes.has(c.component_code);
+    const marks: string[] = [];
+    if (has_ewd) marks.push("схема");
+    if (has_pinout) marks.push("контакты");
+    const mark = marks.length ? ` [${marks.join("·")}]` : "";
+    const label = desc
+      ? `${c.component_code} — ${desc}${pn}${mark}`
+      : `${c.component_code}${pn}${mark}`;
+    const item: NavListItem = {
+      code: c.component_code,
+      label,
+      type_ru: c.component_type_ru || "",
+      has_pinout,
+      has_diagram,
+      has_ewd,
+      home_zone: c.home_zone || "",
     };
+    groups[componentGroup(c.component_code)].push(item);
+  }
 
-    for (const c of [...byCode.values()].sort((a, b) =>
-      a.component_code.localeCompare(b.component_code, undefined, { numeric: true }),
-    )) {
-      const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
-      // part_number = connector/housing; device_part_number = assembly when EPC has one
-      const devicePn = devicePartForCode(c.component_code);
-      const jsonConn = loadConnectorParts().connectors?.[c.component_code];
-      const housingPn =
-        String(c.part_number || "").trim() || String(jsonConn?.part_number || "").trim();
-      const matePn =
-        String(c.part_number_mate || "").trim() || String(jsonConn?.part_number_mate || "").trim();
-      const pnBits: string[] = [];
-      if (devicePn) pnBits.push(`деталь ${devicePn}`);
-      if (housingPn) pnBits.push(`корпус ${housingPn}`);
-      if (matePn && matePn !== housingPn) pnBits.push(`ответная ${matePn}`);
-      const pn = pnBits.length ? ` [${pnBits.join(" · ")}]` : "";
-      const has_pinout = pinoutCodes.has(c.component_code);
-      const has_diagram = false; // PDF diagram pages removed — Capital SVG only
-      const has_ewd = ewdCodes.has(c.component_code);
-      const marks: string[] = [];
-      // схема = EWD SVG; контакты = Capital FaceView / wire rows (no PDF)
-      if (has_ewd) marks.push("схема");
-      if (has_pinout) marks.push("контакты");
-      const mark = marks.length ? ` [${marks.join("·")}]` : "";
-      const label = desc
-        ? `${c.component_code} — ${desc}${pn}${mark}`
-        : `${c.component_code}${pn}${mark}`;
-      const item: NavListItem = {
-        code: c.component_code,
-        label,
-        type_ru: c.component_type_ru || "",
-        has_pinout,
-        has_diagram,
-        has_ewd,
-        home_zone: c.home_zone || "",
-      };
-      groups[componentGroup(c.component_code)].push(item);
-    }
+  return {
+    zone: zone || "all",
+    groups: [
+      { id: "modules", label: "Блоки управления", items: groups.modules },
+      { id: "connectors", label: "Промежуточные разъёмы", items: groups.connectors },
+      { id: "other", label: "Прочее", items: groups.other },
+    ],
+  };
+}
 
-    res.json({
-      zone: zone || "all",
-      groups: [
-        { id: "modules", label: "Блоки управления", items: groups.modules },
-        { id: "connectors", label: "Промежуточные разъёмы", items: groups.connectors },
-        { id: "other", label: "Прочее", items: groups.other },
-      ],
+export function createNavRouter(db: Database.Database) {
+  const router = Router();
+
+  router.get("/zones", (_req, res) => {
+    const zones = (Object.keys(ZONE_LABELS) as ZoneId[]).map((id) => {
+      const payload = buildNavComponentPayload(db, id);
+      const count = payload.groups.reduce((n, g) => n + g.items.length, 0);
+      return { id, label: ZONE_LABELS[id], count };
     });
+    res.json({ zones });
+  });
+
+  router.get("/components", (req, res) => {
+    const zone = String(req.query.zone || "").trim();
+    res.json(buildNavComponentPayload(db, zone));
   });
 
   router.get("/wires", (req, res) => {

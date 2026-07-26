@@ -259,16 +259,23 @@ export function SvgPanZoomHost({
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
+
+    /** Safari trackpad pinch reports absolute scale relative to gesturestart. */
+    let safariGestureScale0 = 1;
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // Mac trackpad pinch → wheel + ctrlKey.
-      const pinchZoom = e.ctrlKey || e.metaKey;
+      // Chrome Mac: pinch → wheel + ctrlKey.
+      // Option/Alt + two-finger scroll → intentional zoom (Mac habit).
+      // Cmd alone is left for browser chrome; still accept meta+wheel if browser sends it.
+      const pinchZoom = e.ctrlKey || e.metaKey || e.altKey;
       // Mouse wheel zoom: LINE/PAGE (Firefox) or discrete PIXEL notches (Chrome/Edge).
-      // Continuous PIXEL without ctrl (Mac/Windows trackpad two-finger) stays pan.
+      // Continuous PIXEL without modifier (trackpad two-finger) stays pan.
       const mouseWheel = !pinchZoom && isDiscreteMouseWheel(e);
       if (pinchZoom || mouseWheel) {
+        const sensitivity = e.altKey && !e.ctrlKey ? 0.0025 : 0.01;
         const factor = pinchZoom
-          ? Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.01)))
+          ? Math.min(1.28, Math.max(0.78, Math.exp(-e.deltaY * sensitivity)))
           : e.deltaY > 0
             ? 0.9
             : 1.1;
@@ -281,14 +288,44 @@ export function SvgPanZoomHost({
       };
       applyPanZoomDom();
     };
+
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      safariGestureScale0 = scaleRef.current;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const ge = e as Event & { scale?: number; clientX?: number; clientY?: number };
+      const gScale = Number(ge.scale);
+      if (!Number.isFinite(gScale) || gScale <= 0) return;
+      const rect = el.getBoundingClientRect();
+      const cx = typeof ge.clientX === "number" ? ge.clientX : rect.left + rect.width / 2;
+      const cy = typeof ge.clientY === "number" ? ge.clientY : rect.top + rect.height / 2;
+      const prev = scaleRef.current;
+      if (!(prev > 0)) return;
+      const next = Math.min(6, Math.max(0.15, safariGestureScale0 * gScale));
+      zoomAt(cx, cy, next / prev);
+    };
+    const onGestureEnd = (e: Event) => {
+      e.preventDefault();
+    };
+
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2) e.preventDefault();
     };
+
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
+    // WebKit / Safari Mac trackpad pinch (not exposed as standard wheel+ctrl).
+    el.addEventListener("gesturestart", onGestureStart as EventListener, { passive: false });
+    el.addEventListener("gesturechange", onGestureChange as EventListener, { passive: false });
+    el.addEventListener("gestureend", onGestureEnd as EventListener, { passive: false });
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("gesturestart", onGestureStart as EventListener);
+      el.removeEventListener("gesturechange", onGestureChange as EventListener);
+      el.removeEventListener("gestureend", onGestureEnd as EventListener);
     };
   }, []);
 
@@ -411,10 +448,16 @@ export function SvgPanZoomHost({
         <div ref={contentRef} data-testid="svg-canvas" className="ewd-svg-root" />
       </div>
       {children}
-      <div data-testid="svg-zoom-fab" className="svg-zoom-fab" onPointerDown={(e) => e.stopPropagation()}>
+      <div
+        data-testid="svg-zoom-fab"
+        className="svg-zoom-fab"
+        title="Щипок / ⌥+скролл / кнопки — зум · два пальца — сдвиг"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           aria-label="Увеличить"
+          title="Увеличить"
           className="svg-zoom-fab__btn"
           onClick={() => {
             const el = viewportRef.current;
@@ -428,6 +471,7 @@ export function SvgPanZoomHost({
         <button
           type="button"
           aria-label="Уменьшить"
+          title="Уменьшить"
           className="svg-zoom-fab__btn"
           onClick={() => {
             const el = viewportRef.current;
@@ -441,6 +485,7 @@ export function SvgPanZoomHost({
         <button
           type="button"
           aria-label="Сброс масштаба"
+          title="Сброс масштаба"
           className="svg-zoom-fab__btn svg-zoom-fab__btn--reset"
           onClick={() => fitComfortToMarker()}
         >

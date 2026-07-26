@@ -1,5 +1,5 @@
 /* Shell-only service worker: caches app shell, never /api/* or EWD SVG assets. */
-const CACHE = "volvo-ewd-shell-v3";
+const CACHE = "volvo-ewd-shell-v4";
 const SHELL = [
   "/",
   "/index.html",
@@ -13,15 +13,23 @@ const SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // Don't fail install if one icon 404s — otherwise push handler never activates.
+      await Promise.all(
+        SHELL.map((url) => cache.add(url).catch(() => undefined)),
+      );
+      await self.skipWaiting();
+    })(),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -44,7 +52,6 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (isBypass(url)) return;
 
-  // Navigations: network-first, fall back to cached shell
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -53,54 +60,78 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((c) => c.put("/", copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match("/") || caches.match("/index.html"))
+        .catch(() => caches.match("/") || caches.match("/index.html")),
     );
     return;
   }
 
-  // Static shell assets: cache-first
   event.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        if (res.ok && (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest")) {
+        if (
+          res.ok &&
+          (url.pathname.startsWith("/assets/") ||
+            url.pathname.startsWith("/icons/") ||
+            url.pathname === "/manifest.webmanifest")
+        ) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
         }
         return res;
       });
-    })
+    }),
   );
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Volvo EWD", body: "Сайт обновлён", url: "/" };
-  try {
-    if (event.data) {
-      const parsed = event.data.json();
-      data = {
-        title: String(parsed.title || data.title),
-        body: String(parsed.body || data.body),
-        url: String(parsed.url || "/"),
-      };
-    }
-  } catch {
-    try {
-      const text = event.data && event.data.text();
-      if (text) data.body = text;
-    } catch {
-      /* keep defaults */
-    }
-  }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      data: { url: data.url },
-      tag: "ewd-deploy",
-      renotify: true,
-    })
+    (async () => {
+      let data = {
+        title: "Volvo EWD",
+        body: "Сайт обновлён",
+        url: "/",
+        requireInteraction: false,
+      };
+      try {
+        if (event.data) {
+          const parsed = event.data.json();
+          data = {
+            title: String(parsed.title || data.title),
+            body: String(parsed.body || data.body),
+            url: String(parsed.url || "/"),
+            requireInteraction: Boolean(parsed.requireInteraction),
+          };
+        }
+      } catch {
+        try {
+          const text = event.data && event.data.text();
+          if (text) data.body = text;
+        } catch {
+          /* keep defaults */
+        }
+      }
+
+      const opts = {
+        body: data.body,
+        data: { url: data.url },
+        tag: "ewd-deploy",
+        renotify: true,
+        silent: false,
+        requireInteraction: data.requireInteraction,
+      };
+
+      try {
+        await self.registration.showNotification(data.title, {
+          ...opts,
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+        });
+      } catch {
+        // Icon / platform quirks — still show a bare banner.
+        await self.registration.showNotification(data.title, opts);
+      }
+    })(),
   );
 });
 
@@ -129,6 +160,6 @@ self.addEventListener("notificationclick", (event) => {
       }
       if (self.clients.openWindow) return self.clients.openWindow(target);
       return undefined;
-    })
+    }),
   );
 });
