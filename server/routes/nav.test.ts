@@ -356,6 +356,105 @@ test("nav components front_bumper does not list steering peer SCL", async () => 
   assert.ok(!codes.includes("4/102"), `SCL must not appear in bumper list, got ${codes.join(",")}`);
 });
 
+test("nav components subject majority: engine connector not listed in bumper via one boundary wire", async () => {
+  const db = openDatabase(":memory:");
+  const enId = Number(
+    db.prepare("INSERT INTO manuals(filename, language) VALUES (?, ?)").run("en.pdf", "EN").lastInsertRowid,
+  );
+  const page = Number(
+    db
+      .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
+      .run(enId, 50, "Connector 74/309", "connector").lastInsertRowid,
+  );
+  const engConn = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_en) VALUES (?, ?, ?)",
+      )
+      .run("74/309", "Разъем", "Engine native connector")
+      .lastInsertRowid,
+  );
+  const pam = Number(
+    db
+      .prepare(
+        "INSERT INTO components(component_code, component_type_ru, description_en) VALUES (?, ?, ?)",
+      )
+      .run("4/86", "Блок", "PAM")
+      .lastInsertRowid,
+  );
+  const insertWire = (
+    pin: string,
+    fromId: number | null,
+    toId: number | null,
+    hl: string,
+    hr: string,
+    fromDetail: string,
+    toDetail: string,
+  ) => {
+    db.prepare(
+      `INSERT INTO wire_connections(
+        page_id, pin_number, wire_color_raw, wire_color_ru, function_text,
+        from_detail, to_detail, from_token, to_token, steering_side, subject_code, source_kind,
+        is_verified, requires_manual_review, integrity_score,
+        from_component_id, to_component_id, via_component_id,
+        harness_left, harness_right, diagram_page_id, diagram_source_page)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      page,
+      pin,
+      "BK",
+      "Черный",
+      "",
+      fromDetail,
+      toDetail,
+      "",
+      "",
+      "",
+      "74/309",
+      "connector_pinout",
+      0,
+      0,
+      50,
+      fromId,
+      toId,
+      null,
+      hl,
+      hr,
+      null,
+      0,
+    );
+  };
+  // Majority engine harness
+  insertWire("1", engConn, null, "Engine compartment harness", "Engine compartment harness", "74/309:1", "ECM");
+  insertWire("2", engConn, null, "Engine compartment harness", "Engine compartment harness", "74/309:2", "ALT");
+  insertWire("3", engConn, null, "Engine compartment harness", "Engine compartment harness", "74/309:3", "GND");
+  // One boundary cable into bumper must not pull subject into front_bumper list
+  insertWire(
+    "4",
+    engConn,
+    pam,
+    "Engine compartment harness",
+    "Harness bumper, front",
+    "74/309:4",
+    "4/86:1 — PAM",
+  );
+
+  const app = express();
+  app.use("/api/nav", createNavRouter(db));
+  const bumper = await request(app).get("/api/nav/components?zone=front_bumper");
+  assert.equal(bumper.status, 200);
+  const bumperCodes = bumper.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(!bumperCodes.includes("74/309"), `engine-majority subject leaked into bumper: ${bumperCodes.join(",")}`);
+
+  const engine = await request(app).get("/api/nav/components?zone=engine");
+  const engineCodes = engine.body.groups.flatMap((g: { items: Array<{ code: string }> }) =>
+    g.items.map((i) => i.code),
+  );
+  assert.ok(engineCodes.includes("74/309"), `expected in engine, got ${engineCodes.join(",")}`);
+});
+
 test("nav wires 74/507 returns owner pins", async () => {
   const res = await request(fixture()).get("/api/nav/wires?code=74/507");
   assert.equal(res.status, 200);

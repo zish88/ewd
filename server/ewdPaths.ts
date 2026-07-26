@@ -50,13 +50,12 @@ export function ewdDataDir(): string {
     if (existsSync(asIs)) return asIs;
   }
 
-  // Prefer in-repo mirror of E:\manual (data/ewd/ewd_source), then MANUAL_DIR / legacy E:\manual
+  // Prefer in-repo mirror under data/ewd/ewd_source, then MANUAL_DIR
   const candidates = [
     resolve(EWD_DATA, "ewd_source", "39363002", "1", "2"),
     resolve(EWD_DATA, "ewd_source"),
     resolve(ROOT, "manual", "ewd_source", "39363002", "1", "2"),
     resolve(process.env.MANUAL_DIR ?? join(ROOT, "data", "ewd"), "ewd_source", "39363002", "1", "2"),
-    resolve("E:\\manual", "ewd_source", "39363002", "1", "2"),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -66,10 +65,9 @@ export function ewdDataDir(): string {
 
 /** Secondary Capital data roots (VEA 4/5, …) — SVG may live outside primary 1/2. */
 export function ewdSecondaryDataDirs(): string[] {
-  const roots = [
-    resolve(EWD_DATA, "ewd_source", "39363002", "4", "5"),
-    resolve("E:\\manual", "ewd_source", "39363002", "4", "5"),
-  ];
+  const roots = [resolve(EWD_DATA, "ewd_source", "39363002", "4", "5")];
+  const extra = String(process.env.EWD_EXTRA_SOURCE_DIR || "").trim();
+  if (extra) roots.push(resolve(extra));
   return roots.filter((p) => existsSync(p));
 }
 

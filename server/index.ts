@@ -50,7 +50,7 @@ try {
 }
 startNightlyCorrectionsScheduler(db);
 const clientDist = resolve(process.env.CLIENT_DIST ?? "client/dist");
-const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "elzidevelop@gmail.com";
+const MODERATOR_EMAIL = process.env.MODERATOR_EMAIL || "";
 
 app.use(express.json());
 

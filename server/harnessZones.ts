@@ -89,8 +89,9 @@ const ZONE_RULES: Array<{ id: ZoneId; re: RegExp }> = [
   { id: "front_doors", re: /\bfront\s*door|передн\w*.{0,24}двер|двер\w*.{0,16}передн/i },
   { id: "rear_doors", re: /\brear\s*door|задн\w*.{0,24}двер|двер\w*.{0,16}задн/i },
   {
+    // Keep narrow: generic «двигатель/капот/аккумулятор» leaked body modules into engine.
     id: "engine",
-    re: /\bengine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн\w*\s*отсек|капот|двигател|starter\s*motor|форсун|inject(?:or|ion)?|ECM\b|alternator|generator|аккумулятор|заземляющ\w*\s*кабел/i,
+    re: /\bengine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн[а-яё]*\s*отсек|starter\s*motor|форсун|inject(?:or|ion)?|\bECM\b|alternator|generator\s*harness|grounding\s*(?:point\s*)?engine|заземляющ[а-яё]*.{0,20}двигател/i,
   },
   {
     id: "dashboard",

@@ -3,8 +3,6 @@ import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
-import { subscribeElmBleLink } from "./obd/elmBle.js";
-import { ObdTestModal, type ObdSurface } from "./obd/ObdTestModal.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
 import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
 import {
@@ -62,7 +60,7 @@ type Result = {
   harness_left?: string; harness_right?: string; function_text?: string; pins?: string[];
   source_code?: string; destination_code?: string; raw_line?: string;
   match_role?: "owner" | "transit"; card_title?: string; part_number?: string;
-  voltage?: string; wire_gauge?: string;
+  wire_gauge?: string;
   parts?: CardParts;
 };
 
@@ -464,87 +462,132 @@ function PartsCatalogList({
   testId,
   setNotice,
   className = "parts-catalog parts-catalog--card",
+  compact = false,
 }: {
   parts: CardParts;
   testId: string;
   setNotice: (v: string) => void;
   className?: string;
+  /** Card mode: collapsed PN badge + expand (full list on node banner). */
+  compact?: boolean;
 }) {
+  const [open, setOpen] = useState(!compact);
   if (!hasCardParts(parts)) return null;
+  const primary = parts.housing || parts.mate || parts.device || "";
+  const count =
+    [parts.device, parts.housing, parts.mate].filter(Boolean).length + (parts.terminals?.length || 0);
+
+  if (compact && !open) {
+    return (
+      <div className="parts-catalog parts-catalog--compact" data-testid={testId}>
+        <button
+          type="button"
+          className="parts-catalog__toggle"
+          data-testid={`${testId}-toggle`}
+          aria-expanded={false}
+          onClick={() => setOpen(true)}
+        >
+          PN
+          {primary ? <span className="parts-catalog__toggle-count font-mono">{primary}</span> : null}
+          {count > 1 ? <span className="parts-catalog__toggle-count">+{count - 1}</span> : null}
+          <span className="parts-catalog__chevron" aria-hidden>
+            ▾
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <ul className={className} data-testid={testId}>
-      {parts.device ? (
-        <li className="parts-catalog__chip">
-          <span className="parts-catalog__role">Деталь</span>
-          <span className="parts-catalog__pn-row">
-            <span className="parts-catalog__pn font-mono">{parts.device}</span>
-            <button
-              type="button"
-              className="parts-catalog__copy"
-              title="Скопировать"
-              aria-label={`Скопировать ${parts.device}`}
-              onClick={() => void copyPartNumber(parts.device!, setNotice)}
-            >
-              <CopyIcon />
-            </button>
+    <div className={compact ? "parts-catalog parts-catalog--compact-open" : undefined}>
+      {compact ? (
+        <button
+          type="button"
+          className="parts-catalog__toggle"
+          data-testid={`${testId}-toggle`}
+          aria-expanded={true}
+          onClick={() => setOpen(false)}
+        >
+          PN
+          <span className="parts-catalog__chevron" aria-hidden>
+            ▴
           </span>
-        </li>
+        </button>
       ) : null}
-      {parts.housing ? (
-        <li className="parts-catalog__chip">
-          <span className="parts-catalog__role">Корпус</span>
-          <span className="parts-catalog__pn-row">
-            <span className="parts-catalog__pn font-mono">{parts.housing}</span>
-            <button
-              type="button"
-              className="parts-catalog__copy"
-              title="Скопировать"
-              aria-label={`Скопировать ${parts.housing}`}
-              onClick={() => void copyPartNumber(parts.housing!, setNotice)}
-            >
-              <CopyIcon />
-            </button>
-          </span>
-        </li>
-      ) : null}
-      {parts.mate ? (
-        <li className="parts-catalog__chip">
-          <span className="parts-catalog__role">Ответная</span>
-          <span className="parts-catalog__pn-row">
-            <span className="parts-catalog__pn font-mono">{parts.mate}</span>
-            <button
-              type="button"
-              className="parts-catalog__copy"
-              title="Скопировать"
-              aria-label={`Скопировать ${parts.mate}`}
-              onClick={() => void copyPartNumber(parts.mate!, setNotice)}
-            >
-              <CopyIcon />
-            </button>
-          </span>
-        </li>
-      ) : null}
-      {(parts.terminals || []).map((t) => (
-        <li key={t.part_number} className="parts-catalog__chip">
-          <span className="parts-catalog__role">Клемма</span>
-          <span className="parts-catalog__pn-row">
-            <span className="parts-catalog__pn font-mono">{t.part_number}</span>
-            <button
-              type="button"
-              className="parts-catalog__copy"
-              title="Скопировать"
-              aria-label={`Скопировать ${t.part_number}`}
-              onClick={() => void copyPartNumber(t.part_number, setNotice)}
-            >
-              <CopyIcon />
-            </button>
-          </span>
-          {t.name_ru || t.name_en ? (
-            <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+      <ul className={className} data-testid={testId}>
+        {parts.device ? (
+          <li className="parts-catalog__chip">
+            <span className="parts-catalog__role">Деталь</span>
+            <span className="parts-catalog__pn-row">
+              <span className="parts-catalog__pn font-mono">{parts.device}</span>
+              <button
+                type="button"
+                className="parts-catalog__copy"
+                title="Скопировать"
+                aria-label={`Скопировать ${parts.device}`}
+                onClick={() => void copyPartNumber(parts.device!, setNotice)}
+              >
+                <CopyIcon />
+              </button>
+            </span>
+          </li>
+        ) : null}
+        {parts.housing ? (
+          <li className="parts-catalog__chip">
+            <span className="parts-catalog__role">Корпус</span>
+            <span className="parts-catalog__pn-row">
+              <span className="parts-catalog__pn font-mono">{parts.housing}</span>
+              <button
+                type="button"
+                className="parts-catalog__copy"
+                title="Скопировать"
+                aria-label={`Скопировать ${parts.housing}`}
+                onClick={() => void copyPartNumber(parts.housing!, setNotice)}
+              >
+                <CopyIcon />
+              </button>
+            </span>
+          </li>
+        ) : null}
+        {parts.mate ? (
+          <li className="parts-catalog__chip">
+            <span className="parts-catalog__role">Ответная</span>
+            <span className="parts-catalog__pn-row">
+              <span className="parts-catalog__pn font-mono">{parts.mate}</span>
+              <button
+                type="button"
+                className="parts-catalog__copy"
+                title="Скопировать"
+                aria-label={`Скопировать ${parts.mate}`}
+                onClick={() => void copyPartNumber(parts.mate!, setNotice)}
+              >
+                <CopyIcon />
+              </button>
+            </span>
+          </li>
+        ) : null}
+        {(parts.terminals || []).map((t) => (
+          <li key={t.part_number} className="parts-catalog__chip">
+            <span className="parts-catalog__role">Клемма</span>
+            <span className="parts-catalog__pn-row">
+              <span className="parts-catalog__pn font-mono">{t.part_number}</span>
+              <button
+                type="button"
+                className="parts-catalog__copy"
+                title="Скопировать"
+                aria-label={`Скопировать ${t.part_number}`}
+                onClick={() => void copyPartNumber(t.part_number, setNotice)}
+              >
+                <CopyIcon />
+              </button>
+            </span>
+            {t.name_ru || t.name_en ? (
+              <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -751,7 +794,7 @@ function renderWireCard(
           </div>
         ) : null}
         {item.parts ? (
-          <PartsCatalogList parts={item.parts} testId="card-parts" setNotice={setNotice} />
+          <PartsCatalogList parts={item.parts} testId="card-parts" setNotice={setNotice} compact />
         ) : null}
       </div>
       <div className="card-actions flex gap-2 mt-0.5">
@@ -953,6 +996,21 @@ function App() {
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   /** Desktop/laptop: filters popover under «Фильтры» (not a full-width plank). */
   const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
+  /** Desktop: manually collapse the two-row quick-filter plank. */
+  const [desktopFiltersCollapsed, setDesktopFiltersCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("ewd-desktop-filters-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("ewd-desktop-filters-collapsed", desktopFiltersCollapsed ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [desktopFiltersCollapsed]);
   const [filtersPopoverPos, setFiltersPopoverPos] = useState<{ top: number; left: number }>({
     top: 64,
     left: 12,
@@ -998,10 +1056,6 @@ function App() {
   const [schemeContext, setSchemeContext] = useState<SchemeContext | null>(null);
   /** Mobile (<768px) tab: cards list vs scheme canvas */
   const [mobileView, setMobileView] = useState<"cards" | "scheme">("cards");
-  const [obdSurface, setObdSurface] = useState<ObdSurface>("closed");
-  const [obdEspLinked, setObdEspLinked] = useState(false);
-  const [obdBleLinked, setObdBleLinked] = useState(false);
-  const obdLinked = obdBleLinked || obdEspLinked;
   const [diagramPickerOpen, setDiagramPickerOpen] = useState(false);
   const diagramPickerRef = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<ThemeId>(() => {
@@ -1043,8 +1097,6 @@ function App() {
     () => filterCardsByWireColor(transitWires, wireColorFilter),
     [transitWires, wireColorFilter],
   );
-
-  useEffect(() => subscribeElmBleLink(setObdBleLinked), []);
 
   // Drop selection / marker when the active card is hidden by the color filter
   useEffect(() => {
@@ -2231,21 +2283,43 @@ function App() {
     </>
   ) : null;
 
+  const themeToggleControl = (
+    <div className="theme-toggle" role="group" aria-label="Тема">
+      {THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          data-testid={`theme-${t.id}`}
+          className={theme === t.id ? "theme-toggle__btn is-active" : "theme-toggle__btn"}
+          onClick={() => setTheme(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  /** Compact theme switch, styled like the brand wordmark — sits right next to "Volvo EWD" on desktop. */
+  const themeInlineControl = (
+    <div className="app-bar__theme-inline" role="group" aria-label="Тема">
+      {THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          data-testid={`theme-inline-${t.id}`}
+          className={theme === t.id ? "app-bar__theme-inline-btn is-active" : "app-bar__theme-inline-btn"}
+          title={`Тема: ${t.label}`}
+          onClick={() => setTheme(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const themeAndPushControls = (
     <>
-      <div className="theme-toggle" role="group" aria-label="Тема">
-        {THEMES.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            data-testid={`theme-${t.id}`}
-            className={theme === t.id ? "theme-toggle__btn is-active" : "theme-toggle__btn"}
-            onClick={() => setTheme(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {isMobileUi ? themeToggleControl : null}
       {pushState === "unsupported" || pushState === "unavailable" ? null : (
         <button
           type="button"
@@ -2372,7 +2446,7 @@ function App() {
     </section>
   ) : null;
 
-  /** Desktop popover / extras: theme, push, VIN, DTC (vehicle+nav live in the app-bar strip). */
+  /** Desktop popover / extras: push, VIN, DTC (vehicle+nav live in the app-bar strip; theme lives next to the brand). */
   const filterPopoverControls = (
     <>
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -2419,56 +2493,9 @@ function App() {
     </>
   );
 
-  const obdBarControl =
-    features.obdAdapter !== false ? (
-      <div className="obd-btn-wrap" data-testid="obd-test-wrap">
-        <span className="obd-beta-badge" aria-hidden>
-          Тестирование
-        </span>
-        <button
-          type="button"
-          className={`md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 obd-btn--live${
-            obdLinked ? " obd-btn--online" : ""
-          }`}
-          data-testid="obd-test-open"
-          title={
-            obdLinked
-              ? "OBD: соединение активно (бета)"
-              : "OBD — функция в тестировании (ESP / ELM327)"
-          }
-          onClick={() => {
-            setFiltersSheetOpen(false);
-            setFiltersPopoverOpen(false);
-            setToolsSheetOpen(false);
-            setObdSurface("open");
-          }}
-        >
-          {obdSurface === "minimized"
-            ? obdLinked
-              ? "OBD · online"
-              : "OBD · свёрнут"
-            : "OBD"}
-        </button>
-      </div>
-    ) : null;
-
-  function openDtcFromObd(code: string) {
-    setObdSurface("closed");
-    setDtcQuery(code);
-    setMode("dtc");
-    void (async () => {
-      setDtcLoading(true);
-      try {
-        const data = await fetch(`/api/dtc/search?q=${encodeURIComponent(code)}&limit=50`).then((r) => r.json());
-        setDtcResults(Array.isArray(data.results) ? data.results : []);
-        setDtcNotice(data.results?.length ? "" : "В словаре нет точного совпадения — смотрите сырой код скана.");
-      } catch {
-        setDtcNotice("Не удалось запросить словарь DTC.");
-      } finally {
-        setDtcLoading(false);
-      }
-    })();
-  }
+  /* OBD test surface (button + floating panel) temporarily moved to the admin
+     page (tab "OBD") while it's being tuned — see AdminPage.tsx. Restore here
+     once it's ready for public use again. */
 
   return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
     <InstallAppBanner />
@@ -2486,11 +2513,13 @@ function App() {
     </div>
     <header
       ref={headerRef}
-      className="app-panel app-bar shrink-0 border-b px-3 py-2 is-filters-collapsed"
+      className={`app-panel app-bar shrink-0 border-b px-3 py-2${
+        !isMobileUi && desktopFiltersCollapsed ? " is-filters-collapsed" : ""
+      }`}
     >
       <div
-        className={`app-bar__chrome mx-auto max-w-7xl flex items-center gap-2 min-h-[48px]${
-          isMobileUi ? "" : " app-bar__chrome--desktop"
+        className={`app-bar__chrome mx-auto max-w-7xl flex items-center gap-2${
+          isMobileUi ? "" : " app-bar__chrome--desktop min-h-[48px]"
         }`}
       >
         <button
@@ -2515,38 +2544,67 @@ function App() {
             </span>
           ) : null}
         </button>
-        <span className="font-semibold text-[var(--accent)] tracking-wide shrink-0 app-bar__brand">Volvo EWD</span>
+        <div className="app-bar__brand-group shrink-0">
+          <span className="font-semibold text-[var(--accent)] tracking-wide app-bar__brand">Volvo EWD</span>
+          {!isMobileUi ? themeInlineControl : null}
+        </div>
         {!isMobileUi ? (
-          <div className="app-bar__desktop-cluster" data-testid="desktop-quick-filters" aria-label="Быстрые фильтры">
-            <div className="app-bar__quick-row">
-              <div className="desktop-filters-popover">
+          <div
+            id="desktop-quick-filters"
+            className="app-bar__desktop-cluster"
+            data-testid="desktop-quick-filters"
+            aria-label="Быстрые фильтры"
+          >
+            <div className="app-bar__quick-grid">
+              <div className="app-bar__quick-grid-row">
+                <div className="desktop-filters-popover">
+                  <button
+                    ref={desktopFiltersBtnRef}
+                    type="button"
+                    className="desktop-filters-collapse md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+                    data-testid="filters-collapse"
+                    aria-expanded={filtersPopoverOpen}
+                    aria-controls="desktop-filters-popover-panel"
+                    aria-haspopup="dialog"
+                    title={filtersPopoverOpen ? "Закрыть" : "VIN, DTC, уведомления"}
+                    onClick={() => {
+                      if (filtersPopoverOpen) setFiltersPopoverOpen(false);
+                      else openDesktopFiltersPopover();
+                    }}
+                  >
+                    Доп. {filtersPopoverOpen ? "▴" : "▾"}
+                  </button>
+                </div>
+                {!desktopFiltersCollapsed ? vehicleQuickFields : null}
                 <button
-                  ref={desktopFiltersBtnRef}
                   type="button"
-                  className="desktop-filters-collapse md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
-                  data-testid="filters-collapse"
-                  aria-expanded={filtersPopoverOpen}
-                  aria-controls="desktop-filters-popover-panel"
-                  aria-haspopup="dialog"
-                  title={filtersPopoverOpen ? "Закрыть фильтры" : "VIN, DTC, тема, уведомления"}
-                  onClick={() => {
-                    if (filtersPopoverOpen) setFiltersPopoverOpen(false);
-                    else openDesktopFiltersPopover();
-                  }}
+                  className={`app-bar__plank-collapse md-btn md-btn--tonal${
+                    desktopFiltersCollapsed ? " obd-btn--live" : ""
+                  }`}
+                  data-testid="desktop-plank-collapse"
+                  aria-expanded={!desktopFiltersCollapsed}
+                  aria-controls="desktop-quick-filters"
+                  title={desktopFiltersCollapsed ? "Развернуть фильтры" : "Свернуть фильтры"}
+                  aria-label={desktopFiltersCollapsed ? "Развернуть фильтры" : "Свернуть фильтры"}
+                  onClick={() => setDesktopFiltersCollapsed((v) => !v)}
                 >
-                  Фильтры {filtersPopoverOpen ? "▴" : "▾"}
-                  {filterActiveCount > 0 ? (
-                    <span className="desktop-filters-collapse__badge" aria-hidden>
-                      {filterActiveCount}
-                    </span>
-                  ) : null}
+                  {desktopFiltersCollapsed ? (
+                    <>
+                      Фильтры <span aria-hidden="true">▾</span>
+                      {filterActiveCount > 0 ? (
+                        <span className="desktop-filters-collapse__badge" aria-hidden>
+                          {filterActiveCount}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span aria-hidden="true">▴</span>
+                  )}
                 </button>
               </div>
-              {vehicleQuickFields}
-            </div>
-            <div className="app-bar__quick-row">
-              {navQuickFields}
-              {obdBarControl ? <div className="app-bar__quick-obd">{obdBarControl}</div> : null}
+              {!desktopFiltersCollapsed ? (
+                <div className="app-bar__quick-grid-row app-bar__quick-grid-row--fill">{navQuickFields}</div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -2564,9 +2622,6 @@ function App() {
           >
             {selectedCode}
           </button>
-        ) : null}
-        {isMobileUi && obdBarControl ? (
-          <div className="ml-auto flex items-center gap-2 shrink-0">{obdBarControl}</div>
         ) : null}
       </div>
       {isMobileUi && (selectedModel || zoneSummaryLabel) && !selectedCode ? (
@@ -3301,13 +3356,6 @@ function App() {
         onClose={() => setEditingItem(null)}
       />
     )}
-    <ObdTestModal
-      surface={obdSurface}
-      onSurfaceChange={setObdSurface}
-      espLinked={obdEspLinked}
-      onEspLinkedChange={setObdEspLinked}
-      onUseDtcQuery={openDtcFromObd}
-    />
     {filtersPopoverOpen && !isMobileUi
       ? createPortal(
           <div className="desktop-filters-layer" data-testid="desktop-filters-layer">
@@ -3329,7 +3377,7 @@ function App() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="desktop-filters-window__header">
-                <span className="desktop-filters-window__title">VIN · DTC · тема</span>
+                <span className="desktop-filters-window__title">VIN · DTC</span>
                 <button
                   type="button"
                   className="md-btn md-btn--text text-[12px] px-2 py-1"

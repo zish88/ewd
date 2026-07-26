@@ -5,8 +5,10 @@ import {
   type ThemeId,
   type UiDensity,
 } from "./appearance.js";
+import { ObdAdapterPanel } from "./obd/ObdAdapterPanel.js";
+import { ObdElmPanel } from "./obd/ObdElmPanel.js";
 
-type AdminTab = "stats" | "settings" | "edits";
+type AdminTab = "stats" | "settings" | "edits" | "obd";
 
 type Features = {
   suggestions: boolean;
@@ -115,7 +117,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   vinSearch: "Поиск по VIN",
   navBrowse: "Навигация по зонам и узлам",
   dtcSearch: "Поиск DTC / OBD кодов",
-  obdAdapter: "Скан с адаптера OBD (ESP32)",
+  obdAdapter: "Скан с адаптера OBD (ESP32) — сейчас не влияет: кнопка временно снята с сайта, тест на вкладке OBD",
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
@@ -123,10 +125,13 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "stats", label: "Статистика" },
   { key: "settings", label: "Настройки" },
   { key: "edits", label: "Правки" },
+  { key: "obd", label: "OBD" },
 ];
 
 function parseAdminTab(value: string | null): AdminTab {
-  return value === "settings" || value === "edits" || value === "stats" ? value : "stats";
+  return value === "settings" || value === "edits" || value === "obd" || value === "stats"
+    ? value
+    : "stats";
 }
 
 function normalizeAppearance(appearance?: SiteAppearance | null): SiteAppearance {
@@ -219,6 +224,7 @@ export function AdminPage() {
     component_code: "",
     name_ru: "",
   });
+  const [obdSubTab, setObdSubTab] = useState<"elm" | "esp">("elm");
 
   async function refreshMe() {
     const r = await fetch("/api/admin/me", { credentials: "include" });
@@ -1313,6 +1319,43 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                 Выйти
               </button>
             </section>
+            ) : null}
+
+            {activeTab === "obd" ? (
+              <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    OBD — тестирование и настройка
+                  </h2>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    Временно убрано с публичного сайта — доступно только здесь, пока идёт настройка.
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    className={`md-btn text-[11px] px-2.5 py-1.5 ${obdSubTab === "elm" ? "md-btn--filled" : "md-btn--tonal"}`}
+                    data-testid="admin-obd-tab-elm"
+                    onClick={() => setObdSubTab("elm")}
+                  >
+                    ELM327
+                  </button>
+                  <button
+                    type="button"
+                    className={`md-btn text-[11px] px-2.5 py-1.5 ${obdSubTab === "esp" ? "md-btn--filled" : "md-btn--tonal"}`}
+                    data-testid="admin-obd-tab-esp"
+                    onClick={() => setObdSubTab("esp")}
+                  >
+                    ESP шлюз
+                  </button>
+                </div>
+                <div className={obdSubTab === "elm" ? "" : "hidden"} aria-hidden={obdSubTab !== "elm"}>
+                  <ObdElmPanel />
+                </div>
+                <div className={obdSubTab === "esp" ? "" : "hidden"} aria-hidden={obdSubTab !== "esp"}>
+                  <ObdAdapterPanel />
+                </div>
+              </section>
             ) : null}
           </>
         )}

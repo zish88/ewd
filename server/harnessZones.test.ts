@@ -33,3 +33,11 @@ test("wireMatchesZone keeps door wires out of engine", () => {
   assert.equal(wireMatchesZone("14014", "", "engine"), false);
   assert.equal(wireMatchesZone("floor", "", "floor"), true);
 });
+
+test("engine zone rules stay narrow (no bare battery/hood)", () => {
+  resetHarnessLabelCache();
+  assert.equal(harnessToZone("Engine compartment harness"), "engine");
+  assert.equal(harnessToZone("Моторный отсек жгут"), "engine");
+  assert.notEqual(harnessToZone("Battery / аккумулятор"), "engine");
+  assert.notEqual(harnessToZone("Капот / hood latch"), "engine");
+});

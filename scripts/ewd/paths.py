@@ -1,7 +1,6 @@
 """Resolve dealer EWD package paths.
 
-Prefer in-repo copy under data/ewd/ewd_source (mirror of E:\\manual\\ewd_source),
-then EWD_SOURCE_DIR / E:\\manual\\ewd_source.
+Prefer in-repo copy under data/ewd/ewd_source, then EWD_SOURCE_DIR.
 
 Packages (from packages.xml):
   1/2 — main P3 Capital tree (default)
@@ -20,7 +19,6 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _LOCAL_EWD_ROOT = _REPO_ROOT / "data" / "ewd" / "ewd_source"
-_LEGACY_EWD_ROOT = Path(r"E:\manual\ewd_source")
 
 
 def default_ewd_root() -> Path:
@@ -31,8 +29,6 @@ def default_ewd_root() -> Path:
         _LOCAL_EWD_ROOT / "39363002" / "1" / "2"
     ).is_dir():
         return _LOCAL_EWD_ROOT
-    if _LEGACY_EWD_ROOT.is_dir():
-        return _LEGACY_EWD_ROOT
     return _LOCAL_EWD_ROOT
 
 

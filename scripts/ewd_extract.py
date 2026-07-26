@@ -36,7 +36,7 @@ def main() -> int:
     ap.add_argument(
         "--ewd-root",
         default=None,
-        help="EWD source root (default: data/ewd/ewd_source, then E:\\manual\\ewd_source)",
+        help="EWD source root (default: data/ewd/ewd_source)",
     )
     ap.add_argument(
         "--out-dir",

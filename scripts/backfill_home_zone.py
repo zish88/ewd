@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Derive components.home_zone from harness_* majority (+ subject owner bias)."""
+"""Derive components.home_zone from harness_* majority (+ subject owner bias).
+
+Mirrors server/harnessZones.ts Capital ids + tightened zone rules.
+"""
 from __future__ import annotations
 
 import os
@@ -9,20 +12,76 @@ import sqlite3
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, "data", "wiring.sqlite")
 
+# Mirror server/harnessZones.ts CAPITAL_HARNESS_ZONE
+CAPITAL_HARNESS_ZONE = {
+    "14014": "floor",
+    "14240_RL": "rear_doors",
+    "14240_RR": "rear_doors",
+    "14240_FL": "front_doors",
+    "14240_FR": "front_doors",
+    "14241": "front_doors",
+    "14242": "front_doors",
+    "14243": "rear_doors",
+    "14297": "front_bumper",
+    "14301": "engine",
+    "14324": "engine",
+    "14335": "roof",
+    "14401": "dashboard",
+    "483_AMB": "dashboard",
+    "12A690": "engine",
+    "14K733": "engine",
+    "14A584": "front_doors",
+    "14K138": "front_doors",
+    "17N400": "trunk",
+    "15K857": "dashboard",
+    "15K868": "dashboard",
+    "15K867": "dashboard",
+    "15A871": "dashboard",
+    "14A280": "dashboard",
+    "14B079": "dashboard",
+    "14B310": "seats",
+    "14B245_HV": "engine",
+    "10B705": "engine",
+    "10K699": "engine",
+    "2C054": "engine",
+    "2C055": "engine",
+    "19A397": "rear_bumper",
+    "PDCF_4C": "front_bumper",
+    "AFBT": "front_bumper",
+    "CONTROLPANEL": "dashboard",
+    "TRAILER-4P": "trunk",
+    "ACU Adapter": "dashboard",
+}
+
 ZONE_RULES = [
-    ("front_bumper", re.compile(r"bumper,?\s*front|front\s*bumper|front\s*pas|parking\s*assistance|FLC", re.I)),
-    ("rear_bumper", re.compile(r"bumper,?\s*rear|rear\s*bumper|rear\s*pas", re.I)),
-    ("trunk", re.compile(r"trunk\s*lid|tailgate|cargo", re.I)),
-    ("front_doors", re.compile(r"front\s*door", re.I)),
-    ("rear_doors", re.compile(r"rear\s*door", re.I)),
-    ("engine", re.compile(
-        r"engine\s*(compartment\s*)?harness|engine\s*compartment|моторн|двигател|starter\s*motor|inject|ECM|alternator|generator",
+    ("front_bumper", re.compile(
+        r"bumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|"
+        r"parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b",
         re.I,
     )),
-    ("dashboard", re.compile(r"dashboard|instrument|heater|cabin|climate|infotainment", re.I)),
-    ("floor", re.compile(r"floor|tunnel|axle", re.I)),
-    ("roof", re.compile(r"\broof\b|windshield", re.I)),
-    ("seats", re.compile(r"\bseat\b", re.I)),
+    ("rear_bumper", re.compile(
+        r"bumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|"
+        r"park\s*assist(?:ance)?\s*system\s*rear",
+        re.I,
+    )),
+    ("trunk", re.compile(r"trunk\s*lid|tailgate|tail\s*gate|cargo|багажн|пята\w*\s*двер|fifth\s*door", re.I)),
+    ("front_doors", re.compile(r"front\s*door|передн\w*.{0,24}двер|двер\w*.{0,16}передн", re.I)),
+    ("rear_doors", re.compile(r"rear\s*door|задн\w*.{0,24}двер|двер\w*.{0,16}задн", re.I)),
+    # Narrow engine: no bare «двигател/капот/аккумулятор»
+    ("engine", re.compile(
+        r"engine\s*(compartment\s*)?harness|\bengine\s*compartment\b|моторн[а-яё]*\s*отсек|"
+        r"starter\s*motor|форсун|inject(?:or|ion)?|\bECM\b|alternator|generator\s*harness|"
+        r"grounding\s*(?:point\s*)?engine|заземляющ[а-яё]*.{0,20}двигател",
+        re.I,
+    )),
+    ("dashboard", re.compile(
+        r"dashboard|instrument(\s*panel)?|heater\s*harness|\bheater\b|cabin|"
+        r"infotainment(\s*harness)?|center\s*console|climate|салон|панел|торпед|приборн",
+        re.I,
+    )),
+    ("floor", re.compile(r"floor|tunnel|напольн|\bпол\b|туннел|rear\s*axle|axle\s*harness", re.I)),
+    ("roof", re.compile(r"\broof\b|потолк|крыш|windshield\s*module", re.I)),
+    ("seats", re.compile(r"\bseat\b|сиден", re.I)),
 ]
 
 BODY_BIAS = {
@@ -36,25 +95,49 @@ BODY_BIAS = {
 }
 
 
+def extract_capital_id(text: str) -> str | None:
+    s = (text or "").strip()
+    if not s:
+        return None
+    if s in CAPITAL_HARNESS_ZONE:
+        return s
+    for hid in CAPITAL_HARNESS_ZONE:
+        if re.search(rf"(?:^|[\s,;/]){re.escape(hid)}(?:$|[\s,;/])", s, re.I):
+            return hid
+    return None
+
+
 def harness_to_zone(text: str) -> str | None:
     s = (text or "").strip()
     if not s:
         return None
+    cid = extract_capital_id(s)
+    if cid and cid in CAPITAL_HARNESS_ZONE:
+        return CAPITAL_HARNESS_ZONE[cid]
     for zid, rx in ZONE_RULES:
         if rx.search(s):
             return zid
-    if re.search(r"\bdoor\b", s, re.I):
-        return "front_doors"
+    # Oriented door fallback only (never bare «door» → front_doors)
+    if re.search(r"\bdoor|двер", s, re.I):
+        return "rear_doors" if re.search(r"rear|задн", s, re.I) else "front_doors"
     return None
 
 
 def pick_zone(votes: dict[str, int]) -> str:
     if not votes:
         return ""
+    total = sum(votes.values())
+    if total <= 0:
+        return ""
     # Prefer body zones over engine when both present (boundary cables)
     body = {k: v for k, v in votes.items() if k in BODY_BIAS}
     pool = body if body else votes
-    return sorted(pool.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+    ranked = sorted(pool.items(), key=lambda kv: (-kv[1], kv[0]))
+    best, best_n = ranked[0]
+    # Strict majority of *all* harness votes so one boundary cable cannot win.
+    if best_n * 2 <= total:
+        return ""
+    return best
 
 
 def main() -> int:

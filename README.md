@@ -1,18 +1,19 @@
 # Volvo EWD — интерактивный справочник электросхем
 
-Веб-приложение для поиска разъёмов, контактов и цепей по данным **Capital / VIDA EWD** (платформа P3: XC70, V70, S80, XC60, S60, V60).  
-Прод: [https://ewd-volvo.ru](https://ewd-volvo.ru) · репозиторий: [github.com/zish88/ewd](https://github.com/zish88/ewd)
+Веб-приложение для поиска разъёмов, контактов и цепей по данным **Capital / VIDA EWD** (платформа P3: XC70, V70, S80, XC60, S60, V60).
+
+Сайт: [https://ewd-volvo.ru](https://ewd-volvo.ru)
 
 ## Возможности
 
 - Фильтры: модель, год, двигатель, КПП; опционально VIN
 - Навигация по зонам / жгутам и узлам (компонент / разъём)
-- Карточки цепей: контакты, цвет, сечение, номера деталей (деталь / корпус / ответная)
+- Карточки цепей: контакты, цвет, сечение, номера деталей
 - Схемы EWD (SVG): подсветка провода, FaceView разъёма, расположение
 - Поиск DTC / OBD по словарю VIDA
-- Скан с адаптера ESP32-S3 (UDS DTC / ECU online → обогащение словарём); сборка N16R8+SN65HVD230 и скетч — `firmware/ASSEMBLY-N16R8-SN65HVD230.md`
-- Предложения правок с карточек (почта модератору)
-- Мобильный UI: меню фильтров и параметры узла — bottom sheet, карточки на весь экран
+- Скан с адаптера ESP32-S3 (см. `firmware/`)
+- Предложения правок с карточек
+- Мобильный UI: фильтры и параметры узла — bottom sheet
 
 ## Стек
 
@@ -22,35 +23,21 @@
 | API | Express, TypeScript (`tsx`) |
 | Данные | SQLite (`better-sqlite3`): wiring + DTC |
 | Схемы | Capital EWD SVG + JSON-индексы |
-| Прод | Docker на VPS, Nginx → HTTPS |
 
-## AI: план на Frontier → реализация дешёвыми агентами
-
-**Инструкция с нуля (обязательно):** [`docs/ai/HOWTO.md`](docs/ai/HOWTO.md)
-
-Кратко: [`docs/ai/README.md`](docs/ai/README.md) · [`AGENTS.md`](AGENTS.md)
-
-- Разведка/SPEC: skill **feature-planner** (Sol / длинный контекст)
-- Код по SPEC: skill **feature-implementer** (дешёвая модель)
-- `/compact` после плана · `rtk rg` опционально · фича: `scripts/ai-new-feature.ps1`
-
-## Быстрый старт
+## Быстрый старт (локально)
 
 ```bash
 npm install
+cp .env.example .env   # Windows: copy .env.example .env
 npm run dev
 ```
-
-Или: `npm run dev:local` (подставит `.env` из `.env.example`, если файла ещё нет).
 
 | Что | URL |
 |-----|-----|
 | UI (Vite) | http://localhost:5173 |
 | API | http://localhost:3000 (`/api` проксируется с UI) |
 
-В репозитории уже есть основные SQLite и JSON-индексы EWD. Пакет SVG-схем Capital в git не входит — его нужно положить рядом с индексами (см. [DEPLOY.md](./DEPLOY.md)).
-
-Скопируйте `.env.example` → `.env`.
+В репозитории есть основные SQLite и JSON-индексы EWD. Тяжёлый пакет SVG-схем Capital в git не входит — его нужно положить в `data/ewd/ewd_source/` (структура пакета Capital), если нужны живые схемы.
 
 Проверка:
 
@@ -59,35 +46,19 @@ npm run typecheck
 npm test
 ```
 
-## Данные
+## Данные в репозитории
 
 | Что | Назначение |
 |-----|------------|
-| Wiring SQLite | Узлы, провода, зоны |
-| DTC SQLite | Словарь DTC / OBD |
-| EWD indexes + SVG | Индексы и исходник схем Capital |
-| VIDA / EPC JSON | Номера деталей на карточках |
+| `data/wiring.sqlite` | Узлы, провода, зоны |
+| `data/dtc.sqlite` | Словарь DTC / OBD |
+| `data/ewd/*_index.json` | Индексы для схем и поиска |
 
 Опциональный импорт PDF-мануала (не нужен для основного EWD):
 
 ```bash
 npm run import:manual -- path/to/manual.pdf
 ```
-
-## Деплой
-
-Подробно: [DEPLOY.md](./DEPLOY.md).
-
-Кратко на сервере:
-
-```bash
-git fetch origin
-git checkout -f master
-git reset --hard origin/master
-BUILD=1 bash deploy.sh
-```
-
-Код и sqlite — из git; SVG-пакет схем — отдельно. После смены только `.env` достаточно перезапуска контейнера (без обязательного `BUILD=1`).
 
 ## Важно
 

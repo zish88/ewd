@@ -719,6 +719,34 @@ export function createNavRouter(db: Database.Database) {
     const subjectCodes = new Set<string>();
     /** Codes that have ≥1 zone-matching wire (owner or endpoint) — symmetry with /wires. */
     const codesWithZoneWires = new Set<string>();
+
+    /** Majority harness zone per subject (owner rows) — gates subjectCodes into a zone list. */
+    const majorityBySubject = new Map<string, ZoneId>();
+    {
+      const votes = new Map<string, Map<ZoneId, number>>();
+      for (const w of wireRows) {
+        const subj = String(w.subject_code || "").trim();
+        if (!subj) continue;
+        const bucket = votes.get(subj) || new Map<ZoneId, number>();
+        for (const h of [w.harness_left, w.harness_right]) {
+          const zid = harnessToZone(h);
+          if (zid === "other") continue;
+          bucket.set(zid, (bucket.get(zid) || 0) + 1);
+        }
+        if (bucket.size) votes.set(subj, bucket);
+      }
+      for (const [subj, bucket] of votes) {
+        const total = [...bucket.values()].reduce((a, b) => a + b, 0);
+        if (!total) continue;
+        const ranked = [...bucket.entries()].sort(
+          (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+        );
+        const [best, bestN] = ranked[0];
+        // Strict majority of all harness votes — one boundary cable cannot flip the subject.
+        if (bestN * 2 > total) majorityBySubject.set(subj, best);
+      }
+    }
+
     for (const w of wireRows) {
       const zoneOk =
         !zoneFilter ||
@@ -729,8 +757,9 @@ export function createNavRouter(db: Database.Database) {
       if (!zoneOk) continue;
 
       if (w.subject_code) {
-        const subjHome = homeByCode.get(w.subject_code) || "";
-        // Subject enters zone list only when native to zone (or unknown home).
+        const subjHome =
+          homeByCode.get(w.subject_code) || majorityBySubject.get(w.subject_code) || "";
+        // Known foreign majority/home → exclude. Unknown (no majority yet) → allow on zone-matching wire.
         if (!zoneFilter || !subjHome || subjHome === zone) {
           subjectCodes.add(w.subject_code);
           codesWithZoneWires.add(w.subject_code);

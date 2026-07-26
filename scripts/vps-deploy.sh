@@ -143,7 +143,7 @@ docker run -d --name "$NAME" --restart unless-stopped \
   -e EWD_SOURCE_DIR=/app/data/ewd/ewd_source/39363002/1/2 \
   -e CLIENT_DIST=/app/client/dist \
   -e MANUAL_DIR=/data/manual \
-  -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-elzidevelop@gmail.com}" \
+  -e MODERATOR_EMAIL="${MODERATOR_EMAIL:-}" \
   "${ADMIN_ENV_ARGS[@]}" \
   -v "${APP_DIR}/data:/app/data" \
   -v "${APP_DIR}/manual:/data/manual:ro" \

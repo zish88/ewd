@@ -2,6 +2,26 @@
 .env
 .env.local
 
+# Private ops / admin / deploy / AI pipeline (never publish)
+local/
+DEPLOY.md
+AGENTS.md
+docs/MAINTENANCE.md
+docs/ПОДДЕРЖКА.md
+docs/ai/
+docs/ewd-portal-inventory.md
+docs/_portal_pubs.json
+docs/vida-ewd-model.md
+scripts/ai-new-feature.ps1
+scripts/ai-bootstrap.ps1
+scripts/_parse_portal_pubs.py
+scripts/_scan_capital_packages.py
+scripts/_db-stats.mjs
+scripts/_db_stats.py
+tmp_*.json
+data/_migtest.sqlite
+data/site-settings.json
+
 # Dependencies & builds
 node_modules/
 dist/

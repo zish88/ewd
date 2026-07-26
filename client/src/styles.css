@@ -657,12 +657,45 @@ html {
 }
 
 .md-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border-radius: 999px;
   font-weight: 600;
   border: 0;
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
   min-height: var(--btn-min-height);
+}
+
+/* MD3 state-layer (hover / press / focus) */
+.md-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.12s ease;
+}
+
+.md-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.md-btn:hover:not(:disabled)::before {
+  opacity: 0.08;
+}
+
+.md-btn:focus-visible:not(:disabled)::before {
+  opacity: 0.12;
+}
+
+.md-btn:active:not(:disabled)::before {
+  opacity: 0.16;
 }
 
 .md-btn--filled {
@@ -747,9 +780,19 @@ html {
   line-height: 1.35;
 }
 
+.parts-catalog--compact {
+  margin-top: 0.2rem;
+  padding-top: 0.25rem;
+  border-top: 1px dashed color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.parts-catalog--compact-open {
+  margin-top: 0.15rem;
+}
+
 .parts-catalog__toggle {
   margin: 0;
-  padding: 0;
+  padding: 0.15rem 0;
   border: 0;
   background: transparent;
   color: var(--accent);
@@ -762,6 +805,7 @@ html {
   align-items: center;
   gap: 0.3rem;
   line-height: 1.35;
+  min-height: 28px;
 }
 
 .parts-catalog__toggle:hover {
@@ -1312,6 +1356,39 @@ html {
   display: none;
 }
 
+/* Desktop plank fold control — same footprint family as the OBD pill (36px tall circle).
+   Expanded: just the fold arrow, with a calm accent ring (same halo family as OBD,
+   but static — not pulsing, since it's a secondary control). Collapsed: it also
+   carries the "Фильтры" label + active count and switches to the brighter,
+   pulsing highlight (via .obd-btn--live) to draw attention, growing into a pill. */
+.app-bar__plank-collapse {
+  display: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--accent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
+    0 0 8px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.app-bar__plank-collapse.obd-btn--live {
+  width: auto;
+  min-width: 2.25rem;
+  padding: 0.375rem 0.85rem !important;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .desktop-filters-popover {
   position: relative;
   display: none;
@@ -1388,17 +1465,84 @@ html {
   display: none;
 }
 
+.app-bar__brand-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Compact theme switch living next to the "Volvo EWD" wordmark — plain text,
+   same accent-gold family as the brand, no boxed pill background. */
+.app-bar__theme-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.app-bar__theme-inline-btn {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: color-mix(in srgb, var(--accent) 42%, var(--muted));
+  cursor: pointer;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+.app-bar__theme-inline-btn:hover {
+  color: var(--accent);
+}
+
+.app-bar__theme-inline-btn.is-active {
+  color: var(--accent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
 /* Desktop: centered two-row quick filters */
 .app-bar__desktop-cluster {
   display: none;
 }
 
-.app-bar__quick-row {
+/* Field grid: two centered rows (vehicle pills + Доп./collapse; zone/node) */
+.app-bar__quick-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.app-bar__quick-grid-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-end;
   gap: 0.4rem;
+}
+
+/* Nav row (zone/node) stretches edge-to-edge so its width matches the row above it */
+.app-bar__quick-grid-row--fill {
+  flex-wrap: nowrap;
+}
+
+.app-bar__quick-grid-row--fill .app-bar__quick-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.app-bar__quick-grid-row--fill .app-bar__quick-field .app-input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
 
 .app-bar__quick-field {
@@ -1519,13 +1663,13 @@ main.is-filters-sheet-open {
   }
 
   .app-bar__chrome {
-    min-height: 48px;
+    min-height: var(--app-bar-h);
+    height: var(--app-bar-h);
     gap: 0.5rem;
   }
 
   .app-bar__brand {
     font-size: 0.95rem;
-    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1557,8 +1701,8 @@ main.is-filters-sheet-open {
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
-    min-height: 40px;
-    min-width: 40px;
+    min-height: 44px;
+    min-width: 44px;
     padding: 0.35rem 0.65rem;
     margin: 0;
     width: auto;
@@ -1600,12 +1744,19 @@ main.is-filters-sheet-open {
     align-items: center;
     gap: 0.45rem;
     flex-shrink: 0;
-    padding: 0.2rem 0 0.45rem;
+    position: sticky;
+    top: calc(var(--app-bar-h) + var(--safe-top));
+    z-index: 90;
+    padding: 0.35rem 0.15rem 0.45rem;
+    margin: 0 -0.15rem;
+    background: color-mix(in srgb, var(--bg-main) 92%, transparent);
+    backdrop-filter: blur(8px);
   }
 
   .mobile-tools-btn {
     flex: 0 0 auto;
-    min-height: 36px !important;
+    min-height: 44px !important;
+    min-width: 44px;
     padding: 0.35rem 0.75rem !important;
     font-size: 12px;
     border-radius: 999px;
@@ -1747,7 +1898,7 @@ main.is-filters-sheet-open {
 
   .mobile-view-tabs__btn {
     flex: 1;
-    min-height: 36px;
+    min-height: 44px;
     padding: 0.35rem 0.55rem;
     border-radius: 999px;
     border: 1px solid var(--outline-variant);
@@ -2176,6 +2327,14 @@ main.is-filters-sheet-open {
     gap: 0.35rem;
   }
 
+  .app-bar__plank-collapse {
+    display: inline-flex !important;
+  }
+
+  .app-bar.is-filters-collapsed .app-bar__desktop-cluster {
+    gap: 0.3rem;
+  }
+
   .desktop-filters-collapse__badge {
     display: inline-flex;
     align-items: center;
@@ -2200,28 +2359,22 @@ main.is-filters-sheet-open {
     padding: 0.15rem 0 0.25rem;
   }
 
-  .app-bar__chrome--desktop .app-bar__brand {
+  .app-bar__chrome--desktop .app-bar__brand-group {
     order: -1;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .app-bar__chrome--desktop .app-bar__brand {
     text-align: center;
     letter-spacing: 0.12em;
   }
 
   .app-bar__desktop-cluster {
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 0.35rem;
     width: 100%;
     max-width: 56rem;
-  }
-
-  .app-bar__quick-row .desktop-filters-collapse {
-    align-self: flex-end;
-  }
-
-  .app-bar__quick-row .obd-btn-wrap {
-    align-self: flex-end;
   }
 
   .app-bar__code-chip,
