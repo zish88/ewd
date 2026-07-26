@@ -45,3 +45,30 @@ bool canBusRecv(uint32_t* id, uint8_t* data, uint8_t* len) {
   memcpy(data, msg.data, *len);
   return true;
 }
+
+bool canBusGetStats(CanBusStats* out) {
+  if (!out) return false;
+  twai_status_info_t st;
+  if (twai_get_status_info(&st) != ESP_OK) return false;
+  out->txError = st.tx_error_counter;
+  out->rxError = st.rx_error_counter;
+  out->busError = st.bus_error_count;
+  switch (st.state) {
+    case TWAI_STATE_STOPPED:
+      out->stateName = "STOPPED";
+      break;
+    case TWAI_STATE_RUNNING:
+      out->stateName = "RUNNING";
+      break;
+    case TWAI_STATE_BUS_OFF:
+      out->stateName = "BUS_OFF";
+      break;
+    case TWAI_STATE_RECOVERING:
+      out->stateName = "RECOVERING";
+      break;
+    default:
+      out->stateName = "UNKNOWN";
+      break;
+  }
+  return true;
+}

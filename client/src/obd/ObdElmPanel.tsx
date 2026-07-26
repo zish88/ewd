@@ -36,10 +36,8 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
       const enriched = await enrichScanViaApi(raw);
       setScan(enriched);
       const n = enriched.dtcs?.length ?? 0;
-      setNotice(
-        enriched.error ||
-          `ELM: DTC ${n}${enriched.live?.coolantC != null ? ` · ОЖ ${enriched.live.coolantC}°C` : ""}`,
-      );
+      const sigN = enriched.signals?.length ?? 0;
+      setNotice(enriched.error || `ELM: DTC ${n}${sigN ? ` · signals ${sigN}` : ""}`);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     } finally {
@@ -93,6 +91,17 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
 
   return (
     <div className="space-y-2.5" data-testid="obd-elm-panel">
+      <p
+        className="text-[11px] text-[var(--text-muted)] leading-snug rounded-lg border border-[var(--outline-variant)] px-2.5 py-2"
+        data-testid="obd-elm-not-esp-note"
+      >
+        Эта вкладка — только для <strong className="font-semibold text-[var(--text-main)]">внешних ELM327</strong>{" "}
+        (BLE UART или вставка AT-ответа). Плата{" "}
+        <strong className="font-semibold text-[var(--text-main)]">EWD ESP32-S3 N16R8</strong> сюда{" "}
+        <strong className="font-semibold">не подключается</strong>: у неё нет BLE/ELM, нужен SoftAP на вкладке «ESP
+        шлюз».
+      </p>
+
       <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
@@ -161,7 +170,7 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
               data-testid="obd-elm-ble-scan"
               onClick={() => void runBleScan()}
             >
-              {busy ? "…" : "Считать 03 / 0105"}
+              {busy ? "…" : "Считать 01xx / 03"}
             </button>
           </div>
         </div>

@@ -8,3 +8,5 @@
 4. Board: ESP32S3 Dev Module, Flash 16MB, USB CDC On Boot = Enabled → Upload
 
 SoftAP: `EWD-OBD-Gateway` / `volvo-obd` → `http://192.168.4.1`
+
+API: `GET /health`, `GET /signals` (Mode 01 discovery + universal signals), `GET|POST /scan`, `POST /clear?confirm=1`.

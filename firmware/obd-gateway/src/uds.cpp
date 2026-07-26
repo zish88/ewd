@@ -89,25 +89,3 @@ bool udsClearDtcs(const EcuEntry& ecu, bool confirmed, uint32_t timeoutMs) {
   return rsp.size() >= 1 && rsp[0] == 0x54;
 }
 
-bool obdReadCoolantC(int* outC) {
-  if (!outC || !obdOpAllowed(ObdOpClass::ReadLive, false)) return false;
-  // Classic OBD functional request (same as vedomaya_OBD_v2)
-  uint8_t req[8] = {0x02, 0x01, 0x05, 0, 0, 0, 0, 0};
-  if (!canBusSend(0x7DF, req, 8)) return false;
-  uint32_t t0 = millis();
-  while (millis() - t0 < 80) {
-    if (!canBusMsgAvailable()) {
-      delay(1);
-      continue;
-    }
-    uint32_t id = 0;
-    uint8_t data[8] = {};
-    uint8_t len = 0;
-    if (!canBusRecv(&id, data, &len)) continue;
-    if (len >= 4 && data[1] == 0x41 && data[2] == 0x05) {
-      *outC = (int)data[3] - 40;
-      return true;
-    }
-  }
-  return false;
-}

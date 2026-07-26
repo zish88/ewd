@@ -46,6 +46,33 @@ bool canBusRecv(uint32_t* id, uint8_t* data, uint8_t* len) {
   return true;
 }
 
+bool canBusGetStats(CanBusStats* out) {
+  if (!out) return false;
+  twai_status_info_t st;
+  if (twai_get_status_info(&st) != ESP_OK) return false;
+  out->txError = st.tx_error_counter;
+  out->rxError = st.rx_error_counter;
+  out->busError = st.bus_error_count;
+  switch (st.state) {
+    case TWAI_STATE_STOPPED:
+      out->stateName = "STOPPED";
+      break;
+    case TWAI_STATE_RUNNING:
+      out->stateName = "RUNNING";
+      break;
+    case TWAI_STATE_BUS_OFF:
+      out->stateName = "BUS_OFF";
+      break;
+    case TWAI_STATE_RECOVERING:
+      out->stateName = "RECOVERING";
+      break;
+    default:
+      out->stateName = "UNKNOWN";
+      break;
+  }
+  return true;
+}
+
 #else
 // Default: MCP2515 (proven on XC70 via vedomaya_OBD_v2)
 #include <SPI.h>
@@ -82,6 +109,16 @@ bool canBusRecv(uint32_t* id, uint8_t* data, uint8_t* len) {
   *id = (uint32_t)rxId;
   *len = l;
   memcpy(data, buf, l);
+  return true;
+}
+
+bool canBusGetStats(CanBusStats* out) {
+  if (!out) return false;
+  // MCP2515 lib has no rich error counters in this stack
+  out->txError = 0;
+  out->rxError = 0;
+  out->busError = 0;
+  out->stateName = "MCP2515";
   return true;
 }
 #endif

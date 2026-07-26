@@ -4,7 +4,7 @@
  * Safety policy for public firmware (ewd-volvo / OBD gateway).
  *
  * ALLOWED by default:
- *  - OBD-II Mode 01 live PIDs (e.g. coolant)
+ *  - OBD-II Mode 01 supported-PID discovery + live signals
  *  - UDS DiagnosticSessionControl (default / extended where needed for read)
  *  - UDS TesterPresent
  *  - UDS ReadDTCInformation (0x19)

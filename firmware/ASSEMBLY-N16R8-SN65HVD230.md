@@ -132,7 +132,7 @@ firmware/arduino/EwdObdGatewayTwai/EwdObdGatewayTwai.ino
 === EWD OBD Gateway (N16R8) ===
 TWAI 500k OK
 SoftAP EWD-OBD-Gateway  IP 192.168.4.1
-Smoke PID05: ... (или no response без машины)
+После POST /scan: Serial `OBD supported PIDs: N` и `GET /signals` (или no response без машины)
 ```
 
 ---
@@ -162,7 +162,7 @@ Smoke без UDS: в Serial должна появиться температур
 | Симптом | Что проверить |
 |---------|----------------|
 | `TWAI … FAIL` / нет OK | GPIO 17/18, CTX/CRX не перепутаны местами |
-| Нет ответа PID05 | Зажигание, пины 6/14, общая GND, 500 kbit |
+| Пустой `/signals` после скана | Зажигание, пины 6/14, общая GND, 500 kbit |
 | Upload failed | BOOT/RESET, кабель data (не charge-only), драйвер USB |
 | SoftAP нет | Питание слабое; смотрите Serial |
 | HTTPS сайт не видит шлюз | Mixed content — вставьте JSON с `/scan` вручную |

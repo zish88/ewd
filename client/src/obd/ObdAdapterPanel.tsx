@@ -111,9 +111,32 @@ export function ObdAdapterPanel({ onUseDtcQuery, onLinkedChange }: Props) {
 
   return (
     <div className="space-y-3" data-testid="obd-adapter-panel">
-      <p className="text-[11px] text-[var(--text-muted)]">
-        Шлюз SoftAP <span className="font-mono">EWD-OBD-Gateway</span> · только чтение · UDS DTC + ECU online.
-      </p>
+      <div
+        className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container)] px-2.5 py-2 space-y-1.5"
+        data-testid="obd-esp-softap-checklist"
+      >
+        <p className="text-[11px] font-semibold text-[var(--text-main)]">Плата EWD N16R8 — по Wi‑Fi SoftAP</p>
+        <ol className="text-[11px] text-[var(--text-muted)] leading-snug list-decimal pl-4 space-y-0.5">
+          <li>
+            На телефоне/ПК подключитесь к Wi‑Fi{" "}
+            <span className="font-mono text-[var(--text-main)]">EWD-OBD-Gateway</span> (пароль{" "}
+            <span className="font-mono text-[var(--text-main)]">volvo-obd</span>).
+          </li>
+          <li>
+            Откройте в браузере{" "}
+            <span className="font-mono text-[var(--text-main)]">http://192.168.4.1</span> — страница шлюза.
+          </li>
+          <li>
+            Скан: кнопка ниже (если сайт открыт по HTTP/localhost) или скопируйте JSON с{" "}
+            <span className="font-mono">/scan</span> и вставьте сюда.
+          </li>
+        </ol>
+        <p className="text-[10px] text-[var(--muted)] leading-snug" data-testid="obd-esp-mixed-content-note">
+          Сайт по HTTPS (ewd-volvo.ru) <strong className="font-semibold">не может</strong> сам сходить на{" "}
+          <span className="font-mono">http://192.168.4.1</span> — браузер блокирует mixed content. Рабочий путь:
+          страница шлюза → вставить JSON сюда, либо демо-скан.
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-2 items-center">
         <input

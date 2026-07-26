@@ -45,9 +45,9 @@
 #define OBD_CAN_KBPS 500
 #endif
 
-// Live OBD-II PID 05 poll interval when session active
+// Round-robin Mode 01 data-PID poll interval when session active
 #ifndef OBD_PID_POLL_MS
-#define OBD_PID_POLL_MS 500
+#define OBD_PID_POLL_MS 200
 #endif
 
 // UDS timings

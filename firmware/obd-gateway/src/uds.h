@@ -26,4 +26,3 @@ bool udsProbeEcu(const EcuEntry& ecu, uint32_t timeoutMs);
 bool udsReadDtcs(const EcuEntry& ecu, std::vector<UdsDtcItem>& out, uint32_t timeoutMs);
 UdsScanResult udsFullScan(uint32_t timeoutMs);
 bool udsClearDtcs(const EcuEntry& ecu, bool confirmed, uint32_t timeoutMs);
-bool obdReadCoolantC(int* outC);

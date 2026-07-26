@@ -47,10 +47,11 @@ function enc(s: string): Uint8Array {
 
 async function writeChunk(ch: BleChar, text: string): Promise<void> {
   const data = enc(text.endsWith("\r") ? text : `${text}\r`);
+  const payload = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
   if (ch.properties.writeWithoutResponse) {
-    await ch.writeValueWithoutResponse(data);
+    await ch.writeValueWithoutResponse(payload);
   } else {
-    await ch.writeValue(data);
+    await ch.writeValue(payload);
   }
 }
 
@@ -113,7 +114,7 @@ export async function connectElmBle(): Promise<string> {
   await disconnectElmBle();
 
   const bluetooth = (
-    navigator as {
+    navigator as unknown as {
       bluetooth: {
         requestDevice: (o: object) => Promise<BleDevice>;
       };
@@ -151,7 +152,7 @@ export async function connectElmBle(): Promise<string> {
   return device.name || device.id || "BLE ELM";
 }
 
-/** Run AT init + Mode 01 PID 05 + Mode 03 on an open (or freshly opened) BLE session. */
+/** Run AT init + Mode 01 sample PIDs + Mode 03 on an open (or freshly opened) BLE session. */
 export async function scanElmBleAt(): Promise<string> {
   if (!session?.server.connected) {
     await connectElmBle();
@@ -161,28 +162,31 @@ export async function scanElmBleAt(): Promise<string> {
 
   let buf = "";
   const onVal = (ev: Event) => {
-    const target = ev.target as BleChar;
+    const target = ev.target as unknown as BleChar | null;
+    if (!target) return;
     const v = target.value;
     if (!v) return;
     buf += new TextDecoder().decode(v.buffer);
   };
   s.rx.addEventListener("characteristicvaluechanged", onVal);
 
-  const cmds = ["ATZ", "ATE0", "ATL0", "ATH0", "0105", "03"];
-  let last = "";
+  // 0100 = supported PID bitmap; then a few common Mode 01 PIDs + DTC list.
+  const cmds = ["ATZ", "ATE0", "ATL0", "ATH0", "0100", "010C", "010D", "0111", "03"];
+  const parts: string[] = [];
   try {
     for (const cmd of cmds) {
       buf = "";
       await writeChunk(s.tx, cmd);
       await new Promise((r) => setTimeout(r, cmd === "ATZ" ? 1500 : 800));
-      last = buf;
+      if (buf.trim()) parts.push(buf.trim());
     }
   } finally {
     s.rx.removeEventListener("characteristicvaluechanged", onVal);
   }
 
-  if (!last.trim()) {
+  const combined = parts.join("\n");
+  if (!combined.trim()) {
     throw new Error("BLE-устройство ответило пусто. Classic SPP ELM из браузера недоступен — нужен BLE UART.");
   }
-  return last;
+  return combined;
 }

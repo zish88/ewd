@@ -14,5 +14,21 @@
     { "ecu": "ECM", "code": "P0420", "status": "confirmed", "raw": "042000:01" },
     { "ecu": "ABS", "code": "C0035", "status": "stored", "raw": "403500:00" }
   ],
-  "live": { "coolantC": 91 }
+  "supportedPids": ["04", "05", "0C", "0D", "0F", "10", "11", "42"],
+  "busStatus": {
+    "ok": true,
+    "state": "RUNNING",
+    "txErr": 0,
+    "rxErr": 0,
+    "busErr": 0,
+    "lastScanAgeMs": 1200,
+    "supportedPidCount": 8,
+    "signalCount": 4
+  },
+  "signals": [
+    { "id": "engine_rpm", "pid": "0C", "name": "Engine RPM", "value": 820, "unit": "rpm" },
+    { "id": "vehicle_speed", "pid": "0D", "name": "Vehicle speed", "value": 0, "unit": "km/h" },
+    { "id": "throttle", "pid": "11", "name": "Throttle position", "value": 12.5, "unit": "%" },
+    { "id": "ecu_voltage", "pid": "42", "name": "Control module voltage", "value": 13.8, "unit": "V" }
+  ]
 }

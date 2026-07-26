@@ -3,10 +3,15 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
-// HTTP only — Arduino IDE users need not install WebSockets.
+// HTTP only (no WebSockets library required). Site uses GET/POST /scan + /signals.
 
 static WebServer server(OBD_HTTP_PORT);
-static String scanJson = "{\"bus\":\"HS-CAN\",\"ecus\":[],\"dtcs\":[],\"live\":{}}";
+static String scanJson =
+    "{\"bus\":\"HS-CAN\",\"ecus\":[],\"dtcs\":[],\"signals\":[],\"supportedPids\":[]}";
+static String signalsJson =
+    "{\"bus\":\"HS-CAN\",\"signals\":[],\"supportedPids\":[],\"busStatus\":{\"ok\":false}}";
+static String healthJson =
+    "{\"ok\":true,\"device\":\"esp32-s3-n16r8\",\"bus\":\"HS-CAN\",\"readOnlyDefault\":true}";
 static volatile bool scanReq = false;
 static volatile bool clearReq = false;
 static String clearEcu = "";
@@ -27,6 +32,7 @@ static void handleRoot() {
   server.send(200, "text/plain",
               "EWD OBD Gateway (HTTP)\n"
               "GET  /health\n"
+              "GET  /signals\n"
               "GET  /scan\n"
               "POST /scan\n"
               "POST /clear?ecu=ECM&confirm=1\n");
@@ -34,8 +40,12 @@ static void handleRoot() {
 
 static void handleHealth() {
   sendCors();
-  server.send(200, "application/json",
-              "{\"ok\":true,\"device\":\"esp32-s3-n16r8\",\"bus\":\"HS-CAN\",\"readOnlyDefault\":true}");
+  server.send(200, "application/json", healthJson);
+}
+
+static void handleSignals() {
+  sendCors();
+  server.send(200, "application/json", signalsJson);
 }
 
 static void handleGetScan() {
@@ -73,6 +83,8 @@ void webApiBegin() {
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/health", HTTP_GET, handleHealth);
+  server.on("/signals", HTTP_GET, handleSignals);
+  server.on("/signals", HTTP_OPTIONS, handleOptions);
   server.on("/scan", HTTP_GET, handleGetScan);
   server.on("/scan", HTTP_POST, handlePostScan);
   server.on("/scan", HTTP_OPTIONS, handleOptions);
@@ -87,6 +99,10 @@ void webApiLoop() { server.handleClient(); }
 void webApiSetScanJson(const String& json) { scanJson = json; }
 
 String webApiScanJson() { return scanJson; }
+
+void webApiSetSignalsJson(const String& json) { signalsJson = json; }
+
+void webApiSetHealthJson(const String& json) { healthJson = json; }
 
 bool webApiScanRequested() { return scanReq; }
 void webApiClearScanRequest() { scanReq = false; }

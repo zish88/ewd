@@ -32,7 +32,8 @@
 #define OBD_SPI_MOSI 11
 #endif
 
-// TWAI pins (only if OBD_CAN_BACKEND_TWAI)
+// TWAI ↔ SN65HVD230 (this Arduino sketch is TWAI-only)
+// CTX(TXD) ← GPIO17, CRX(RXD) → GPIO18  — see ASSEMBLY-N16R8-SN65HVD230.md
 #ifndef OBD_TWAI_TX
 #define OBD_TWAI_TX 17
 #endif
@@ -44,9 +45,9 @@
 #define OBD_CAN_KBPS 500
 #endif
 
-// Live OBD-II PID 05 poll interval when session active
+// Round-robin Mode 01 data-PID poll interval when session active
 #ifndef OBD_PID_POLL_MS
-#define OBD_PID_POLL_MS 500
+#define OBD_PID_POLL_MS 200
 #endif
 
 // UDS timings

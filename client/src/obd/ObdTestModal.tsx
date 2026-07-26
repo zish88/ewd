@@ -27,7 +27,7 @@ export function ObdTestModal({
   espLinked = false,
   onEspLinkedChange,
 }: Props) {
-  const [tab, setTab] = useState<Tab>("elm");
+  const [tab, setTab] = useState<Tab>("esp");
   const [bleLinked, setBleLinked] = useState(() => elmBleLinked());
   const [mounted, setMounted] = useState(false);
   const active = surface === "open" || surface === "minimized";
@@ -138,31 +138,35 @@ export function ObdTestModal({
             </button>
           </header>
 
-          <div className="obd-float-window__tabs shrink-0 flex gap-1.5 px-3.5 pb-2.5">
+          <div className="obd-float-window__tabs shrink-0 flex gap-1.5 px-3.5 pb-2.5" role="tablist" aria-label="Канал OBD">
             <button
               type="button"
-              className={`md-btn text-[11px] px-2.5 py-1.5 ${tab === "elm" ? "md-btn--filled" : "md-btn--tonal"}`}
-              data-testid="obd-tab-elm"
-              onClick={() => setTab("elm")}
-            >
-              ELM327
-            </button>
-            <button
-              type="button"
+              role="tab"
+              aria-selected={tab === "esp"}
               className={`md-btn text-[11px] px-2.5 py-1.5 ${tab === "esp" ? "md-btn--filled" : "md-btn--tonal"}`}
               data-testid="obd-tab-esp"
               onClick={() => setTab("esp")}
             >
               ESP шлюз
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "elm"}
+              className={`md-btn text-[11px] px-2.5 py-1.5 ${tab === "elm" ? "md-btn--filled" : "md-btn--tonal"}`}
+              data-testid="obd-tab-elm"
+              onClick={() => setTab("elm")}
+            >
+              ELM327
+            </button>
           </div>
 
           <div className="obd-float-window__body flex-1 min-h-0 overflow-y-auto px-3.5 pb-3.5 space-y-3 text-left">
-            <div className={tab === "elm" ? "" : "hidden"} aria-hidden={tab !== "elm"}>
-              <ObdElmPanel onUseDtcQuery={onUseDtcQuery} />
-            </div>
             <div className={tab === "esp" ? "" : "hidden"} aria-hidden={tab !== "esp"}>
               <ObdAdapterPanel onUseDtcQuery={onUseDtcQuery} onLinkedChange={onEspLinkedChange} />
+            </div>
+            <div className={tab === "elm" ? "" : "hidden"} aria-hidden={tab !== "elm"}>
+              <ObdElmPanel onUseDtcQuery={onUseDtcQuery} />
             </div>
           </div>
         </div>
