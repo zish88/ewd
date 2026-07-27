@@ -45,12 +45,43 @@ import {
 } from "./optionExpressionHumanize.js";
 
 
+type RepairConfidence = "exact" | "compatible" | "unknown" | "reference";
+
+type RepairPart = {
+  part_number: string;
+  role: string;
+  name_en?: string;
+  name_ru?: string;
+  confidence: RepairConfidence;
+  reason: string;
+  cavity?: string;
+  gauge_mm2?: string;
+  note_ru?: string;
+  image_url?: string | null;
+};
+
+type RepairCatalogResult = {
+  code: string;
+  pin?: string;
+  gauge?: string;
+  status: "exact" | "compatible" | "unknown";
+  summary_ru: string;
+  housing?: RepairPart;
+  mate?: RepairPart;
+  device?: RepairPart;
+  terminals: RepairPart[];
+  seals: RepairPart[];
+  pigtails: RepairPart[];
+  tools: RepairPart[];
+};
+
 type CardParts = {
   code?: string;
   device?: string;
   housing?: string;
   mate?: string;
   terminals?: Array<{ part_number: string; name_en?: string; name_ru?: string }>;
+  repair?: RepairCatalogResult;
 };
 
 type Result = {
@@ -587,8 +618,326 @@ async function copyPartNumber(pn: string, setNotice: (v: string) => void) {
   }
 }
 
-function hasCardParts(parts?: CardParts | null): boolean {
+function hasLegacyCardParts(parts?: CardParts | null): boolean {
   return Boolean(parts && (parts.device || parts.housing || parts.mate || parts.terminals?.length));
+}
+
+function hasRepairCatalog(repair?: RepairCatalogResult | null): boolean {
+  if (!repair) return false;
+  return Boolean(
+    repair.housing ||
+      repair.mate ||
+      repair.device ||
+      repair.terminals?.length ||
+      repair.seals?.length ||
+      repair.pigtails?.length ||
+      repair.tools?.length,
+  );
+}
+
+function hasCardParts(parts?: CardParts | null): boolean {
+  return hasLegacyCardParts(parts) || hasRepairCatalog(parts?.repair);
+}
+
+function confidenceBadge(c: RepairConfidence): { label: string; className: string } {
+  if (c === "exact") return { label: "точно", className: "repair-badge repair-badge--exact" };
+  if (c === "compatible")
+    return { label: "кандидат — сверить", className: "repair-badge repair-badge--compatible" };
+  if (c === "reference")
+    return { label: "справочно", className: "repair-badge repair-badge--reference" };
+  return { label: "данных нет", className: "repair-badge repair-badge--unknown" };
+}
+
+function RepairPartRow({
+  part,
+  roleLabel,
+  setNotice,
+  onOpenPart,
+}: {
+  part: RepairPart;
+  roleLabel: string;
+  setNotice: (v: string) => void;
+  onOpenPart: (part: RepairPart, roleLabel: string) => void;
+}) {
+  const badge = confidenceBadge(part.confidence);
+  return (
+    <li className="repair-part-row">
+      <div className="repair-part-row__top">
+        <span className="repair-part-row__role">{roleLabel}</span>
+        <span className={badge.className}>{badge.label}</span>
+        <button
+          type="button"
+          className="repair-part-row__pn font-mono"
+          title="Показать иллюстрацию EPC"
+          onClick={() => onOpenPart(part, roleLabel)}
+        >
+          {part.part_number}
+          {part.image_url ? <span className="repair-part-row__has-img" title="Есть иллюстрация" /> : null}
+        </button>
+        <button
+          type="button"
+          className="parts-catalog__copy"
+          title="Скопировать"
+          aria-label={`Скопировать ${part.part_number}`}
+          onClick={() => void copyPartNumber(part.part_number, setNotice)}
+        >
+          <CopyIcon />
+        </button>
+      </div>
+      {part.reason ? <p className="repair-part-row__reason">{part.reason}</p> : null}
+    </li>
+  );
+}
+
+function PartNumberPopover({
+  part,
+  roleLabel,
+  related,
+  wiringCode,
+  onClose,
+  setNotice,
+}: {
+  part: RepairPart;
+  roleLabel: string;
+  related: { housing?: RepairPart; mate?: RepairPart; terminals: RepairPart[] };
+  wiringCode?: string;
+  onClose: () => void;
+  setNotice: (v: string) => void;
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "+" || e.key === "=") setZoom((z) => Math.min(4, z + 0.25));
+      if (e.key === "-") setZoom((z) => Math.max(0.5, z - 0.25));
+      if (e.key === "0") {
+        setZoom(1);
+        setOffset({ x: 0, y: 0 });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const badge = confidenceBadge(part.confidence);
+  const img =
+    part.image_url ||
+    (wiringCode
+      ? `/api/parts/image/${encodeURIComponent(part.part_number)}?code=${encodeURIComponent(wiringCode)}`
+      : null);
+
+  return (
+    <div className="part-popover-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="part-popover"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${roleLabel} ${part.part_number}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="part-popover__head">
+          <div className="part-popover__title">
+            <span className="part-popover__role">{roleLabel}</span>
+            <span className="part-popover__pn font-mono">{part.part_number}</span>
+            <span className={badge.className}>{badge.label}</span>
+          </div>
+          {wiringCode ? <span className="part-popover__code font-mono">{wiringCode}</span> : null}
+        </div>
+        <div className="part-popover__zoombar">
+          <button type="button" className="part-popover__zbtn" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} aria-label="Уменьшить">
+            −
+          </button>
+          <span className="part-popover__zlabel">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="part-popover__zbtn" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} aria-label="Увеличить">
+            +
+          </button>
+          <button
+            type="button"
+            className="part-popover__zbtn"
+            onClick={() => {
+              setZoom(1);
+              setOffset({ x: 0, y: 0 });
+            }}
+          >
+            Сброс
+          </button>
+        </div>
+        <div
+          className="part-popover__image-wrap"
+          onWheel={(e) => {
+            e.preventDefault();
+            setZoom((z) => Math.min(4, Math.max(0.5, z + (e.deltaY < 0 ? 0.15 : -0.15))));
+          }}
+          onPointerDown={(e) => {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            dragRef.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current;
+            if (!d) return;
+            setOffset({ x: d.ox + (e.clientX - d.x), y: d.oy + (e.clientY - d.y) });
+          }}
+          onPointerUp={() => {
+            dragRef.current = null;
+          }}
+        >
+          {img ? (
+            <img
+              className="part-popover__image"
+              src={img}
+              alt={`Иллюстрация ${part.part_number}`}
+              draggable={false}
+              style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
+            />
+          ) : (
+            <p className="part-popover__placeholder">Нет изображения в каталоге</p>
+          )}
+        </div>
+        <p className="part-popover__hint">Колёсико / +− — масштаб, перетаскивание — сдвиг. Callout на чертеже EPC.</p>
+        {part.reason ? <p className="part-popover__reason">{part.reason}</p> : null}
+        {(related.housing || related.mate || related.terminals.length > 0) && (
+          <div className="part-popover__related">
+            {related.housing && related.housing.part_number !== part.part_number ? (
+              <div className="part-popover__rel-row">
+                Корпус <span className="font-mono">{related.housing.part_number}</span>
+              </div>
+            ) : null}
+            {related.mate && related.mate.part_number !== part.part_number ? (
+              <div className="part-popover__rel-row">
+                Ответная <span className="font-mono">{related.mate.part_number}</span>
+              </div>
+            ) : null}
+            {related.terminals
+              .filter((t) => t.part_number !== part.part_number)
+              .slice(0, 4)
+              .map((t) => (
+                <div key={t.part_number} className="part-popover__rel-row">
+                  Клемма <span className="font-mono">{t.part_number}</span>
+                </div>
+              ))}
+          </div>
+        )}
+        <div className="part-popover__actions">
+          <button
+            type="button"
+            className="part-popover__btn"
+            onClick={() => void copyPartNumber(part.part_number, setNotice)}
+          >
+            Скопировать
+          </button>
+          <button type="button" className="part-popover__btn part-popover__btn--primary" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RepairCatalogBlock({
+  repair,
+  testId,
+  setNotice,
+}: {
+  repair?: RepairCatalogResult | null;
+  testId: string;
+  setNotice: (v: string) => void;
+}) {
+  const [openPart, setOpenPart] = useState<{ part: RepairPart; roleLabel: string } | null>(null);
+  if (!hasRepairCatalog(repair)) return null;
+  const r = repair!;
+  const statusBadge = confidenceBadge(
+    r.status === "exact" ? "exact" : r.status === "compatible" ? "compatible" : "unknown",
+  );
+  return (
+    <>
+      <details className="repair-catalog" data-testid={testId}>
+        <summary className="repair-catalog__summary">
+          Ремонт разъёма
+          <span className={statusBadge.className}>{statusBadge.label}</span>
+        </summary>
+        <p className="repair-catalog__summary-text">{r.summary_ru}</p>
+        <ul className="parts-catalog parts-catalog--repair">
+          {r.housing ? (
+            <RepairPartRow
+              part={r.housing}
+              roleLabel="Корпус"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ) : null}
+          {r.mate ? (
+            <RepairPartRow
+              part={r.mate}
+              roleLabel="Ответная"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ) : null}
+          {r.device ? (
+            <RepairPartRow
+              part={r.device}
+              roleLabel="Деталь"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ) : null}
+          {(r.terminals || []).map((t) => (
+            <RepairPartRow
+              key={`t-${t.part_number}-${t.confidence}`}
+              part={t}
+              roleLabel="Клемма"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ))}
+          {(r.seals || []).map((t) => (
+            <RepairPartRow
+              key={`s-${t.part_number}`}
+              part={t}
+              roleLabel="Уплотнение"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ))}
+          {(r.pigtails || []).map((t) => (
+            <RepairPartRow
+              key={`p-${t.part_number}`}
+              part={t}
+              roleLabel="Пигтейл"
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ))}
+          {(r.tools || []).map((t) => (
+            <RepairPartRow
+              key={`tool-${t.part_number}`}
+              part={t}
+              roleLabel={t.role === "tool_kit" ? "Комплект" : "Инструмент"}
+              setNotice={setNotice}
+              onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
+            />
+          ))}
+        </ul>
+        <p className="repair-catalog__hint">
+          Нажмите партномер — чертёж EPC для этого кода. Увеличивайте в окне (+/− / колёсико).
+        </p>
+      </details>
+      {openPart ? (
+        <PartNumberPopover
+          part={openPart.part}
+          roleLabel={openPart.roleLabel}
+          related={{ housing: r.housing, mate: r.mate, terminals: r.terminals || [] }}
+          wiringCode={r.code}
+          onClose={() => setOpenPart(null)}
+          setNotice={setNotice}
+        />
+      ) : null}
+    </>
+  );
 }
 
 function PartsCatalogList({
@@ -606,7 +955,7 @@ function PartsCatalogList({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(!compact);
-  if (!hasCardParts(parts)) return null;
+  if (!hasLegacyCardParts(parts)) return null;
   const primary = parts.housing || parts.mate || parts.device || "";
   const count =
     [parts.device, parts.housing, parts.mate].filter(Boolean).length + (parts.terminals?.length || 0);
@@ -715,9 +1064,7 @@ function PartsCatalogList({
                 <CopyIcon />
               </button>
             </span>
-            {t.name_ru || t.name_en ? (
-              <span className="parts-catalog__name">{t.name_ru || t.name_en}</span>
-            ) : null}
+            {t.name_ru ? <span className="parts-catalog__name">{t.name_ru}</span> : null}
           </li>
         ))}
       </ul>
@@ -999,7 +1346,7 @@ function renderWireCard(
     schemeExact ||
     Boolean(String(item.option_expression || "").trim()) ||
     Boolean(item.function_text) ||
-    Boolean(item.parts) ||
+    hasLegacyCardParts(item.parts) ||
     Boolean(item.card_title && item.card_title !== connectorTitle);
   return (
     <div
@@ -1081,6 +1428,11 @@ function renderWireCard(
           ) : null}
         </div>
       ) : null}
+      <RepairCatalogBlock
+        repair={item.parts?.repair}
+        testId="card-repair"
+        setNotice={setNotice}
+      />
       {hasDetails ? (
         <details className="wire-card-details">
           <summary className="wire-card-details__summary">Подробнее</summary>
@@ -1124,9 +1476,9 @@ function renderWireCard(
                 ) : null}
               </div>
             ) : null}
-            {item.parts ? (
+            {hasLegacyCardParts(item.parts) ? (
               <PartsCatalogList
-                parts={item.parts}
+                parts={item.parts!}
                 testId="card-parts"
                 setNotice={setNotice}
                 className="parts-catalog parts-catalog--card"
@@ -2798,6 +3150,9 @@ function App() {
         device: String(infoSource.device_part_number || "").trim() || undefined,
         housing: String(infoSource.part_number || "").trim() || undefined,
         mate: String(infoSource.part_number_mate || "").trim() || undefined,
+        repair: infoSource.repair && typeof infoSource.repair === "object"
+          ? (infoSource.repair as RepairCatalogResult)
+          : undefined,
       };
       setNodeInfo({
         code,
@@ -3704,12 +4059,19 @@ function App() {
             ) : null}
           </div>
           {nodeInfo.parts ? (
-            <PartsCatalogList
-              parts={nodeInfo.parts}
-              testId="node-parts"
-              setNotice={setNotice}
-              className="parts-catalog parts-catalog--card parts-catalog--node"
-            />
+            <>
+              <RepairCatalogBlock
+                repair={nodeInfo.parts.repair}
+                testId="node-repair"
+                setNotice={setNotice}
+              />
+              <PartsCatalogList
+                parts={nodeInfo.parts}
+                testId="node-parts"
+                setNotice={setNotice}
+                className="parts-catalog parts-catalog--card parts-catalog--node"
+              />
+            </>
           ) : null}
           {nodeInfo.zoneEmptyFallback ? (
             <button

@@ -6,6 +6,7 @@ import "dotenv/config";
 import { openDatabase } from "./db/schema.js";
 import { createLocationRouter, createOverrideRouter, createSearchRouter } from "./routes/search.js";
 import { createNavRouter } from "./routes/nav.js";
+import { createPartsRouter } from "./routes/parts.js";
 import { createEwdRouter } from "./routes/ewd.js";
 import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
@@ -125,6 +126,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api/push", createPushRouter());
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
+app.use("/api/parts", createPartsRouter());
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());

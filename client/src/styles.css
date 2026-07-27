@@ -907,6 +907,317 @@ html {
   white-space: nowrap;
 }
 
+.repair-catalog {
+  margin-top: 0.15rem;
+  margin-bottom: 0.1rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-container) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.repair-catalog__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.repair-catalog__summary::-webkit-details-marker {
+  display: none;
+}
+
+.repair-catalog__summary-text {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.repair-catalog__hint {
+  margin: 0.4rem 0 0.1rem;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.parts-catalog--repair {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.repair-part-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.3rem 0.35rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface, #1a1f27) 55%, transparent);
+}
+
+.repair-part-row__top {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(4.5rem, auto) minmax(5.5rem, 1fr) 1.5rem;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  font-size: 11px;
+}
+
+.repair-part-row__role {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.repair-part-row__pn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #3d8bfd);
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.repair-part-row__reason {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  padding-left: 0.1rem;
+}
+
+.repair-part-row__has-img {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #3dd68c 80%, transparent);
+  flex: 0 0 auto;
+}
+
+.part-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, #000 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.part-popover {
+  width: min(26rem, 100%);
+  max-height: min(92vh, 40rem);
+  overflow: auto;
+  border-radius: 14px;
+  background: var(--surface, #1a1f27);
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  box-shadow: 0 16px 48px color-mix(in srgb, #000 50%, transparent);
+  padding: 0.85rem 0.9rem 0.8rem;
+  color: var(--text, #e8eaed);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.part-popover__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.part-popover__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 13px;
+}
+
+.part-popover__role {
+  font-weight: 600;
+}
+
+.part-popover__pn {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.part-popover__code {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.part-popover__zoombar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.part-popover__zbtn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-container, #243) 70%, transparent);
+  color: inherit;
+  border-radius: 6px;
+  min-width: 2rem;
+  height: 1.7rem;
+  padding: 0 0.45rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.part-popover__zlabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 2.6rem;
+  text-align: center;
+}
+
+.part-popover__image-wrap {
+  height: min(52vh, 18rem);
+  border-radius: 10px;
+  background: #f4f6f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.part-popover__image-wrap:active {
+  cursor: grabbing;
+}
+
+.part-popover__image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform 0.05s linear;
+  pointer-events: none;
+}
+
+.part-popover__placeholder {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #5b6472;
+  font-size: 13px;
+}
+
+.part-popover__hint {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.part-popover__reason {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.part-popover__related {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.part-popover__rel-row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.part-popover__actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  margin-top: 0.15rem;
+}
+
+.part-popover__btn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.part-popover__btn--primary {
+  background: color-mix(in srgb, #2f9e66 85%, #000);
+  border-color: transparent;
+  color: #fff;
+}
+
+.parts-catalog__pn--link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #3d8bfd);
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.repair-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+}
+
+.repair-badge--exact {
+  background: color-mix(in srgb, #1b7f4a 22%, transparent);
+  color: #147a42;
+}
+
+.repair-badge--compatible {
+  background: color-mix(in srgb, #b8860b 20%, transparent);
+  color: #8a6508;
+}
+
+.repair-badge--reference {
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  color: var(--text-muted);
+}
+
+.repair-badge--unknown {
+  background: color-mix(in srgb, #a33 16%, transparent);
+  color: #a33;
+}
+
 /* Card action labels: short on mobile, full on desktop */
 .card-actions__label-short {
   display: none;

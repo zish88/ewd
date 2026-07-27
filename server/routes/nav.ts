@@ -19,6 +19,11 @@ import {
 import { componentTypeRu, wireColorRu } from "../volvoStandards.js";
 import { enrichDetailWithName } from "../detailEnrich.js";
 import { lookupFacePins } from "./ewdCapital.js";
+import {
+  partsForCode as buildCardParts,
+  matchHarnessRepair,
+  type CardParts,
+} from "../harnessRepairCatalog.js";
 
 type RelatedPart = {
   part_number: string;
@@ -40,14 +45,6 @@ type ConnectorPartsIndex = {
     string,
     { part_number?: string; part_number_mate?: string; name_en?: string; name_ru?: string }
   >;
-};
-
-type CardParts = {
-  code: string;
-  device?: string;
-  housing?: string;
-  mate?: string;
-  terminals?: Array<{ part_number: string; name_en?: string; name_ru?: string }>;
 };
 
 let connectorBomCache: ConnectorBomIndex | null | undefined;
@@ -130,63 +127,6 @@ function devicePartForCode(code: string): string {
   return String(rec?.device_part_number || "").trim();
 }
 
-/** Extract cavity digit(s) from pin labels like "1", "21", "6/28:1". */
-function pinCavityDigits(pin: string): string {
-  const raw = String(pin || "").trim();
-  if (!raw || raw === "—") return "";
-  const colon = raw.match(/:(\d{1,3})\b/);
-  if (colon) return colon[1];
-  if (/^\d{1,3}$/.test(raw)) return raw;
-  const m = raw.match(/(\d{1,3})\s*$/);
-  return m ? m[1] : "";
-}
-
-function terminalMatchesPin(term: RelatedPart, pin: string): boolean {
-  const cavity = pinCavityDigits(pin);
-  if (!cavity) return false;
-  const blob = `${term.name_en || ""} ${term.name_ru || ""} ${term.part_number}`;
-  // Explicit cavity / pin references in EPC titles
-  const re = new RegExp(
-    `(?:^|[^0-9])(?:pin|cavity|контакт|клемма|pos(?:ition)?)\\s*[#:.]?\\s*0*${cavity}(?:[^0-9]|$)`,
-    "i",
-  );
-  if (re.test(blob)) return true;
-  // Trailing ":N" in name
-  if (new RegExp(`:${cavity}(?:\\b|$)`).test(blob)) return true;
-  return false;
-}
-
-function partsForCode(
-  code: string,
-  partByCode: Map<string, string>,
-  mateByCode: Map<string, string>,
-  pin?: string,
-): CardParts | null {
-  const c = String(code || "").trim();
-  if (!c) return null;
-  const housing = partByCode.get(c) || "";
-  const mate = mateByCode.get(c) || "";
-  const device = devicePartForCode(c);
-  const housingSet = new Set([housing, mate, device].filter(Boolean));
-  const terminals = relatedPartsForCode(c)
-    .filter((r) => r.role === "terminal" || r.role === "other")
-    .filter((r) => !housingSet.has(r.part_number))
-    .filter((r) => (pin ? terminalMatchesPin(r, pin) : false))
-    .map((r) => ({
-      part_number: r.part_number,
-      name_en: r.name_en,
-      name_ru: r.name_ru,
-    }))
-    .slice(0, 6);
-  if (!device && !housing && !mate && !terminals.length) return null;
-  const out: CardParts = { code: c };
-  if (device) out.device = device;
-  if (housing) out.housing = housing;
-  if (mate) out.mate = mate;
-  if (terminals.length) out.terminals = terminals;
-  return out;
-}
-
 /** Resolve which wiring code's PNs belong on this card. */
 function partsCodeForCard(
   card: { match_role?: string; subject_code?: string; search_target?: string; from_node?: string; to_node?: string },
@@ -209,7 +149,15 @@ function attachPartsToCards<T extends Record<string, unknown>>(
   return cards.map((card) => {
     const partsCode = partsCodeForCard(card as any, selectedCode);
     const pin = String((card as any).pin_number || "").trim();
-    const parts = partsForCode(partsCode, partByCode, mateByCode, pin);
+    const gauge = String((card as any).wire_gauge || "").trim();
+    const parts = buildCardParts(
+      partsCode,
+      partByCode,
+      mateByCode,
+      pin,
+      gauge,
+      devicePartForCode(partsCode),
+    );
     return parts ? { ...card, parts } : { ...card };
   });
 }
@@ -1098,6 +1046,12 @@ export function createNavRouter(db: Database.Database) {
           .filter(Boolean),
       ),
     ].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+    const repair = matchHarnessRepair({
+      code,
+      housingPn: selected_part_number,
+      matePn: selected_part_mate,
+      devicePn: selected_device_part,
+    });
     res.json({
       code,
       zone: zone || "all",
@@ -1111,6 +1065,8 @@ export function createNavRouter(db: Database.Database) {
       device_part_number: selected_device_part,
       /** Indented EPC articles under the coded row (terminals, seals, …). */
       related_parts,
+      /** Safe harness-repair catalog match (housing/terminals/seals/tools). */
+      repair,
       part_number_scope: "connector",
       name_ru: nameByCode.get(code) || "",
       home_zone: homeZoneOfCode || "",

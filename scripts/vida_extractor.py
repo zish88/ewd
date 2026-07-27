@@ -1720,6 +1720,10 @@ def main() -> int:
             },
         )
         log(f"  EPC device parts: {len(devices)}")
+        log(
+            "Next: run `node scripts/build-harness-repair-catalog.mjs` "
+            "to refresh data/vida_harness_repair_catalog.json"
+        )
         log("VIDA extract complete.")
         return 0
     finally:

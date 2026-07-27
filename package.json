@@ -17,6 +17,8 @@
     "test": "tsx --test server/**/*.test.ts server/*.test.ts client/src/**/*.test.ts scripts/**/*.test.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "smoke:nav-plan": "tsx scripts/_smoke-md-nav-plan.mjs",
+    "build:harness-repair-catalog": "node scripts/build-harness-repair-catalog.mjs",
+    "build:part-images": "python scripts/extract_epc_part_images.py",
     "audit:wire-context": "tsx scripts/audit-wire-context.ts",
     "git:save": "node scripts/commit-push.mjs",
     "typecheck": "tsc --noEmit",

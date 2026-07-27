@@ -75,6 +75,10 @@ data/vida_schema_probe.json
 !data/vida_connector_bom.json
 !data/vida_connector_parts.json
 !data/vida_components_ru.json
+!data/vida_harness_repair_catalog.json
+# Part illustration index (blobs stay local / VPS copy)
+!data/vida_part_image_index.json
+data/vida_part_images/**
 
 # Allow the production SQLite DB in git (small, required for VPS)
 !data/wiring.sqlite
