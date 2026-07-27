@@ -19,6 +19,7 @@ import {
 import { componentTypeRu, wireColorRu } from "../volvoStandards.js";
 import { enrichDetailWithName } from "../detailEnrich.js";
 import { lookupFacePins } from "./ewdCapital.js";
+import { ZONE_SEARCH_ALIASES } from "../../shared/searchLexicon.js";
 import {
   partsForCode as buildCardParts,
   matchHarnessRepair,
@@ -165,6 +166,8 @@ function attachPartsToCards<T extends Record<string, unknown>>(
 type NavListItem = {
   code: string;
   label: string;
+  /** Haystack for UI search: name + part numbers (not shown in label). */
+  search_text: string;
   type_ru: string;
   has_pinout: boolean;
   has_diagram: boolean;
@@ -617,12 +620,21 @@ function buildNavComponentPayload(
   const subjectCodes = new Set<string>();
   /** Codes that have ≥1 zone-matching wire (owner or endpoint) — symmetry with /wires. */
   const codesWithZoneWires = new Set<string>();
+  /** Codes that appear on any wire (any harness) — used for home_zone listing. */
+  const codesWithAnyWires = new Set<string>();
+  const idsWithAnyWires = new Set<number>();
 
   /** Majority harness zone per subject (owner rows) — gates subjectCodes into a zone list. */
   const majorityBySubject = new Map<string, ZoneId>();
   {
     const votes = new Map<string, Map<ZoneId, number>>();
     for (const w of wireRows) {
+      for (const id of [w.from_component_id, w.to_component_id, w.via_component_id]) {
+        if (id) idsWithAnyWires.add(id);
+      }
+      for (const code of [w.from_code, w.to_code, w.via_code, w.subject_code]) {
+        if (code) codesWithAnyWires.add(code);
+      }
       const subj = String(w.subject_code || "").trim();
       if (!subj) continue;
       const bucket = votes.get(subj) || new Map<ZoneId, number>();
@@ -692,10 +704,15 @@ function buildNavComponentPayload(
     }
     const home = homeByCode.get(c.component_code) || "";
     if (home && home !== zone) continue;
-    const listed =
+    const wireListed =
       (subjectCodes.has(c.component_code) || idSet.has(c.id)) &&
       codesWithZoneWires.has(c.component_code);
-    if (listed) byCode.set(c.component_code, c);
+    // Physical home wins: a trunk/seat node routed through the floor harness
+    // still belongs in its home zone (otherwise it vanishes from every thin zone).
+    const homeListed =
+      home === zone &&
+      (codesWithAnyWires.has(c.component_code) || idsWithAnyWires.has(c.id));
+    if (wireListed || homeListed) byCode.set(c.component_code, c);
   }
 
   const pinoutCodes = new Set(
@@ -733,24 +750,35 @@ function buildNavComponentPayload(
       String(c.part_number || "").trim() || String(jsonConn?.part_number || "").trim();
     const matePn =
       String(c.part_number_mate || "").trim() || String(jsonConn?.part_number_mate || "").trim();
-    const pnBits: string[] = [];
-    if (devicePn) pnBits.push(`деталь ${devicePn}`);
-    if (housingPn) pnBits.push(`корпус ${housingPn}`);
-    if (matePn && matePn !== housingPn) pnBits.push(`ответная ${matePn}`);
-    const pn = pnBits.length ? ` [${pnBits.join(" · ")}]` : "";
     const has_pinout = pinoutCodes.has(c.component_code);
     const has_diagram = false;
     const has_ewd = ewdCodes.has(c.component_code);
-    const marks: string[] = [];
-    if (has_ewd) marks.push("схема");
-    if (has_pinout) marks.push("контакты");
-    const mark = marks.length ? ` [${marks.join("·")}]` : "";
-    const label = desc
-      ? `${c.component_code} — ${desc}${pn}${mark}`
-      : `${c.component_code}${pn}${mark}`;
+    // Dropdown: code + node name only (no housing/mate/device PNs).
+    const label = desc ? `${c.component_code} — ${desc}` : c.component_code;
+    const home = String(c.home_zone || "").trim();
+    const zoneLabel =
+      home && ZONE_LABELS[home as ZoneId] ? ZONE_LABELS[home as ZoneId] : "";
+    const zoneAliases = home ? ZONE_SEARCH_ALIASES[home] || [] : [];
+    const searchBits = [
+      c.component_code,
+      desc,
+      c.name_ru,
+      c.description_ru,
+      c.description_en,
+      devicePn,
+      housingPn,
+      matePn,
+      c.component_type_ru,
+      home,
+      zoneLabel,
+      ...zoneAliases,
+    ]
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
     const item: NavListItem = {
       code: c.component_code,
       label,
+      search_text: [...new Set(searchBits)].join(" "),
       type_ru: c.component_type_ru || "",
       has_pinout,
       has_diagram,

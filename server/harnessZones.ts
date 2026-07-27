@@ -69,17 +69,32 @@ export const CAPITAL_HARNESS_ZONE: Record<string, ZoneId> = {
   AFBT: "front_bumper",
   CONTROLPANEL: "dashboard",
   "TRAILER-4P": "trunk",
+  "TRAILER-13P": "trunk",
+  "TRAILER-7/4P": "trunk",
   "ACU Adapter": "dashboard",
+  // Resolved from dominant subject codes in the netlist
+  INSEAT: "seats",
+  "AGM-ADAPTER": "engine",
+  PSTAR2: "engine",
+  PSTAR3: "engine",
+  "10C307": "engine",
+  "9K499": "engine",
+  "15K602": "dashboard",
+  "18D274": "dashboard",
+  "7A786": "floor",
+  ERAD_GROUND: "floor",
+  SPOILER_ANT: "trunk",
+  "GPS HARNESS": "roof",
 };
 
 const ZONE_RULES: Array<{ id: ZoneId; re: RegExp }> = [
   {
     id: "front_bumper",
-    re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|омывател|parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b/i,
+    re: /\bbumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|омывател|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b|front\s*parking\s*assistance|помощ\w*\s*при\s*парковк\w*.{0,40}передн|передн.{0,40}помощ\w*\s*при\s*парковк|parking\s*sensor\s*side/i,
   },
   {
     id: "rear_bumper",
-    re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|park\s*assist(?:ance)?\s*system\s*rear/i,
+    re: /\bbumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|park\s*assist(?:ance)?\s*system\s*rear|rear\s*parking\s*assistance|помощ\w*\s*при\s*парковк\w*.{0,40}задн|задн.{0,40}помощ\w*\s*при\s*парковк/i,
   },
   {
     id: "trunk",
@@ -172,6 +187,9 @@ export function extractCapitalHarnessId(raw: string): string | null {
 
 function zoneFromCapitalId(id: string): ZoneId | null {
   if (CAPITAL_HARNESS_ZONE[id]) return CAPITAL_HARNESS_ZONE[id];
+  // Variant suffix (14301B) shares the zone of its base id.
+  const variant = id.toUpperCase().match(/^(\d[0-9A-Z]{2,8})[A-Z]$/);
+  if (variant && CAPITAL_HARNESS_ZONE[variant[1]]) return CAPITAL_HARNESS_ZONE[variant[1]];
   const label = resolveHarnessLabel(id);
   if (label) {
     const z = classifyByRules(label);

@@ -26,6 +26,8 @@ import {
   sheetSideHighlightPin,
   type SchemeContext,
 } from "./ewdSchemeResolver.js";
+import { filterNavGroupsByQuery } from "./navComponentSearch.js";
+import { ModernSelect } from "./ModernSelect.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
@@ -388,10 +390,13 @@ function CapitalPanelViewer({
 type NavItem = {
   code: string;
   label: string;
+  /** Server haystack: name + part numbers for search (not shown in select). */
+  search_text?: string;
   type_ru: string;
   has_pinout?: boolean;
   has_diagram?: boolean;
   has_ewd?: boolean;
+  home_zone?: string;
 };
 type NavGroup = { id: string; label: string; items: NavItem[] };
 type NavZone = { id: string; label: string; count: number };
@@ -1730,6 +1735,8 @@ function App() {
   } | null>(null);
   const [zones, setZones] = useState<NavZone[]>([]);
   const [navGroups, setNavGroups] = useState<NavGroup[]>([]);
+  /** Full catalog (no zone filter) so search finds nodes outside the selected zone. */
+  const [navAllGroups, setNavAllGroups] = useState<NavGroup[]>([]);
   const [selectedZone, setSelectedZone] = useState(() => persisted0.zone || "all");
   const [isAdmin, setIsAdmin] = useState(false);
   /** null = status not loaded yet (do not render the full app for visitors). */
@@ -1800,6 +1807,10 @@ function App() {
     Boolean(persisted0.model || persisted0.year || persisted0.engine || persisted0.zone || persisted0.code),
   );
   const [selectedCode, setSelectedCode] = useState(() => persisted0.code || "");
+  /** Draft in the search box; applied only on лупа / Enter. */
+  const [nodeQueryDraft, setNodeQueryDraft] = useState("");
+  /** Active filter for the Узел select (code, name, PN via search_text). */
+  const [nodeQuery, setNodeQuery] = useState("");
   /** null = all colors; otherwise normalized wireColor from current node cards */
   const [wireColorFilter, setWireColorFilter] = useState<string | null>(null);
   /** Last card circuit context for weighted diagram ranking */
@@ -1839,6 +1850,44 @@ function App() {
     () => collectUniqueWireColors([...ownerWires, ...transitWires]),
     [ownerWires, transitWires],
   );
+  /** Codes visible under the currently selected zone — search marks the rest as «другая зона». */
+  const zoneCodeSet = useMemo(
+    () => new Set(navGroups.flatMap((g) => g.items.map((i) => i.code))),
+    [navGroups],
+  );
+  const zoneLabelById = useMemo(
+    () => new Map(zones.map((z) => [z.id, z.label])),
+    [zones],
+  );
+  /** Search always spans the whole catalog, so a query never dead-ends on the zone filter. */
+  const nodeSearchResults = useMemo(() => {
+    if (!nodeQuery) return [];
+    const source = navAllGroups.length ? navAllGroups : navGroups;
+    return filterNavGroupsByQuery(source, nodeQuery)
+      .flatMap((g) => g.items)
+      .slice(0, 60);
+  }, [navAllGroups, navGroups, nodeQuery]);
+  const applyNodeSearch = () => {
+    setNodeQuery(nodeQueryDraft.trim());
+  };
+  const clearNodeSearch = () => {
+    setNodeQueryDraft("");
+    setNodeQuery("");
+  };
+  const pickSearchResult = (code: string) => {
+    const nextZone =
+      !zoneCodeSet.has(code) && selectedZone !== "all" ? "all" : selectedZone;
+    setNodeQuery("");
+    setNodeQueryDraft("");
+    setWireColorFilter(null);
+    setFiltersSheetOpen(false);
+    setFiltersPopoverOpen(false);
+    if (nextZone !== selectedZone) setSelectedZone(nextZone);
+    setSelectedCode(code);
+    setMode("search");
+    // Explicit load — don't rely only on the selectedCode effect (zone/select races).
+    void loadWires(code, nextZone);
+  };
   const filteredOwnerWires = useMemo(
     () => filterCardsByWireColor(ownerWires, wireColorFilter),
     [ownerWires, wireColorFilter],
@@ -2063,6 +2112,10 @@ function App() {
 
   useEffect(() => {
     fetch("/api/nav/zones").then(r => r.json()).then(data => setZones(Array.isArray(data.zones) ? data.zones : [])).catch(() => setZones([]));
+    fetch("/api/nav/components")
+      .then((r) => r.json())
+      .then((data) => setNavAllGroups(Array.isArray(data.groups) ? data.groups : []))
+      .catch(() => setNavAllGroups([]));
   }, []);
 
   useEffect(() => {
@@ -2071,6 +2124,8 @@ function App() {
       .then(r => r.json())
       .then(data => setNavGroups(Array.isArray(data.groups) ? data.groups : []))
       .catch(() => setNavGroups([]));
+    setNodeQuery("");
+    setNodeQueryDraft("");
   }, [selectedZone]);
 
   useEffect(() => {
@@ -3268,97 +3323,104 @@ function App() {
 
   const vehicleQuickFields = (
     <>
-      <label className="app-bar__quick-field">
+      <div className="app-bar__quick-field">
         <span>Модель</span>
-        <select
-          data-testid="vehicle-model"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="vehicle-model"
+          ariaLabel="Модель"
           value={selectedModel}
           disabled={vinLocked}
-          onChange={(e) => {
+          placeholder="—"
+          options={[
+            { value: "", label: "—" },
+            ...available.models.map((x) => ({ value: x, label: x })),
+          ]}
+          onChange={(nextValue) => {
             setVinLocked(false);
-            setSelectedModel(e.target.value);
+            setSelectedModel(nextValue);
             setSelectedYear("");
             setSelectedEngine("");
             setSelectedTransmission("");
           }}
-        >
-          <option value="">—</option>
-          {available.models.map((x) => (
-            <option key={x} value={x}>{x}</option>
-          ))}
-        </select>
-      </label>
-      <label className="app-bar__quick-field">
+        />
+      </div>
+      <div className="app-bar__quick-field">
         <span>Год</span>
-        <select
-          data-testid="vehicle-year"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="vehicle-year"
+          ariaLabel="Год"
           value={selectedYear}
           disabled={vinLocked || !selectedModel}
-          onChange={(e) => {
+          placeholder="—"
+          options={[
+            { value: "", label: "—" },
+            ...available.years.map((x) => ({ value: x, label: x })),
+          ]}
+          onChange={(nextValue) => {
             setVinLocked(false);
-            setSelectedYear(e.target.value);
+            setSelectedYear(nextValue);
             setSelectedEngine("");
             setSelectedTransmission("");
           }}
-        >
-          <option value="">—</option>
-          {available.years.map((x) => (
-            <option key={x} value={x}>{x}</option>
-          ))}
-        </select>
-      </label>
-      <label className="app-bar__quick-field">
+        />
+      </div>
+      <div className="app-bar__quick-field">
         <span>Двиг.</span>
-        <select
-          data-testid="vehicle-engine"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="vehicle-engine"
+          ariaLabel="Двигатель"
           value={selectedEngine}
           disabled={vinLocked || !selectedYear}
-          onChange={(e) => {
+          placeholder="—"
+          options={[
+            { value: "", label: "—" },
+            ...available.engineOptions.map((x) => ({ value: x.id, label: x.label })),
+          ]}
+          onChange={(nextValue) => {
             setVinLocked(false);
-            setSelectedEngine(e.target.value);
+            setSelectedEngine(nextValue);
             setSelectedTransmission("");
           }}
-        >
-          <option value="">—</option>
-          {available.engineOptions.map((x) => (
-            <option key={x.id} value={x.id}>{x.label}</option>
-          ))}
-        </select>
-      </label>
-      <label className="app-bar__quick-field">
+        />
+      </div>
+      <div className="app-bar__quick-field">
         <span>КПП</span>
-        <select
-          data-testid="vehicle-transmission"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="vehicle-transmission"
+          ariaLabel="Коробка передач"
           value={selectedTransmission}
           disabled={vinLocked || !selectedYear}
-          onChange={(e) => {
+          placeholder="Все"
+          options={[
+            { value: "", label: "Все" },
+            ...available.transmissions.map((t) => ({ value: t.id, label: t.label })),
+          ]}
+          onChange={(nextValue) => {
             setVinLocked(false);
-            setSelectedTransmission(e.target.value);
+            setSelectedTransmission(nextValue);
           }}
-        >
-          <option value="">Все</option>
-          {available.transmissions.map((t) => (
-            <option key={t.id} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-      </label>
+        />
+      </div>
     </>
   );
 
   const navQuickFields = features.navBrowse ? (
     <>
-      <label className="app-bar__quick-field app-bar__quick-field--grow">
+      <div className="app-bar__quick-field app-bar__quick-field--grow">
         <span>Зона</span>
-        <select
-          data-testid="nav-zone"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="nav-zone"
+          ariaLabel="Зона"
           value={selectedZone}
-          onChange={(e) => {
-            setSelectedZone(e.target.value);
+          options={[
+            { value: "all", label: "Все зоны" },
+            ...zones.map((z) => ({
+              value: z.id,
+              label: `${z.label}${z.count ? ` (${z.count})` : ""}`,
+            })),
+          ]}
+          onChange={(nextValue) => {
+            setSelectedZone(nextValue);
             setSelectedCode("");
             setOwnerWires([]);
             setTransitWires([]);
@@ -3369,35 +3431,137 @@ function App() {
             setActiveSvg(null);
             setSelectedPinState(null);
           }}
-        >
-          <option value="all">Все зоны</option>
-          {zones.map((z) => (
-            <option key={z.id} value={z.id}>{z.label}{z.count ? ` (${z.count})` : ""}</option>
-          ))}
-        </select>
-      </label>
-      <label className="app-bar__quick-field app-bar__quick-field--wide">
+        />
+      </div>
+      <div className="app-bar__quick-field app-bar__quick-field--grow app-bar__quick-field--search">
+        <span>Поиск</span>
+        <div className="app-bar__node-search">
+          <input
+            data-testid="nav-component-search"
+            className="app-input app-bar__node-search-input rounded px-1.5 py-1"
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="название, зона, PN…"
+            value={nodeQueryDraft}
+            onChange={(e) => setNodeQueryDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                applyNodeSearch();
+              }
+            }}
+          />
+          {nodeQueryDraft || nodeQuery ? (
+            <button
+              type="button"
+              data-testid="nav-component-search-clear"
+              className="app-bar__node-search-clear"
+              title="Сбросить поиск"
+              aria-label="Сбросить поиск"
+              onClick={clearNodeSearch}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M7 7L17 17M17 7L7 17"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            data-testid="nav-component-search-btn"
+            className="app-bar__node-search-btn"
+            title="Найти"
+            aria-label="Найти узел"
+            onClick={applyNodeSearch}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false">
+              <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M15.5 15.5L20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          {nodeQuery ? (
+            <div className="node-search-results" data-testid="nav-search-results" role="listbox">
+              <div className="node-search-results__head">
+                <span>
+                  {nodeSearchResults.length
+                    ? `Найдено: ${nodeSearchResults.length}`
+                    : "Ничего не найдено"}
+                </span>
+                <button
+                  type="button"
+                  className="node-search-results__close"
+                  onClick={clearNodeSearch}
+                >
+                  Закрыть
+                </button>
+              </div>
+              {nodeSearchResults.length ? (
+                <ul className="node-search-results__list">
+                  {nodeSearchResults.map((it) => {
+                    const outside = !zoneCodeSet.has(it.code) && selectedZone !== "all";
+                    return (
+                      <li key={it.code}>
+                        <button
+                          type="button"
+                          data-testid="nav-search-result"
+                          className="node-search-results__item"
+                          role="option"
+                          onMouseDown={(e) => {
+                            // Prevent input blur/label quirks from eating the click.
+                            e.preventDefault();
+                          }}
+                          onClick={() => pickSearchResult(it.code)}
+                        >
+                          <span className="node-search-results__label">{it.label}</span>
+                          {outside ? (
+                            <span className="node-search-results__zone">
+                              {zoneLabelById.get(it.home_zone || "") || "другая зона"}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="node-search-results__empty">
+                  Попробуйте часть названия, зону («двери», «крыша», «сиденья») или номер детали.
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className="app-bar__quick-field app-bar__quick-field--wide">
         <span>Узел</span>
-        <select
-          data-testid="nav-component"
-          className="app-input rounded px-1.5 py-1"
+        <ModernSelect
+          testId="nav-component"
+          ariaLabel="Узел"
           value={selectedCode}
-          onChange={(e) => {
-            setSelectedCode(e.target.value);
-          }}
-        >
-          <option value="">Узел…</option>
-          {navGroups.map((g) =>
-            g.items.length ? (
-              <optgroup key={g.id} label={g.label}>
-                {g.items.map((it) => (
-                  <option key={it.code} value={it.code}>{it.label}</option>
-                ))}
-              </optgroup>
-            ) : null,
-          )}
-        </select>
-      </label>
+          placeholder="Узел…"
+          options={[{ value: "", label: "Узел…" }]}
+          groups={navGroups.map((g) => ({
+            id: g.id,
+            label: g.label,
+            options: g.items.map((it) => ({ value: it.code, label: it.label })),
+          }))}
+          onChange={setSelectedCode}
+        />
+      </div>
     </>
   ) : null;
 

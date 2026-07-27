@@ -174,6 +174,21 @@ test("nav components zone filter hides engine connector", async () => {
   assert.ok(!codes.includes("74/301"));
 });
 
+test("nav component labels are code + name only (no housing/mate PNs)", async () => {
+  const res = await request(fixture()).get("/api/nav/components?zone=front_doors");
+  assert.equal(res.status, 200);
+  const items = res.body.groups.flatMap(
+    (g: { items: Array<{ code: string; label: string; search_text?: string }> }) => g.items,
+  ) as Array<{ code: string; label: string; search_text?: string }>;
+  assert.ok(items.length >= 1);
+  for (const it of items) {
+    assert.ok(!/деталь\s|корпус\s|ответная\s|\[схема|\[контакты/i.test(it.label), it.label);
+    assert.ok(it.label.startsWith(it.code), it.label);
+    assert.ok(typeof it.search_text === "string");
+    assert.ok(it.search_text.includes(it.code));
+  }
+});
+
 test("nav components in zone list have wires under same zone", async () => {
   const app = fixture();
   const list = await request(app).get("/api/nav/components?zone=front_doors");
@@ -285,12 +300,12 @@ test("nav components front_bumper does not list steering peer SCL", async () => 
       .prepare("INSERT INTO pages(manual_id, source_page, system_name, page_type) VALUES (?, ?, ?, ?)")
       .run(enId, 100, "Connector 74/411", "connector").lastInsertRowid,
   );
-  const pam = Number(
+  const pas = Number(
     db
       .prepare(
         "INSERT INTO components(component_code, component_type_ru, description_ru, description_en) VALUES (?, ?, ?, ?)",
       )
-      .run("4/86", "Блок", "", "Parking Assistance Module (PAM)")
+      .run("7/204", "Датчик", "", "Front parking assistance sensor")
       .lastInsertRowid,
   );
   const scl = Number(
@@ -324,9 +339,9 @@ test("nav components front_bumper does not list steering peer SCL", async () => 
     "Коричневый",
     "",
     "4/102:1 — Steering Column Lock Module (SCL)",
-    "4/86:1 — Parking Assistance Module (PAM)",
+    "7/204:1 — Front parking assistance sensor",
     "4/102:1",
-    "4/86:1",
+    "7/204:1",
     "",
     "74/411",
     "connector_pinout",
@@ -334,7 +349,7 @@ test("nav components front_bumper does not list steering peer SCL", async () => 
     0,
     50,
     scl,
-    pam,
+    pas,
     null,
     "Harness bumper, front",
     "Dashboard harness",
@@ -352,7 +367,7 @@ test("nav components front_bumper does not list steering peer SCL", async () => 
     g.items.map((i) => i.code),
   );
   assert.ok(codes.includes("74/411"), `expected owner connector, got ${codes.join(",")}`);
-  assert.ok(codes.includes("4/86"), `PAM detail belongs to bumper, got ${codes.join(",")}`);
+  assert.ok(codes.includes("7/204"), `front PAS sensor belongs to bumper, got ${codes.join(",")}`);
   assert.ok(!codes.includes("4/102"), `SCL must not appear in bumper list, got ${codes.join(",")}`);
 });
 

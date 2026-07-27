@@ -8,8 +8,12 @@ from __future__ import annotations
 import os
 import re
 import sqlite3
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+
+from physical_zone_rules import classify_physical  # noqa: E402
 DB_PATH = os.path.join(ROOT, "data", "wiring.sqlite")
 
 # Mirror server/harnessZones.ts CAPITAL_HARNESS_ZONE
@@ -50,18 +54,36 @@ CAPITAL_HARNESS_ZONE = {
     "AFBT": "front_bumper",
     "CONTROLPANEL": "dashboard",
     "TRAILER-4P": "trunk",
+    "TRAILER-13P": "trunk",
+    "TRAILER-7/4P": "trunk",
     "ACU Adapter": "dashboard",
+    # Resolved from dominant subject codes in the netlist (see reports/home-zone-physical-fix.json)
+    "INSEAT": "seats",
+    "AGM-ADAPTER": "engine",
+    "PSTAR2": "engine",
+    "PSTAR3": "engine",
+    "10C307": "engine",
+    "9K499": "engine",
+    "15K602": "dashboard",
+    "18D274": "dashboard",
+    "7A786": "floor",
+    "ERAD_GROUND": "floor",
+    "SPOILER_ANT": "trunk",
+    "GPS HARNESS": "roof",
 }
 
 ZONE_RULES = [
     ("front_bumper", re.compile(
         r"bumper,?\s*front|front\s*bumper|бампер.*перед|передн\w*\s*бампер|washer\s*nozzle|"
-        r"parking\s*assistance|forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b",
+        r"forward-?aimed\s*radar|\bFLC\b|\bfront\s*pas\b|front\s*parking\s*assistance|"
+        r"помощ\w*\s*при\s*парковк\w*.{0,40}передн|передн.{0,40}помощ\w*\s*при\s*парковк|"
+        r"parking\s*sensor\s*side",
         re.I,
     )),
     ("rear_bumper", re.compile(
         r"bumper,?\s*rear|rear\s*bumper|бампер.*зад|задн\w*\s*бампер|\brear\s*pas\b|"
-        r"park\s*assist(?:ance)?\s*system\s*rear",
+        r"park\s*assist(?:ance)?\s*system\s*rear|rear\s*parking\s*assistance|"
+        r"помощ\w*\s*при\s*парковк\w*.{0,40}задн|задн.{0,40}помощ\w*\s*при\s*парковк",
         re.I,
     )),
     ("trunk", re.compile(r"trunk\s*lid|tailgate|tail\s*gate|cargo|багажн|пята\w*\s*двер|fifth\s*door", re.I)),
@@ -95,6 +117,23 @@ BODY_BIAS = {
 }
 
 
+ZONE_IDS = {
+    "front_doors",
+    "rear_doors",
+    "front_bumper",
+    "rear_bumper",
+    "trunk",
+    "engine",
+    "dashboard",
+    "floor",
+    "roof",
+    "seats",
+}
+
+# Variant suffixes on Capital ids (14301B → 14301) carry the same zone.
+VARIANT_SUFFIX = re.compile(r"^(\d[0-9A-Z]{2,8})[A-Z]$")
+
+
 def extract_capital_id(text: str) -> str | None:
     s = (text or "").strip()
     if not s:
@@ -104,6 +143,9 @@ def extract_capital_id(text: str) -> str | None:
     for hid in CAPITAL_HARNESS_ZONE:
         if re.search(rf"(?:^|[\s,;/]){re.escape(hid)}(?:$|[\s,;/])", s, re.I):
             return hid
+    m = VARIANT_SUFFIX.match(s.upper())
+    if m and m.group(1) in CAPITAL_HARNESS_ZONE:
+        return m.group(1)
     return None
 
 
@@ -111,6 +153,9 @@ def harness_to_zone(text: str) -> str | None:
     s = (text or "").strip()
     if not s:
         return None
+    # Mirror server/harnessZones.ts: a bare zone id is already the answer.
+    if s in ZONE_IDS:
+        return s
     cid = extract_capital_id(s)
     if cid and cid in CAPITAL_HARNESS_ZONE:
         return CAPITAL_HARNESS_ZONE[cid]
@@ -190,9 +235,22 @@ def main() -> int:
             if z:
                 bucket[z] = bucket.get(z, 0) + 1
 
+    # Physical placement from the component name wins over harness majority:
+    # a trunk lamp routed through the floor harness still lives in the trunk.
+    physical: dict[str, str] = {}
+    for code, name_ru, desc_ru, desc_en in db.execute(
+        """
+        SELECT component_code, IFNULL(name_ru,''), IFNULL(description_ru,''), IFNULL(description_en,'')
+        FROM components
+        """
+    ):
+        z = classify_physical(name_ru, desc_ru, desc_en)
+        if z:
+            physical[code] = z
+
     updated = 0
-    for code, bucket in votes.items():
-        zone = pick_zone(bucket)
+    for code in set(votes) | set(physical):
+        zone = physical.get(code) or pick_zone(votes.get(code, {}))
         if not zone:
             continue
         cur = db.execute(

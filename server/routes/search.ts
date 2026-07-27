@@ -9,59 +9,14 @@ import {
 import { localizeEngineeringText } from "../termGlossary.js";
 import { enrichDetailWithName } from "../detailEnrich.js";
 import { lookupFacePins } from "./ewdCapital.js";
+import {
+  buildSearchAndGroups,
+} from "../../shared/searchLexicon.js";
 
 const PAGE_TYPES = new Set<PageType>(["fuses", "locations", "diagram", "connector"]);
 
-/** Bilingual Translation Matrix */
-const wordMatrix: Record<string, string[]> = {
-  задняя: ["rear", "задн"],
-  передняя: ["front", "передн"],
-  левая: ["left", "lh", "лев", "левой", "левая", "водитель", "driver"],
-  правая: ["right", "rh", "прав", "правой", "правая", "пассажир", "passenger"],
-  дверь: ["door", "двер"],
-  стекло: ["window", "стекл"],
-  динамик: ["speaker", "аудио", "динамик", "колонк"],
-  зеркало: ["mirror", "зеркал"],
-  замок: ["lock", "замк", "lock"],
-  подсветка: ["light", "lamp", "courtesy", "освещен", "подсветк"],
-};
-
-function normalizeQueryToken(raw: string): string {
-  return String(raw || "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}/-]+/gu, "")
-    .trim();
-}
-
-function resolveWordAlternatives(rawWord: string): string[] {
-  const word = normalizeQueryToken(rawWord);
-  if (!word) return [];
-  for (const [key, alts] of Object.entries(wordMatrix)) {
-    for (const candidate of [key, ...alts]) {
-      const stem = candidate.toLowerCase();
-      if (!stem) continue;
-      const hit =
-        word === stem ||
-        (stem.length >= 3 && word.includes(stem)) ||
-        (word.length >= 3 && stem.includes(word));
-      if (hit) return [...new Set([key, ...alts].map((x) => x.toLowerCase()))];
-    }
-  }
-  return [word];
-}
-
 function buildPhraseAndGroups(query: string): string[][] {
-  const cleaned = String(query || "")
-    .trim()
-    .replace(/[^\p{L}\p{N}\s/-]+/gu, " ")
-    .replace(/\s+/g, " ");
-  if (!cleaned) return [];
-  const groups: string[][] = [];
-  for (const token of cleaned.split(/\s+/)) {
-    const alts = resolveWordAlternatives(token);
-    if (alts.length) groups.push(alts);
-  }
-  return groups;
+  return buildSearchAndGroups(query);
 }
 
 const BASE_SELECT = `
