@@ -366,10 +366,12 @@ type NavGroup = { id: string; label: string; items: NavItem[] };
 type NavZone = { id: string; label: string; count: number };
 const DEFAULT_MODELS = ["XC70", "V70", "S80", "XC60", "S60", "V60"];
 type TransmissionOpt = { id: string; label: string };
+type EngineOpt = { id: string; label: string; market?: string };
 type FilterAvailable = {
   models: string[];
   years: string[];
   engines: string[];
+  engineOptions: EngineOpt[];
   transmissions: TransmissionOpt[];
 };
 const colors = WIRE_COLOR_HEX;
@@ -1262,6 +1264,7 @@ function App() {
     models: DEFAULT_MODELS,
     years: [],
     engines: [],
+    engineOptions: [],
     transmissions: [],
   });
   const [optionTokens, setOptionTokens] = useState<string[]>([]);
@@ -1654,32 +1657,36 @@ function App() {
       .then((data) => {
         const nextYears: string[] = Array.isArray(data.years) ? data.years : [];
         const nextEngines: string[] = Array.isArray(data.engines) ? data.engines : [];
+        const nextEngineOptions: EngineOpt[] = Array.isArray(data.engineOptions)
+          ? data.engineOptions
+              .filter((x: unknown): x is EngineOpt => Boolean(
+                x && typeof x === "object" && "id" in x && "label" in x,
+              ))
+              .map((x: EngineOpt) => ({
+                id: String(x.id),
+                label: String(x.label),
+                ...(x.market ? { market: String(x.market) } : {}),
+              }))
+          : nextEngines.map((id) => ({ id, label: id }));
         const nextTrans: TransmissionOpt[] = Array.isArray(data.transmissions) ? data.transmissions : [];
         const nextModels: string[] = Array.isArray(data.models) && data.models.length ? data.models : DEFAULT_MODELS;
         setAvailable({
           models: nextModels,
           years: nextYears,
           engines: nextEngines,
+          engineOptions: nextEngineOptions,
           transmissions: nextTrans,
         });
         if (Array.isArray(data.optionTokens)) {
           setOptionTokens(data.optionTokens.map(String).filter(Boolean));
         }
-        // Keep restored/user picks; never clear from stale parent closures
-        setSelectedYear((current: string) => {
-          if (!current) return "";
-          if (!nextYears.length || nextYears.includes(current)) return current;
-          return current;
-        });
-        setSelectedEngine((current: string) => {
-          if (!current) return "";
-          if (!nextEngines.length || nextEngines.includes(current)) return current;
-          return current;
-        });
-        setSelectedTransmission((current: string) => {
-          if (!current) return ""; // «Все КПП»
-          return current;
-        });
+        // The server owns cascade normalization. Applying its selection clears
+        // stale URL/localStorage values after model/year changes.
+        if (data.selection && typeof data.selection === "object") {
+          setSelectedYear(String(data.selection.year || ""));
+          setSelectedEngine(String(data.selection.engine || ""));
+          setSelectedTransmission(String(data.selection.transmission || ""));
+        }
       })
       .catch((err: { name?: string }) => {
         if (err?.name === "AbortError") return;
@@ -2947,8 +2954,8 @@ function App() {
           }}
         >
           <option value="">—</option>
-          {available.engines.map((x) => (
-            <option key={x} value={x}>{x}</option>
+          {available.engineOptions.map((x) => (
+            <option key={x.id} value={x.id}>{x.label}</option>
           ))}
         </select>
       </label>

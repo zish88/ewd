@@ -9,7 +9,7 @@ import {
   normalizeOptionExpression,
   tokenizeOptionExpression,
 } from "../../server/optionExpression.js";
-import optionTokenLabelsRaw from "../../data/ewd/option_token_labels.json";
+import optionTokenLabelsRaw from "../../data/ewd/option_token_labels.json" with { type: "json" };
 
 export type HumanizedOptionExpression = {
   raw: string;

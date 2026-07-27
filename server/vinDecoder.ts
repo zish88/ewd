@@ -115,9 +115,8 @@ function isValidVinCharset(vin: string): boolean {
 function yearFromCode(code: string): string {
   const y = YEAR_CODES[code];
   if (!y) return "";
-  // Map 2014–2016 into UI bucket 2014+
-  const n = Number(y);
-  if (n >= 2014) return "2014+";
+  // Keep the exact year. Models that still use the package-level "2014+"
+  // bucket are normalized later against their own year matrix.
   return y;
 }
 
