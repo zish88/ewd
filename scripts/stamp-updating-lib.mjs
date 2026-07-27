@@ -1,10 +1,18 @@
 /**
  * Shared helpers for public deploy notes (updating.html + Web Push body).
  * Only user-facing changes — skip admin/infra/meta commits.
+ *
+ * Контракт для деплоя:
+ * - свежие коммиты (prevGit..HEAD) → только их заметки, без «досыпки» старого lookback;
+ * - git short всегда 8 символов;
+ * - публичные буллеты только на нормальном русском (без EN-каши).
  */
 
 /** How many bullets to show on the updating page / push body. */
 export const MAX_ITEMS = 4;
+
+/** Фиксированная длина short SHA на updating-странице (без 7↔8 скачков). */
+export const GIT_SHORT_LEN = 8;
 
 /** Exact Russian lines for known English commit subjects (display only). */
 export const RU_BY_SUBJECT = new Map(
@@ -13,6 +21,8 @@ export const RU_BY_SUBJECT = new Map(
       "Точнее выбор схемы по проводу и аккуратная подсветка линии на карточке.",
     "Fix Safari Mac schematic zoom for FABs, pinch, and mouse wheel.":
       "Удобнее зум схем на Mac/Safari: кнопки, pinch и колёсико мыши.",
+    "Restore sharp schematic zoom outside Safari.":
+      "Схемы снова чёткие при увеличении в обычных браузерах.",
     "Add admin appearance CMS, tabbed settings save, and fresher deploy notes.":
       "Админка: настройка внешнего вида, вкладки и сохранение черновика; актуальные заметки деплоя.",
     "Restore mouse-wheel zoom on schematics without breaking trackpad pan/pinch.":
@@ -99,6 +109,8 @@ export function isNoiseSubject(s) {
   if (/force utf-8 git log/i.test(s)) return true;
   if (/^Fix deploy notes\b/i.test(s)) return true;
   if (/updating page shows only fresh/i.test(s)) return true;
+  if (/readable Russian deploy notes/i.test(s)) return true;
+  if (/^Show readable Russian\b/i.test(s)) return true;
   return false;
 }
 
@@ -172,7 +184,9 @@ function summarizeUnmappedEnglish(subject) {
   if (/wire-context|wire.?paint|conductor paint|highlight|card focus/i.test(lower)) {
     bits.push("точнее подсветка и выбор схемы по проводу");
   }
-  if (/safari|mouse.?wheel|pinch|trackpad|fab/i.test(lower) && /zoom|схем|schem/i.test(lower)) {
+  if (/sharp schematic zoom|schematic zoom outside/i.test(lower)) {
+    bits.push("схемы снова чёткие при увеличении");
+  } else if (/safari|mouse.?wheel|pinch|trackpad|fab/i.test(lower) && /zoom|схем|schem/i.test(lower)) {
     bits.push("удобнее зум схем на Mac/Safari");
   } else if (/zoom|pinch|trackpad|mouse.?wheel/i.test(lower) && /schem|схем/i.test(lower)) {
     bits.push("удобнее зум и жесты на схемах");
@@ -320,71 +334,84 @@ export function sampleNotes(items, max, rng) {
   return arr.slice(0, n);
 }
 
-function filterAgainstPrevious(notes, previousItems) {
-  const prevKeys = new Set(
-    previousItems.map((x) => noteKey(x)).filter(Boolean),
-  );
-  if (!prevKeys.size) return notes.slice();
-  return notes.filter((x) => {
-    const k = noteKey(x);
-    if (prevKeys.has(k)) return false;
-    // substring overlap: "читаемые подписи..." vs longer variant
-    for (const pk of prevKeys) {
-      if (k.includes(pk) || pk.includes(k)) return false;
-    }
-    return true;
-  });
+/**
+ * Нормализует short SHA для страницы обновления (всегда 8 hex или "local").
+ * @param {string} sha
+ */
+export function formatGitShort(sha) {
+  const raw = String(sha || "").trim().toLowerCase();
+  if (!raw || raw === "local") return "local";
+  const hex = raw.replace(/[^0-9a-f]/g, "");
+  if (hex.length >= GIT_SHORT_LEN) return hex.slice(0, GIT_SHORT_LEN);
+  return hex || "local";
+}
+
+/** Публичный буллет: короткий, по-русски, без EN-каши. */
+export function isValidPublicNote(s) {
+  const t = normalizeSubject(s);
+  if (!t || t.length < 8) return false;
+  if (!hasCyrillic(t)) return false;
+  // До ~половины латиницы ок (Mac/Safari, pinch, OBD) — режем EN-кашу целиком.
+  if (latinLetterRatio(t) > 0.5) return false;
+  if (/^(исправлено|добавлено|сделано|улучшено):\s*[a-z]/i.test(t)) return false;
+  return true;
 }
 
 /**
- * Pick deploy notes for this stamp:
- * - prefer notes from `freshSubjects` (commits since previous stamp)
- * - never recycle previous items while fresh candidates exist
- * - cap at max (default 4); random sample if more
+ * Убираем только точные совпадения с прошлым stamp.
+ * Substring-dedupe нельзя: «чёткие схемы» пересекалось с «зум Safari» и выкидывало свежий фикс.
+ */
+function filterExactPrevious(notes, previousItems) {
+  const prevKeys = new Set(previousItems.map((x) => noteKey(x)).filter(Boolean));
+  if (!prevKeys.size) return notes.slice();
+  return notes.filter((x) => !prevKeys.has(noteKey(x)));
+}
+
+/**
+ * Выбор буллетов для stamp / push.
+ *
+ * С окном freshSubjects (деплой):
+ * - только заметки из prevGit..HEAD;
+ * - без досыпки старых lookback (иначе снова «Пуш-баннеры…» вместо текущего фикса);
+ * - exact-dedupe с прошлым stamp (см. filterExactPrevious).
+ * Без freshSubjects (null): lookback — тесты / первый stamp без baseline.
  */
 export function pickUserFacingDeployNotes(subjects, max = MAX_ITEMS, options = {}) {
   const previousItems = Array.isArray(options.previousItems) ? options.previousItems : [];
   const freshSubjects = Array.isArray(options.freshSubjects) ? options.freshSubjects : null;
   const seed = options.seed != null ? String(options.seed) : subjects.slice(0, 3).join("|");
-  const fallback =
+  const fallback = finishNote(
     typeof options.fallback === "string" && options.fallback.trim()
       ? options.fallback.trim()
-      : "Доступна новая версия справочника.";
+      : "Доступна новая версия справочника.",
+  );
 
-  const fromFreshWindow = freshSubjects
-    ? collectUserFacingNotes(freshSubjects)
-    : collectUserFacingNotes(subjects);
-  const fromLookback = collectUserFacingNotes(subjects);
+  const sanitize = (list) =>
+    list.map(finishNote).filter((n) => n && isValidPublicNote(n));
 
-  const freshNew = filterAgainstPrevious(fromFreshWindow, previousItems);
-  const lookbackNew = filterAgainstPrevious(fromLookback, previousItems);
+  // --- Deploy path: явно передали окно fresh (даже пустое) ---
+  if (freshSubjects) {
+    const fromFresh = sanitize(collectUserFacingNotes(freshSubjects));
+    const freshNew = filterExactPrevious(fromFresh, previousItems);
+    // Если всё уже показывали в прошлом stamp, но окно непустое — всё равно
+    // покажем свежие формулировки этого релиза (не лезем в древний lookback).
+    const pool = (freshNew.length ? freshNew : fromFresh).slice(0, max);
+    if (pool.length) return pool;
 
-  let pool = freshNew;
-  if (pool.length < Math.min(3, max)) {
-    // Not enough brand-new bullets in the deploy window — fill from lookback,
-    // still avoiding previously shown lines.
-    const seen = new Set(pool.map(noteKey));
-    for (const n of lookbackNew) {
-      const k = noteKey(n);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      pool.push(n);
+    // Коммитов с прошлого stamp нет → оставляем прошлые валидные буллеты.
+    if (freshSubjects.length === 0) {
+      const prev = sanitize(previousItems).slice(0, max);
+      return prev.length ? prev : [fallback];
     }
+    // В окне были только infra/noise — честный fallback, без старого мусора.
+    return [fallback];
   }
 
-  // Last resort: allow lookback including previously shown (better than empty),
-  // but only if we truly have nothing else.
-  if (!pool.length) {
-    pool = fromFreshWindow.length ? fromFreshWindow : fromLookback;
-  }
-
-  if (!pool.length) return [finishNote(fallback)];
-
-  // Свежие коммиты — по порядку git log (новые сверху), без random:
-  // иначе wire-context/Safari выпадают, а в списке оказываются старые «размытие авто».
-  if (freshNew.length > 0) {
-    return pool.slice(0, max);
-  }
+  // --- Lookback-only (тесты / без prevGit) ---
+  const fromLookback = sanitize(collectUserFacingNotes(subjects));
+  const lookbackNew = filterExactPrevious(fromLookback, previousItems);
+  let pool = lookbackNew.length ? lookbackNew : fromLookback;
+  if (!pool.length) return [fallback];
 
   const rng = typeof options.rng === "function" ? options.rng : createRng(seed);
   return sampleNotes(pool, max, rng);

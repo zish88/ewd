@@ -68,25 +68,71 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   BUILD=1
 fi
 
+# Авто-rebuild, если HEAD ушёл дальше последнего stamp в deploy-notes.json
+# (иначе на updating-странице остаётся старый git/заметки без BUILD=1).
+if [ -d .git ] && [ -f client/public/deploy-notes.json ]; then
+  HEAD_SHORT="$(git rev-parse --short=8 HEAD 2>/dev/null || true)"
+  NOTES_GIT="$(
+    python3 - <<'PY' 2>/dev/null || true
+import json
+try:
+    print(json.load(open("client/public/deploy-notes.json", encoding="utf-8")).get("git", "").strip())
+except Exception:
+    print("")
+PY
+  )"
+  if [ -n "$HEAD_SHORT" ] && [ -n "$NOTES_GIT" ] && [ "$HEAD_SHORT" != "$NOTES_GIT" ]; then
+    echo "==> deploy-notes stale (notes=$NOTES_GIT head=$HEAD_SHORT) → BUILD=1"
+    BUILD=1
+  fi
+fi
+
+# Сначала node на хосте; если его нет — одноразовый контейнер с git+node.
+stamp_updating_notes() {
+  if command -v node >/dev/null 2>&1; then
+    node scripts/stamp-updating.mjs
+    return $?
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    docker run --rm -v "${APP_DIR}:/app" -w /app node:22-bookworm \
+      bash -lc 'apt-get update -qq && apt-get install -y -qq git >/dev/null && node scripts/stamp-updating.mjs'
+    return $?
+  fi
+  echo "ERROR: node/docker missing — cannot stamp updating.html"
+  return 1
+}
+
 if [ "$BUILD" = "1" ]; then
   echo "==> stamp updating.html deploy notes"
-  # Host node preferred. Runtime image has no git — use node:22-bookworm + git when needed.
-  # If stamp fails, nginx still serves the committed updating.html from the last push.
-  if command -v node >/dev/null 2>&1; then
-    node scripts/stamp-updating.mjs || echo "WARN: stamp-updating failed (using committed updating.html)"
-  elif command -v docker >/dev/null 2>&1; then
-    docker run --rm -v "${APP_DIR}:/app" -w /app node:22-bookworm \
-      bash -lc 'apt-get update -qq && apt-get install -y -qq git >/dev/null && node scripts/stamp-updating.mjs' \
-      || echo "WARN: stamp-updating via docker failed (using committed updating.html)"
-  else
-    echo "WARN: node/docker missing — using committed updating.html"
+  # Stamp обязан пройти на BUILD: иначе в образ уедут устаревшие/чужие заметки.
+  # Если stamp падает — стоп (не маскируем WARN-ом).
+  if ! stamp_updating_notes; then
+    echo "ERROR: stamp-updating failed — abort deploy (fix git/node, then BUILD=1 bash deploy.sh)"
+    exit 1
+  fi
+  # После stamp HEAD и notes.git должны совпадать (8 hex).
+  if [ -d .git ] && [ -f client/public/deploy-notes.json ]; then
+    HEAD_SHORT="$(git rev-parse --short=8 HEAD 2>/dev/null || true)"
+    NOTES_GIT="$(
+      python3 - <<'PY' 2>/dev/null || true
+import json
+try:
+    print(json.load(open("client/public/deploy-notes.json", encoding="utf-8")).get("git", "").strip())
+except Exception:
+    print("")
+PY
+    )"
+    if [ -n "$HEAD_SHORT" ] && [ "$HEAD_SHORT" != "$NOTES_GIT" ]; then
+      echo "ERROR: stamp git mismatch (notes=$NOTES_GIT head=$HEAD_SHORT)"
+      exit 1
+    fi
   fi
   echo "==> freeing docker disk before build"
   docker system prune -af || true
   echo "==> docker build --no-cache"
   docker build --no-cache -t "$IMAGE" .
 else
-  echo "==> skip build (image exists). To force: BUILD=1 bash deploy.sh"
+  echo "==> skip build (image exists, deploy-notes match HEAD). To force: BUILD=1 bash deploy.sh"
 fi
 
 mkdir -p "${APP_DIR}/manual" "${APP_DIR}/data/ewd"

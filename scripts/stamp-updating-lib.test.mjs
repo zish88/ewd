@@ -1,10 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  GIT_SHORT_LEN,
   MAX_ITEMS,
   collectUserFacingNotes,
   expandDeploySubject,
+  formatGitShort,
   isInternalDeploySubject,
+  isValidPublicNote,
   noteKey,
   pickUserFacingDeployNotes,
   sampleNotes,
@@ -137,4 +140,67 @@ test("Document OBD vehicle-agnostic is hidden from public notes", () => {
 
 test("MAX_ITEMS is 4", () => {
   assert.equal(MAX_ITEMS, 4);
+});
+
+test("formatGitShort always yields 8 hex or local", () => {
+  assert.equal(GIT_SHORT_LEN, 8);
+  assert.equal(formatGitShort("5ea95915abc"), "5ea95915");
+  assert.equal(formatGitShort("5ea9591"), "5ea9591");
+  assert.equal(formatGitShort("local"), "local");
+  assert.equal(formatGitShort(""), "local");
+});
+
+test("isValidPublicNote rejects English jargon leftovers", () => {
+  assert.equal(isValidPublicNote("Схемы снова чёткие при увеличении в обычных браузерах."), true);
+  assert.equal(isValidPublicNote("Fix wire-context sheet pick and tighten conductor paint."), false);
+  assert.equal(isValidPublicNote("Исправлено: wire-context sheet pick."), false);
+  assert.equal(isValidPublicNote("Available update."), false);
+});
+
+test("fresh window keeps sharp-zoom even when previous Safari zoom overlaps by words", () => {
+  const previousItems = [
+    "Удобнее зум схем на Mac/Safari: кнопки, pinch и колёсико мыши.",
+    "Точнее выбор схемы по проводу и аккуратная подсветка линии на карточке.",
+  ];
+  const lookback = [
+    "Restore sharp schematic zoom outside Safari.",
+    "Fix Safari Mac schematic zoom for FABs, pinch, and mouse wheel.",
+    "Пуш/SW баннеры, детали DTC VIDA, рефактор nav-зон и pinch-zoom схем.",
+    "Add Web Push notifications after site updates.",
+  ];
+  const fresh = ["Restore sharp schematic zoom outside Safari."];
+  const items = pickUserFacingDeployNotes(lookback, MAX_ITEMS, {
+    previousItems,
+    freshSubjects: fresh,
+    seed: "sharp-vs-safari",
+  });
+  assert.ok(items.some((x) => /чётк/i.test(x)), `sharp zoom missing: ${JSON.stringify(items)}`);
+  assert.ok(!items.some((x) => /пуш-баннер|уведомлен/i.test(x)), `stale lookback leaked: ${JSON.stringify(items)}`);
+});
+
+test("fresh window with only infra commits → fallback, not lookback recycle", () => {
+  const lookback = [
+    "Add Web Push notifications after site updates.",
+    "Пуш/SW баннеры, детали DTC VIDA, рефактор nav-зон и pinch-zoom схем.",
+    "Улучшен pinch-zoom на схемах для трекпада.",
+  ];
+  const items = pickUserFacingDeployNotes(lookback, MAX_ITEMS, {
+    previousItems: ["Старая заметка про pinch."],
+    freshSubjects: [
+      "Document OBD gateway as vehicle-agnostic probe, not a fixed XC70 profile.",
+      "Stamp updating.html deploy notes",
+    ],
+    seed: "infra-only",
+  });
+  assert.deepEqual(items, ["Доступна новая версия справочника."]);
+});
+
+test("empty fresh window keeps previous valid bullets", () => {
+  const prev = ["Схемы снова чёткие при увеличении в обычных браузерах."];
+  const items = pickUserFacingDeployNotes(
+    ["Add Web Push notifications after site updates."],
+    MAX_ITEMS,
+    { previousItems: prev, freshSubjects: [], seed: "empty-fresh" },
+  );
+  assert.deepEqual(items, prev);
 });

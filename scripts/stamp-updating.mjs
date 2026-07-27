@@ -1,17 +1,20 @@
 /**
- * Auto-build deploy notes from git and embed into updating.html.
- * Usage: node scripts/stamp-updating.mjs
+ * Собирает заметки деплоя из git и вшивает их в updating.html + deploy-notes.json.
+ * Запуск: node scripts/stamp-updating.mjs  (или npm run stamp:updating)
  *
- * - version: YYYY.MM.DD (deploy machine local date)
- * - git: always current short HEAD
- * - items: up to 4 *new* user-facing notes (random sample if more)
+ * - version: YYYY.MM.DD (дата на машине, где крутится stamp)
+ * - git: short HEAD ровно 8 hex (без скачков 7↔8)
+ * - items: до 4 пользовательских буллетов из окна prevStamp..HEAD
+ *   (старый lookback не «досыпаем» — иначе снова чужие заметки)
  */
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  GIT_SHORT_LEN,
   MAX_ITEMS,
+  formatGitShort,
   pickUserFacingDeployNotes,
 } from "./stamp-updating-lib.mjs";
 
@@ -31,6 +34,7 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+/** git с UTF-8 логом — иначе subject'ы на Windows/VPS приедут кракозябрами. */
 function git(cmd) {
   return execSync(cmd, {
     cwd: root,
@@ -66,7 +70,11 @@ function readPreviousNotes() {
 }
 
 /**
- * @returns {{ lookback: string[], fresh: string[], window: string }}
+ * lookback — запас на первый stamp / тесты;
+ * fresh — коммиты с прошлого stamp (только их показываем на деплое);
+ * hasFreshWindow — true, если prevGit нашёлся в репо (даже если fresh пуст).
+ *
+ * @returns {{ lookback: string[], fresh: string[], window: string, hasFreshWindow: boolean }}
  */
 function commitSubjects(prevGit) {
   const lookbackOut = git(
@@ -76,37 +84,40 @@ function commitSubjects(prevGit) {
 
   let fresh = [];
   let window = `HEAD~${LOOKBACK}..HEAD`;
+  let hasFreshWindow = false;
 
   if (prevGit) {
     try {
-      // Quote for Windows cmd/PowerShell — bare `sha^{commit}` breaks on `^`.
+      // Кавычки обязательны: на Windows голый sha^{commit} ломается на `^`.
       git(`git rev-parse --verify "${prevGit}"`);
       const ranged = git(
         `git -c i18n.logOutputEncoding=utf-8 log "${prevGit}..HEAD" --pretty=format:%s`,
       );
       fresh = ranged ? ranged.split("\n").filter(Boolean) : [];
       window = `${prevGit}..HEAD`;
+      hasFreshWindow = true;
     } catch {
-      /* keep lookback-only */
+      // prevGit битый/не в репо → откат на lookback, без «пустого» fresh-окна
     }
   }
 
-  return { lookback, fresh, window };
+  return { lookback, fresh, window, hasFreshWindow };
 }
 
 let gitShort = "local";
 try {
-  gitShort = git("git rev-parse --short HEAD");
+  gitShort = formatGitShort(git(`git rev-parse --short=${GIT_SHORT_LEN} HEAD`));
 } catch {
   gitShort = "local";
 }
 
 const previous = readPreviousNotes();
-const { lookback, fresh, window } = commitSubjects(previous.git);
+const { lookback, fresh, window, hasFreshWindow } = commitSubjects(previous.git);
 const version = todayVersion();
 const items = pickUserFacingDeployNotes(lookback, MAX_ITEMS, {
   previousItems: previous.items,
-  freshSubjects: fresh,
+  // Только когда есть baseline прошлого stamp — иначе lookback (первый stamp).
+  freshSubjects: hasFreshWindow ? fresh : null,
   seed: `${gitShort}:${version}:${fresh.length}:${lookback.length}`,
 });
 
