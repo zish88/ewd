@@ -50,11 +50,28 @@ export type SchemeDiagramLike = {
   designFolder?: string;
   systemName?: string;
   pathCount?: number;
+  groups?: Array<{ uids?: string[] }>;
+  onSheetUids?: string[];
   /** Optional net-ownership hints from /api/ewd/pick-diagram or pin_wire_index */
   wireHits?: number;
   pinHits?: number;
   onSheetUidCount?: number;
 };
+
+/** Есть ли этот wireUid на листе (onSheetUids или uids групп SVG). */
+export function diagramContainsWireUid(
+  diagram: SchemeDiagramLike | null | undefined,
+  wireUid: string | undefined | null,
+): boolean {
+  const wu = String(wireUid || "").trim();
+  if (!wu || !diagram) return false;
+  // Собираем все UID с листа: индекс onSheet + разбор групп разметки.
+  const onSheet = new Set<string>([
+    ...(diagram.onSheetUids || []),
+    ...((diagram.groups || []).flatMap((g) => g.uids || [])),
+  ]);
+  return onSheet.has(wu);
+}
 
 export type SchemeContext = {
   selectedCode: string;
@@ -102,7 +119,7 @@ export function isJunctionCode(code: string): boolean {
   return fam === 73 || fam === 74;
 }
 
-function collectCodes(...raws: Array<string | undefined | null>): string[] {
+export function collectCodes(...raws: Array<string | undefined | null>): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of raws) {
@@ -145,9 +162,9 @@ export function pinForCodeInText(text: string | null | undefined, code: string):
 }
 
 export type ResolvedHighlightPin = {
-  /** Best pin to search on the currently selected node's sheet. */
+  /** Лучший pin для поиска на листе выбранного узла. */
   pin: string;
-  /** Ordered candidates (selected-side detail pin first, then card pin — not peer cavity). */
+  /** Кандидаты по порядку: кавити стороны узла, потом pin карточки (не чужой стык). */
   pinCandidates: string[];
   pinFrom: string;
   pinTo: string;
@@ -158,9 +175,9 @@ export type ResolvedHighlightPin = {
 };
 
 /**
- * Resolve which digit to hunt on the SVG for `selectedCode`.
- * Prefer the cavity next to that code in from/to details over raw card.pin_number.
- * Also returns both wire ends (Откуда/Куда) for dual markers.
+ * Какую цифру искать на SVG для `selectedCode`.
+ * Кавити рядом с этим кодом в from/to details важнее сырого card.pin_number.
+ * Также отдаёт оба конца (Откуда/Куда) для dual-маркеров.
  */
 export function resolveHighlightPin(
   card: SchemeCardLike | null | undefined,
@@ -191,8 +208,8 @@ export function resolveHighlightPin(
     ? pinForCodeInText(fromDetail, peerCode) || pinForCodeInText(toDetail, peerCode)
     : "";
   const fallback = String(cardPin || "").trim();
-  // Prefer cavity beside selected code in details. Card.pin_number is often the other end
-  // (junction) — only use it when the selected-side cavity is unknown.
+  // Кавити рядом с выбранным кодом в details важнее, чем card.pin_number
+  // (часто это чужой конец — стык 74/xxx). Fallback только если сторона узла неизвестна.
   const pinCandidates = (pinSelected ? [pinSelected] : [fallback])
     .map((p) => String(p || "").trim())
     .filter(Boolean)
@@ -206,6 +223,39 @@ export function resolveHighlightPin(
     peerPin: peerPin || "",
     fromCode,
     toCode,
+  };
+}
+
+/**
+ * Пин для /highlight по листам `sheetCode` (выбранный узел, напр. 7/90).
+ *
+ * У транзитных карточек в pin_number / «Откуда» лежит чужая кавити (74/901:11).
+ * Если отправить code=7/90&pin=11 — matchedCount=0 и схема «ломается».
+ * Берём только кавити со стороны sheetCode (для 7/90 это pin 2, не 11).
+ */
+export function sheetSideHighlightPin(
+  card: SchemeCardLike | null | undefined,
+  sheetCode: string,
+  cardPin = "",
+): { pin: string; fromCode: string; toCode: string; pinFrom: string; pinTo: string; peerCode: string; peerPin: string } {
+  const resolved = resolveHighlightPin(card, sheetCode, cardPin);
+  const sheet = normalizeSchemeCode(sheetCode);
+  const from = normalizeSchemeCode(resolved.fromCode);
+  const to = normalizeSchemeCode(resolved.toCode);
+  // Сначала pin из resolve (уже на стороне узла), иначе явный pinFrom/pinTo по совпадению кода.
+  const pin =
+    String(resolved.pin || "").trim() ||
+    (from === sheet ? resolved.pinFrom : "") ||
+    (to === sheet ? resolved.pinTo : "") ||
+    "";
+  return {
+    pin,
+    fromCode: resolved.fromCode,
+    toCode: resolved.toCode,
+    pinFrom: resolved.pinFrom,
+    pinTo: resolved.pinTo,
+    peerCode: resolved.peerCode,
+    peerPin: resolved.peerPin,
   };
 }
 

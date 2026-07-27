@@ -746,70 +746,9 @@ function nearestWireEndpointNear(
 }
 
 /**
- * Connector housing frame / center — only real pin-terminal labels or scope bbox.
- * Never snaps to mid-sheet wire endpoints when pin digit is missing.
+ * Soft frame / viewBox helpers intentionally unused for contact markers.
+ * Historical modes remain in AnchorMode + SOFT_MARKER_MODES so inject rejects them.
  */
-function resolvePinFrameInScopes(
-  _root: Element,
-  svg: SVGSVGElement,
-  scopes: Element[],
-  targetPinAt: Pt | null,
-  _maxDim: number,
-): Pt | null {
-  if (!scopes.length) return null;
-  const digitPts: Pt[] = [];
-
-  for (const scope of scopes) {
-    for (const node of scope.querySelectorAll("text, tspan")) {
-      if (isServiceGraphic(node, svg)) continue;
-      const t = String(node.textContent || "").trim();
-      if (!isPinTerminalLabel(t)) continue;
-      if (isConductorCalloutLabel(node)) continue;
-      const at = textCenter(node);
-      if (!at || !isInteriorPoint(svg, at)) continue;
-      digitPts.push(at);
-    }
-  }
-
-  if (digitPts.length >= 1 || targetPinAt) {
-    const pts = targetPinAt ? [...digitPts, targetPinAt] : digitPts;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const p of pts) {
-      minX = Math.min(minX, p.x);
-      minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x);
-      maxY = Math.max(maxY, p.y);
-    }
-    return targetPinAt || { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
-  }
-
-  // No pin terminals in scope — geometric center of tightest connector bbox
-  let best: Pt | null = null;
-  let bestArea = Infinity;
-  for (const scope of scopes) {
-    try {
-      const b = (scope as SVGGraphicsElement).getBBox();
-      const area = Math.max(1, Math.abs(b.width) * Math.abs(b.height));
-      const at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-      if (!isInteriorPoint(svg, at)) continue;
-      if (area < bestArea) {
-        bestArea = area;
-        best = at;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  return best;
-}
-
-function viewBoxCenter(svg: SVGSVGElement): Pt {
-  const box = viewBoxBox(svg);
-  return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
-}
 
 type AnchorMode =
   | "pin-terminal"
@@ -818,6 +757,17 @@ type AnchorMode =
   | "peer-terminal"
   | "peer-frame"
   | "viewbox-center";
+
+/** Soft geometric modes rejected for contact markers (project-wide). */
+export const SOFT_MARKER_MODES: readonly AnchorMode[] = [
+  "pin-frame",
+  "peer-frame",
+  "viewbox-center",
+] as const;
+
+export function isSoftMarkerMode(mode: string): boolean {
+  return (SOFT_MARKER_MODES as readonly string[]).includes(mode);
+}
 
 type ResolveMeta = {
   at: Pt;
@@ -836,7 +786,7 @@ function resolveInsideScopes(
   maxDim: number,
   modePin: AnchorMode,
   modeWire: AnchorMode,
-  modeFrame: AnchorMode,
+  _modeFrame: AnchorMode,
   wireColor = "",
   /** When true and pinNumber set: never fall back to connector frame center. */
   strictPin = false,
@@ -877,21 +827,8 @@ function resolveInsideScopes(
     };
   }
 
-  // Strict pin: digit missing on this SVG — do not use frame/label center
-  if (strictPin && pinNumber) return null;
-
-  // Soft mode (no pin in card): connector bbox / pin-frame center
-  const frameAt = resolvePinFrameInScopes(root, svg, scopes, null, maxDim);
-  if (frameAt) {
-    return {
-      at: frameAt,
-      mode: modeFrame,
-      hostGroup: scopes[0] || null,
-      anchors,
-      scopeCount: scopes.length,
-      connectorScoped: true,
-    };
-  }
+  // Soft mode without a verified pin digit: do not invent a connector-frame center.
+  // Frame/viewBox centers look like a contact but often sit mid-sheet off any wire.
   return null;
 }
 
@@ -984,31 +921,9 @@ function resolveMarkerAnchor(
       "peer-frame",
     );
     if (peer) return peer;
-    if (!strictPin) {
-      const peerFrame = resolvePinFrameInScopes(root, svg, peerScopes, null, maxDim);
-      if (peerFrame) {
-        return {
-          at: peerFrame,
-          mode: "peer-frame",
-          hostGroup: null,
-          anchors: [],
-          scopeCount: peerScopes.length,
-          connectorScoped: true,
-        };
-      }
-    }
   }
 
-  if (strictPin) return null;
-
-  return {
-    at: viewBoxCenter(svg),
-    mode: "viewbox-center",
-    hostGroup: null,
-    anchors: [],
-    scopeCount: primaryScopes.length,
-    connectorScoped: false,
-  };
+  return null;
 }
 
 function clearHighlights(root: Element, svg: SVGSVGElement): void {
@@ -1208,19 +1123,19 @@ export function nearestPaintedEndpointToScopes(
   return best;
 }
 
-/** Clear stroke highlights + pin markers (public for pin-miss cleanup). */
+/** Снять подсветку линий + маркеры пинов (для очистки после pin-miss). */
 export function clearEwdHighlights(root: Element, svg: SVGSVGElement): void {
   clearHighlights(root, svg);
 }
 
-/** Remove pin circles only — keep wire paint when retrying / reporting pin-miss. */
+/** Убрать только кружки пинов — линию провода оставляем при retry / отчёте pin-miss. */
 export function clearPinMarkers(svg: SVGSVGElement): void {
   svg.querySelectorAll("g.pin-marker, g.ewd-ping-marker").forEach((el) => el.remove());
 }
 
 /**
- * Color fallback / extend is allowed only when there is no pin+UID card anchor.
- * Prevents painting a foreign same-color branch (e.g. VT pin 4 next to pin 10).
+ * Color-fallback / extend разрешён только без жёсткого якоря pin+UID карточки.
+ * Иначе можно закрасить чужую ветку того же цвета (например VT pin 4 рядом с pin 10).
  */
 export function allowWireColorFallback(opts: {
   hasPinFocus: boolean;
@@ -1240,17 +1155,19 @@ export function allowWireColorFallback(opts: {
   );
 }
 
-/** Paint path/line/polyline strokes inside groups that match exact wire UIDs. */
+/** Красим path/line/polyline внутри групп, чей <desc> содержит точные wireUid. */
 function paintWireUidPaths(
   root: Element,
   svg: SVGSVGElement,
   wireUids: string[],
   wireColor: string,
 ): Element[] {
+  // Сначала строго CAFConductor с wireUid — это «наш» провод.
   const scopes = findUidScopes(root, svg, wireUids).filter((g) =>
     /CAFConductor/i.test(readDesc(g)),
   );
   const pool = scopes.length ? scopes : findUidScopes(root, svg, wireUids);
+  const strictUidConductor = scopes.length > 0;
   const painted: Element[] = [];
   for (const g of pool) {
     const paths = g.querySelectorAll("path, line, polyline, polygon");
@@ -1258,14 +1175,18 @@ function paintWireUidPaths(
       if (isServiceGraphic(el, svg)) continue;
       const len = strokeLength(el);
       if (len > 0 && len < 2) continue;
-      // If card color known and stroke has a different proven color — skip
-      const strokeColor = nearestColorOnStroke(root, svg, el, Math.max(viewBoxBox(svg).w, viewBoxBox(svg).h, 1000));
-      if (
-        wireColor &&
-        strokeColor &&
-        !wireColorsMatch(strokeColor, wireColor)
-      ) {
-        continue;
+      // В группе с точным wireUid цвет рядом не отбрасываем: иначе куски
+      // «своего» провода остаются серыми из‑за чужой подписи цвета.
+      if (!strictUidConductor) {
+        const strokeColor = nearestColorOnStroke(
+          root,
+          svg,
+          el,
+          Math.max(viewBoxBox(svg).w, viewBoxBox(svg).h, 1000),
+        );
+        if (wireColor && strokeColor && !wireColorsMatch(strokeColor, wireColor)) {
+          continue;
+        }
       }
       applyStrokeHighlight(el, wireColor);
       painted.push(el);
@@ -1336,9 +1257,13 @@ function paintByWireColorLabel(
 }
 
 /**
- * After UID paint: extend same-color strokes that touch already-painted endpoints
- * (and optional connector codes). Continues GN-RD/BK-GN past 74/508 when harness ID changes.
- * Does NOT whole-sheet flood — only near painted path + end code scopes.
+ * После UID-paint: дотянуть сегменты того же цвета, что касаются уже покрашенных концов.
+ * Нужно, когда harness/UID меняется на стыке (GN-RD/BK-GN за 74/508).
+ *
+ * mode:
+ * - loose — широкий pad (старое поведение, без жёсткого wireUid)
+ * - tight — только касание концов, маленький pad; иначе на LIN/шине
+ *   заливаются чужие ветки того же цвета и путь выглядит «дырявым»
  */
 export function extendPaintAlongPaintedPath(
   root: Element,
@@ -1346,19 +1271,27 @@ export function extendPaintAlongPaintedPath(
   wireColor: string,
   alreadyPainted: Element[],
   nearCodes: string[] = [],
+  mode: "loose" | "tight" = "loose",
 ): Element[] {
   const want = normalizeWireColorKey(wireColor);
   if (!want || !alreadyPainted.length) return [];
   const maxDim = Math.max(viewBoxBox(svg).w, viewBoxBox(svg).h, 1000);
-  const pad = Math.max(400, maxDim * 0.03);
+  // loose: ~3% листа; tight: только геометрическое касание (~0.25%)
+  const pad =
+    mode === "tight"
+      ? Math.max(48, maxDim * 0.0025)
+      : Math.max(400, maxDim * 0.03);
   const hubs: Pt[] = [];
   for (const el of alreadyPainted) {
     for (const p of wireEndpoints(el)) hubs.push(p);
-    try {
-      const b = (el as SVGGraphicsElement).getBBox();
-      hubs.push({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
-    } catch {
-      /* ignore */
+    // В tight середину bbox не используем — иначе «прилипают» параллельные шины.
+    if (mode === "loose") {
+      try {
+        const b = (el as SVGGraphicsElement).getBBox();
+        hubs.push({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+      } catch {
+        /* ignore */
+      }
     }
   }
   const scopes: Element[] = [];
@@ -1371,14 +1304,19 @@ export function extendPaintAlongPaintedPath(
       const d = Math.hypot(pt.x - h.x, pt.y - h.y);
       if (d <= pad) return true;
     }
-    if (scopeBoxes.length && nearAnyScope(pt, scopeBoxes, pad)) return true;
+    // Scope-boost только в loose: в tight он заливает весь разъём/шину.
+    if (mode === "loose" && scopeBoxes.length && nearAnyScope(pt, scopeBoxes, pad)) {
+      return true;
+    }
     return false;
   };
 
   const seen = new Set(alreadyPainted);
   const added: Element[] = [];
-  // Grow a few waves so segments chain past the junction
-  for (let wave = 0; wave < 4 && added.length < 60; wave++) {
+  const maxWaves = mode === "tight" ? 8 : 4;
+  const maxAdded = mode === "tight" ? 40 : 60;
+  // Волны: цепочка сегментов через стык (каждый новый конец → новый hub)
+  for (let wave = 0; wave < maxWaves && added.length < maxAdded; wave++) {
     let waveAdded = 0;
     for (const g of root.querySelectorAll("g")) {
       if (!/CAFConductor/i.test(readDesc(g)) || isServiceGraphic(g, svg)) continue;
@@ -1397,7 +1335,8 @@ export function extendPaintAlongPaintedPath(
           for (const end of wireEndpoints(el)) {
             if (nearHub(end)) near = true;
           }
-          if (!near) {
+          // Середина сегмента — только loose (иначе параллельная шина «рядом» красится)
+          if (!near && mode === "loose") {
             const b = (el as SVGGraphicsElement).getBBox();
             near = nearHub({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
           }
@@ -1410,9 +1349,9 @@ export function extendPaintAlongPaintedPath(
         added.push(el);
         waveAdded += 1;
         for (const p of wireEndpoints(el)) hubs.push(p);
-        if (added.length >= 60) break;
+        if (added.length >= maxAdded) break;
       }
-      if (added.length >= 60) break;
+      if (added.length >= maxAdded) break;
     }
     if (!waveAdded) break;
   }
@@ -1614,7 +1553,6 @@ export function highlightTarget(
   const peerCode = normalizeCodeLabel(payload.peerCode ?? "");
   const peerPin = String(payload.peerPin ?? "").trim();
   const markerLabel = pinCandidates[0] || pinNumber || connectorCode || "?";
-  const softModes: AnchorMode[] = ["pin-frame", "peer-frame", "viewbox-center"];
 
   let painted: Element[] = [];
   let hostGroup: Element | null = null;
@@ -1681,7 +1619,6 @@ export function highlightTarget(
           .filter(Boolean),
       ),
     ];
-    const strictEnd = pins.length > 0;
     const resolved = resolveMarkerAnchor(
       root,
       svg,
@@ -1694,7 +1631,8 @@ export function highlightTarget(
       endUids,
     );
     if (!resolved) return false;
-    if (strictEnd && softModes.includes(resolved.mode)) return false;
+    // Soft geometric modes (frame / viewBox) look like a contact but sit off-wire.
+    if (isSoftMarkerMode(resolved.mode)) return false;
     const label = pins[0] || code;
     const isPrimary = isPrimaryMarkerRole(end.role);
     try {
@@ -1730,7 +1668,7 @@ export function highlightTarget(
     const ends = endsFromPayload();
     const endCodes = ends.map((e) => normalizeCodeLabel(e.code)).filter(Boolean);
 
-    // 1) Paint by wire UIDs (full path segments from server), never raw pin/resolve UIDs
+    // 1) Красим по wireUid (сегменты с сервера), не по pin/resolve UID
     if (wireUids.length) {
       try {
         painted = paintWireUidPaths(root, svg, wireUids, wireColor);
@@ -1742,22 +1680,32 @@ export function highlightTarget(
         errorMsg = e instanceof Error ? e.message : String(e);
       }
     }
-    // After UID paint: safe same-color extend along painted path (junction harness change).
+    // Дотяжка по цвету вдоль пути. При pin+wireUid — tight: иначе LIN/шина
+    // того же цвета заливается кусками и провод кажется «не полностью» покрашенным.
+    const hasPinFocus = Boolean(pinNumber || pinCandidates.length);
     if (painted.length && wireColor) {
       try {
-        const more = extendPaintAlongPaintedPath(root, svg, wireColor, painted, endCodes);
+        const extendMode =
+          wireUids.length && hasPinFocus ? ("tight" as const) : ("loose" as const);
+        const more = extendPaintAlongPaintedPath(
+          root,
+          svg,
+          wireColor,
+          painted,
+          endCodes,
+          extendMode,
+        );
         if (more.length) {
           painted.push(...more);
           reason =
             (reason ? `${reason} | ` : "") +
-            `path-color-extend paths=${more.length} color=${wireColor}`;
+            `path-color-extend/${extendMode} paths=${more.length} color=${wireColor}`;
         }
       } catch (e) {
         errorMsg = e instanceof Error ? e.message : String(e);
       }
     }
-    // Color-only fallback when no UID paint at all (never whole-sheet foreign branches)
-    const hasPinFocus = Boolean(pinNumber || pinCandidates.length);
+    // Color-only fallback, если UID-paint пуст (не заливать весь лист)
     const hasUidAnchor = Boolean(wireUids.length || pinUids.length);
     const allowColor = allowWireColorFallback({
       hasPinFocus,
@@ -1838,15 +1786,17 @@ export function highlightTarget(
         (primaryEnd.pin ||
           (Array.isArray(primaryEnd.pinCandidates) && primaryEnd.pinCandidates.length)),
     );
-    // Success only when Откуда is marked — Куда-only must not suppress pin-miss
+    // Успех маркера только если отмечен primary (сторона выбранного узла).
+    // Маркер только на «Куда» не должен глушить pin-miss.
     guaranteedMarker = primaryRequired ? primaryPlaced : markersPlaced > 0;
     reason =
       (reason ? `${reason} | ` : "") +
       `ends=${ends.length} markers=${markersPlaced} primary=${primaryPlaced ? "ok" : "miss"} pin=${pinCandidates.join("|") || pinNumber || "—"} code=${connectorCode || "—"} peer=${peerCode || "—"}:${peerPin || "—"} uids=${resolveUids.length} wires=${wireUids.length}`;
 
-    // Wrong sheet / wrong branch → pin-miss so client can retry.
-    // Missing Откуда marker is always a miss when from-pin was requested.
-    if (!guaranteedMarker && (hasPinFocus || primaryRequired)) {
+    // Чужой лист / ветка → pin-miss, клиент может сменить схему.
+    // Нет кружка на цифре — тоже miss, НО если точный провод уже покрашен (lineHighlight + wireUids),
+    // не валим всё: у транзита цифра «Откуда» часто не ставится, а линия верная.
+    if (!guaranteedMarker && (hasPinFocus || primaryRequired) && !(lineHighlight && wireUids.length)) {
       stage = "none";
       reason = `pin-miss ${reason}`;
     } else if (!guaranteedMarker && !lineHighlight) {
@@ -1868,7 +1818,7 @@ export function highlightTarget(
     stage = "none";
   }
 
-  // Color-only without marker stays "none" when a pin was requested (pin-miss retry).
+  // Только цвет без маркера при запрошенном pin → "none" (чтобы сработал retry pin-miss).
   if (guaranteedMarker && lineHighlight) stage = "pin-color";
   else if (guaranteedMarker) stage = "marker-only";
   else if (lineHighlight && !(pinNumber || pinCandidates.length)) stage = "pin-color";

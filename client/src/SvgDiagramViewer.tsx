@@ -92,6 +92,7 @@ export function SvgDiagramViewer({
     setWireUids([]);
     setPinUids([]);
     setMarkerAt(null);
+    setFitToken(0);
     paintedKeyRef.current = "";
     fetch(`/api/ewd/svg?diagramUid=${encodeURIComponent(diagramUid)}`)
       .then(async (r) => {
@@ -183,13 +184,13 @@ export function SvgDiagramViewer({
           cardPinUid: pinUid,
         });
         const apiWireUids = Array.isArray(data.wireUids) ? (data.wireUids as string[]) : [];
-        // Card wireUid is preferred seed; API may expand the full on-sheet path to the terminal
+        // Семя покраски: wireUid карточки; API может дописать весь путь до клеммы на листе.
         const paintWires = [
           ...(wireUid ? [wireUid] : []),
           ...(preferred?.wireUid && preferred.wireUid !== wireUid ? [preferred.wireUid] : []),
           ...apiWireUids,
         ];
-        // Marker UIDs: Откуда side only — never merge toUid into primary resolve pool
+        // UID маркера: только сторона выбранного узла — toUid в пул primary не мешаем.
         const markerPins = [aligned.primaryUid].filter(Boolean);
         setResolveUids(markerPins.slice(0, 8));
         setWireUids([...new Set(paintWires.filter(Boolean))].slice(0, 8));
@@ -334,14 +335,15 @@ export function SvgDiagramViewer({
         /* ignore */
       }
       setMarkerAt(null);
+      // No marker → contain-fit so Windows/laptop panels are not stuck at {40,40}+1.1×.
+      setFitToken((n) => n + 1);
       onPinMissRef.current?.(result.reason || "pin-miss");
       return;
     }
 
-    if (result.markerAt) {
-      setMarkerAt(result.markerAt);
-      setFitToken((n) => n + 1);
-    }
+    setMarkerAt(result.markerAt || null);
+    // Always re-fit: marker comfort when present, else full-sheet contain.
+    setFitToken((n) => n + 1);
   }, [
     svgMarkup,
     searchCode,
@@ -376,6 +378,8 @@ export function SvgDiagramViewer({
       error={error}
       markerAt={markerAt}
       fitToken={fitToken}
+      fitMode={markerAt ? "marker" : "contain"}
+      contentKey={diagramUid}
       onMarkupApplied={(root) => {
         contentRootRef.current = root;
       }}

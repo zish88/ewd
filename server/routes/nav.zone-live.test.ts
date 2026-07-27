@@ -59,12 +59,8 @@ test("live: pick-diagram for code+pin returns wireHits>0 when viable", async () 
   assert.equal(res.status, 200);
   if (Array.isArray(res.body.viable) && res.body.viable.length) {
     assert.ok(res.body.diagramUid, "pick must return diagramUid");
-    assert.ok(
-      Number(res.body.wireHits) > 0 ||
-        Number(res.body.onSheetUidCount) > 0 ||
-        Number(res.body.matchedCount) > 0,
-      "лучшая sheet must have net match or on-sheet UIDs",
-    );
+    assert.ok(Number(res.body.wireHits) > 0, "viable pick requires wireHits>0");
+    assert.equal(res.body.confidence, "wire-owned");
     assert.equal(
       res.body.diagramUid,
       res.body.viable[0],

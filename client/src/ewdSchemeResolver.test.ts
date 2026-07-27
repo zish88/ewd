@@ -94,3 +94,35 @@ test("resolveHighlightPin still exposes both ends for dual markers", () => {
   assert.equal(r.toCode, "74/508");
   assert.equal(r.pinTo, "13");
 });
+
+test("sheetSideHighlightPin: transit card uses selected-node pin not foreign Откуда", async () => {
+  const { sheetSideHighlightPin } = await import("./ewdSchemeResolver.js");
+  const side = sheetSideHighlightPin(
+    {
+      match_role: "transit",
+      pin_number: "11",
+      from_detail: "74/901:11 — Контактный разъем",
+      to_detail: "7/90:2 — Датчик влажности",
+    },
+    "7/90",
+    "11",
+  );
+  assert.equal(side.pin, "2");
+  assert.equal(side.fromCode, "74/901");
+  assert.equal(side.toCode, "7/90");
+  assert.equal(side.pinFrom, "11");
+  assert.equal(side.pinTo, "2");
+});
+
+test("diagramContainsWireUid checks onSheetUids and group uids", async () => {
+  const { diagramContainsWireUid } = await import("./ewdSchemeResolver.js");
+  const d = {
+    diagramUid: "UID1",
+    onSheetUids: ["UID-W1"],
+    groups: [{ uids: ["UID-W2"] }],
+  };
+  assert.equal(diagramContainsWireUid(d, "UID-W1"), true);
+  assert.equal(diagramContainsWireUid(d, "UID-W2"), true);
+  assert.equal(diagramContainsWireUid(d, "UID-W9"), false);
+  assert.equal(diagramContainsWireUid(d, ""), false);
+});

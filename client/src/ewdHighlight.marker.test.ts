@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   alignPrimaryUidForFrom,
   isPrimaryMarkerRole,
+  isSoftMarkerMode,
   nearestPaintedEndpointToScopes,
   orderEndsForMarker,
+  SOFT_MARKER_MODES,
 } from "./ewdHighlight.js";
 
 /**
@@ -160,4 +162,14 @@ test("owner↔transit swap changes primary Откуда pin", () => {
   assert.equal(isPrimaryMarkerRole(owner.role), true);
   assert.equal(owner.from.split(":")[1], "5");
   assert.equal(transit.from.split(":")[1], "1");
+});
+
+test("soft marker modes are never accepted as contact anchors", () => {
+  assert.equal(isSoftMarkerMode("pin-frame"), true);
+  assert.equal(isSoftMarkerMode("peer-frame"), true);
+  assert.equal(isSoftMarkerMode("viewbox-center"), true);
+  assert.equal(isSoftMarkerMode("pin-terminal"), false);
+  assert.equal(isSoftMarkerMode("wire-entry"), false);
+  assert.equal(isSoftMarkerMode("peer-terminal"), false);
+  assert.deepEqual([...SOFT_MARKER_MODES], ["pin-frame", "peer-frame", "viewbox-center"]);
 });

@@ -79,4 +79,6 @@ test("extendPaintAlongPaintedPath: no-op without painted seeds", () => {
   const root = { querySelectorAll: () => [] } as unknown as Element;
   const more = extendPaintAlongPaintedPath(root, svg, "GN-RD", [], ["74/508"]);
   assert.equal(more.length, 0);
+  const tight = extendPaintAlongPaintedPath(root, svg, "BN-VT", [], ["7/90"], "tight");
+  assert.equal(tight.length, 0);
 });

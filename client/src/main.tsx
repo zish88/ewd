@@ -14,6 +14,8 @@ import {
 } from "./wireColorFilter.js";
 import {
   cardFocusContact,
+  collectCodes,
+  diagramContainsWireUid,
   diagramHasCode,
   diagramsForPinProbe,
   extractSchemeContext,
@@ -21,6 +23,7 @@ import {
   pickBestDiagram,
   rankDiagramsForContext,
   resolveHighlightPin,
+  sheetSideHighlightPin,
   type SchemeContext,
 } from "./ewdSchemeResolver.js";
 import "./styles.css";
@@ -69,6 +72,7 @@ type CapitalPanel =
   | { kind: "location"; code: string }
   | { kind: "report"; report: "fuse" | "inline" | "splice" | "grounds" }
   | { kind: "intro"; slug: string };
+type SchemeConfidence = "wire-owned" | "pin-only" | "text-only" | "none";
 type EwdDiagram = {
   diagramUid: string;
   title: string;
@@ -82,6 +86,7 @@ type EwdDiagram = {
   wireHits?: number;
   pinHits?: number;
   onSheetUidCount?: number;
+  confidence?: SchemeConfidence;
 };
 type EwdEndpoint = { from: string; to: string; color: string; wireName: string; pinFrom?: string; pinTo?: string };
 type WireEndFocus = {
@@ -105,10 +110,17 @@ type WireFocus = {
   /** FaceView / SQLite UIDs from the clicked card — bind paint to this net. */
   wireUid?: string;
   pinUid?: string;
+  /** Capital optionExpression tokens from the card (e.g. HUMIDSEN). */
+  optionTokens?: string[];
 };
 type ActiveSvg = {
   diagramUid: string;
   searchCode: string;
+  /** Human-readable diagram/system title from /diagrams catalog. */
+  title?: string;
+  systemName?: string;
+  /** How strongly this sheet owns the focused wire (from pick-diagram). */
+  confidence?: SchemeConfidence;
   objectIds?: string[];
   pin?: string;
   pinCandidates?: string[];
@@ -129,6 +141,41 @@ type ActiveSvg = {
   /** Increments on every «Показать на схеме» — forces marker re-inject + recenter (never toggle-off). */
   showSeq?: number;
 };
+type CardSchemeInfo = {
+  status: "exact-one" | "exact-many" | "no-sheet" | "missing-identity";
+  exactSheets: EwdDiagram[];
+  nearestPeer?: { code: string; pin?: string };
+};
+
+function schemeConfidenceForDiagram(d: {
+  wireHits?: number;
+  pinHits?: number;
+} | null | undefined): SchemeConfidence {
+  if ((Number(d?.wireHits) || 0) > 0) return "wire-owned";
+  if ((Number(d?.pinHits) || 0) > 0) return "pin-only";
+  if (d) return "text-only";
+  return "none";
+}
+
+function schemeConfidenceLabel(c: SchemeConfidence | undefined, wireFocus = false): string {
+  if (c === "wire-owned") return wireFocus ? "провод" : "узел";
+  if (c === "pin-only") return "только контакт";
+  if (c === "text-only") return "текст";
+  return "";
+}
+
+function schemeConfidenceForFocusedWire(
+  d: EwdDiagram | null | undefined,
+  focusedWireUid?: string,
+): SchemeConfidence {
+  if (focusedWireUid) {
+    if (diagramContainsWireUid(d, focusedWireUid)) return "wire-owned";
+    if ((Number(d?.pinHits) || 0) > 0) return "pin-only";
+    if (d) return "text-only";
+    return "none";
+  }
+  return schemeConfidenceForDiagram(d);
+}
 function CapitalPanelViewer({
   panel,
   onClose,
@@ -267,15 +314,26 @@ function CapitalPanelViewer({
           </div>
         ) : null}
         {panel.kind === "location" ? (
-          <SvgPanZoomHost
-            testId="location-svg-viewer"
-            markup={svg}
-            loading={loading}
-            error={err}
-            className="ewd-location-svg"
-            fitMode="contain"
-            fitToken={layoutFitToken || 1}
-          />
+          <div className="flex h-full min-h-0 flex-col">
+            <p
+              className="shrink-0 border-b border-[var(--border-color)] bg-[var(--input-bg)] px-3 py-1.5 text-[11px] leading-snug text-[var(--text-muted)]"
+              data-testid="location-provenance-note"
+            >
+              Карта показывает только место разъёма на кузове. Цвета проводов относятся к списку
+              контактов слева и не рисуются на этой карте.
+            </p>
+            <div className="min-h-0 flex-1">
+              <SvgPanZoomHost
+                testId="location-svg-viewer"
+                markup={svg}
+                loading={loading}
+                error={err}
+                className="ewd-location-svg"
+                fitMode="contain"
+                fitToken={layoutFitToken || 1}
+              />
+            </div>
+          </div>
         ) : null}
         {html && !pins.length ? (
           <iframe title={title} className="w-full min-h-[70vh] border-0 bg-white" srcDoc={html} />
@@ -372,23 +430,28 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
   return wires.map((w) => {
     const pin = String(w.pin_number || "").trim();
     const color = String(w.wire_color || "").toUpperCase().replace(/\//g, "-").trim();
-    const sqliteRich =
-      detailLooksRich(String(w.from_detail || "")) && detailLooksRich(String(w.to_detail || ""));
-    const match = usable.find((ep) => {
+    const fromDetail = String(w.from_detail || "");
+    const toDetail = String(w.to_detail || "");
+    const sqliteRich = detailLooksRich(fromDetail) && detailLooksRich(toDetail);
+    // Keep SQLite pinout when it already anchors the selected module to a numeric peer (e.g. 7/90 → 73/4049).
+    const sqlitePeerCodes = collectCodes(fromDetail, toDetail).filter((c) => c !== codeN);
+    const sqliteAnchored =
+      fromDetail.includes(codeN) && sqlitePeerCodes.some((c) => /^\d+\/\d+/.test(c));
+    if (sqliteRich || sqliteAnchored) return w;
+    const candidates = usable.filter((ep) => {
       const epColor = String(ep.color || "").toUpperCase().replace(/\//g, "-");
       const colorOk = !color || color === "—" || !epColor || epColor === color;
+      const involves =
+        ep.from.includes(codeN) ||
+        ep.to.includes(codeN) ||
+        normalizeCodeLabel(ep.from).startsWith(codeN) ||
+        normalizeCodeLabel(ep.to).startsWith(codeN);
       const pinOk =
         !pin ||
         pinLabelMatches(ep.pinFrom, pin) ||
         pinLabelMatches(ep.pinTo, pin) ||
         ep.from.includes(`:${pin}`) ||
         ep.to.includes(`:${pin}`);
-      const involves =
-        ep.from.includes(codeN) ||
-        ep.to.includes(codeN) ||
-        normalizeCodeLabel(ep.from).startsWith(codeN) ||
-        normalizeCodeLabel(ep.to).startsWith(codeN);
-      // Prefer pin on the selected code's side when both ends have pins
       const pinOnSelected =
         !pin ||
         (normalizeCodeLabel(ep.from).startsWith(codeN) && pinLabelMatches(ep.pinFrom, pin)) ||
@@ -396,9 +459,17 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
         pinOk;
       return colorOk && pinOnSelected && (involves || !codeN);
     });
+    const scoreEndpoint = (ep: EwdEndpoint): number => {
+      let s = 0;
+      if (normalizeCodeLabel(ep.from).startsWith(codeN) && pinLabelMatches(ep.pinFrom, pin)) s += 100;
+      if (normalizeCodeLabel(ep.to).startsWith(codeN) && pinLabelMatches(ep.pinTo, pin)) s += 40;
+      const peerCodes = collectCodes(ep.from, ep.to).filter((c) => c !== codeN);
+      if (peerCodes.some((c) => /^\d+\/\d+/.test(c))) s += 30;
+      if (/^GROUND/i.test(ep.from) || /^GROUND/i.test(ep.to)) s -= 50;
+      return s;
+    };
+    const match = candidates.sort((a, b) => scoreEndpoint(b) - scoreEndpoint(a))[0];
     if (!match) return w;
-    // Never overwrite good pinout details with weaker EWD
-    if (sqliteRich) return w;
     return { ...w, from_detail: match.from, to_detail: match.to };
   });
 }
@@ -424,8 +495,64 @@ function peerCodeFromCard(item: Result, selectedCode: string): string {
   return peerCodeFromSchemeCard(item, selectedCode);
 }
 
+function cardSchemeInfo(item: Result, selectedCode: string, diagrams: EwdDiagram[]): CardSchemeInfo {
+  const wireUid = String(item.wire_uid || "").trim();
+  // Точные листы = те, где wireUid реально есть в разметке (не «все схемы зоны»).
+  const exactSheets = wireUid
+    ? diagrams.filter((diagram) => diagramContainsWireUid(diagram, wireUid))
+    : [];
+  const resolved = resolveHighlightPin(item, selectedCode, String(item.pin_number || ""));
+  const peerCode = peerCodeFromCard(item, selectedCode) || resolved.peerCode || "";
+  const peerPin = String(resolved.peerPin || resolved.pinTo || "").trim();
+  return {
+    status: !wireUid
+      ? "missing-identity"
+      : exactSheets.length === 1
+        ? "exact-one"
+        : exactSheets.length > 1
+          ? "exact-many"
+          : "no-sheet",
+    exactSheets,
+    nearestPeer: peerCode ? { code: peerCode, pin: peerPin || undefined } : undefined,
+  };
+}
+
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+}
+
+async function probeHighlightMatch(args: {
+  code: string;
+  diagramUid: string;
+  pin?: string;
+  wireColor?: string;
+  wireUid?: string;
+  pinUid?: string;
+  peer?: string;
+  zone?: string;
+  optionTokens?: string[];
+}): Promise<number> {
+  // Лёгкий preflight перед открытием: есть ли провод/пин на кандидате листа.
+  const qs = new URLSearchParams({ code: args.code, diagramUid: args.diagramUid });
+  if (args.pin) qs.set("pin", args.pin);
+  if (args.wireColor) qs.set("color", args.wireColor);
+  if (args.wireUid) qs.set("wireUid", args.wireUid);
+  if (args.pinUid) qs.set("pinUid", args.pinUid);
+  if (args.peer) qs.set("peer", args.peer);
+  if (args.zone && args.zone !== "all") qs.set("zone", args.zone);
+  if (args.optionTokens?.length) qs.set("optionTokens", args.optionTokens.join(","));
+  try {
+    const data = await fetch(`/api/ewd/highlight?${qs}`).then((r) => r.json());
+    const matched = Number(data.matchedCount) || 0;
+    if (matched > 0) return matched;
+    // Провод уже на листе (wireUid в ответе) — считаем успехом, даже если цифра
+    // кавити не совпала (типично транзит: pin «Откуда» чужой, а линия своя).
+    const wu = String(args.wireUid || "").trim();
+    if (wu && Array.isArray(data.wireUids) && data.wireUids.includes(wu)) return 1;
+    return 0;
+  } catch {
+    return 0;
+  }
 }
 
 function CopyIcon() {
@@ -595,9 +722,10 @@ function renderWireCard(
   item: Result,
   index: number,
   canShowOnDiagram: boolean,
+  schemeInfo: CardSchemeInfo,
   selectedCode: string,
-  setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string } | null) => void,
-  selectedPinState: { id: string | number; code: string; color: string; pin: string } | null,
+  setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null) => void,
+  selectedPinState: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null,
   onOpenDiagram: (searchCode: string, preferredUid?: string, wire?: WireFocus, card?: Result) => void,
   setCapitalPanel: (v: CapitalPanel | null) => void,
   setActiveSvg: (v: ActiveSvg | null) => void,
@@ -616,78 +744,132 @@ function renderWireCard(
       return;
     }
     const code = String(selectedCode || item.search_target || item.from_node || "").trim();
-    // Card.pin_number is often the junction cavity (74/xxx:21) while the open sheet is a module
-    // (3/126C1:2). Resolve the digit that belongs to the selected code on this SVG.
+    // pin_number часто — кавити стыка (74/xxx:21), а открытый лист — модуль (3/126:2).
+    // Дальше sheetSideHighlightPin выберет цифру, которая реально есть на SVG выбранного узла.
     let cardPin = String(item.pin_number || "").trim();
     if (!cardPin && Array.isArray(item.pins) && item.pins.length) {
       cardPin = String(item.pins[0] ?? "").trim();
     }
     if (!cardPin) {
+      // Фоллбек: вытащить «контакт N» / :N из текста карточки.
       const blob = `${item.card_title || ""} ${item.from_detail || ""} ${item.to_detail || ""} ${item.raw_line || ""}`;
       const m = blob.match(/контакт\s*[№#:]?\s*(\d{1,3})/i) || blob.match(/:(\d{1,3})\b/);
       if (m?.[1]) cardPin = String(m[1]);
     }
+    const sheet = sheetSideHighlightPin(item, code, cardPin);
     const resolved = resolveHighlightPin(item, code, cardPin);
-    // Primary marker = Откуда (from_detail), never Куда
+    // Текст карточки («Откуда») не трогаем; для highlight по листам узла — только sheetPin.
     const focus = cardFocusContact(item, code);
-    const focusCode = normalizeCodeLabel(focus.code || resolved.fromCode || code);
-    const focusPin = String(focus.pin || resolved.pinFrom || cardPin || "").trim();
-    const fromCode = normalizeCodeLabel(resolved.fromCode || focusCode);
-    const toCode = normalizeCodeLabel(resolved.toCode || "");
-    const pinFrom = String(resolved.pinFrom || focusPin || "").trim();
-    const pinTo = String(resolved.pinTo || "").trim();
+    const selectedN = normalizeCodeLabel(code);
+    const fromCode = normalizeCodeLabel(sheet.fromCode || resolved.fromCode || focus.code || code);
+    const toCode = normalizeCodeLabel(sheet.toCode || resolved.toCode || "");
+    const pinFrom = String(sheet.pinFrom || resolved.pinFrom || "").trim();
+    const pinTo = String(sheet.pinTo || resolved.pinTo || "").trim();
+    const sheetPin = String(sheet.pin || "").trim();
     const cardPinUid = String(item.pin_uid || "").trim();
+    // Первичный маркер = кавити выбранного узла (role: selected).
+    // Транзит: «Откуда» 74/901:11 — это вторичный конец (role: to), не pin для 7/90.
     const wireEnds: WireEndFocus[] = [];
-    wireEnds.push({
-      code: fromCode || focusCode,
-      pin: pinFrom || focusPin || undefined,
-      pinCandidates: (pinFrom || focusPin) ? [pinFrom || focusPin] : undefined,
-      uid: cardPinUid || undefined,
-      role: "selected",
-    });
-    if (toCode && toCode !== (fromCode || focusCode)) {
+    if (fromCode && fromCode === selectedN) {
+      // Выбранный узел на стороне «Откуда» карточки.
+      wireEnds.push({
+        code: fromCode,
+        pin: pinFrom || sheetPin || undefined,
+        pinCandidates: (pinFrom || sheetPin) ? [pinFrom || sheetPin] : undefined,
+        uid: cardPinUid || undefined,
+        role: "selected",
+      });
+      if (toCode && toCode !== fromCode) {
+        wireEnds.push({
+          code: toCode,
+          pin: pinTo || undefined,
+          pinCandidates: pinTo ? [pinTo] : undefined,
+          role: "to",
+        });
+      }
+    } else if (toCode && toCode === selectedN) {
+      // Транзит / разворот: выбранный узел на стороне «Куда» — он всё равно primary.
       wireEnds.push({
         code: toCode,
-        pin: pinTo || undefined,
-        pinCandidates: pinTo ? [pinTo] : undefined,
-        role: "to",
+        pin: pinTo || sheetPin || undefined,
+        pinCandidates: (pinTo || sheetPin) ? [pinTo || sheetPin] : undefined,
+        uid: cardPinUid || undefined,
+        role: "selected",
       });
+      if (fromCode && fromCode !== toCode) {
+        wireEnds.push({
+          code: fromCode,
+          pin: pinFrom || undefined,
+          pinCandidates: pinFrom ? [pinFrom] : undefined,
+          role: "to",
+        });
+      }
+    } else {
+      // Ни from, ни to не совпали с узлом — ставим selected на from/код поиска.
+      wireEnds.push({
+        code: fromCode || selectedN,
+        pin: pinFrom || sheetPin || undefined,
+        pinCandidates: (pinFrom || sheetPin) ? [pinFrom || sheetPin] : undefined,
+        uid: cardPinUid || undefined,
+        role: "selected",
+      });
+      if (toCode && toCode !== (fromCode || selectedN)) {
+        wireEnds.push({
+          code: toCode,
+          pin: pinTo || undefined,
+          pinCandidates: pinTo ? [pinTo] : undefined,
+          role: "to",
+        });
+      }
     }
-    // Persist selection strictly on click — never tied to hover/mouseleave
+    // Выделение карточки только по клику — не от hover/mouseleave.
     setSelectedPinState({
       id: itemId,
-      code: fromCode || focusCode || code,
+      code: selectedN,
       color: wireCode !== "—" ? wireCode : "",
-      pin: pinFrom || focusPin,
+      pin: sheetPin || pinFrom || pinTo,
+      wireUid: String(item.wire_uid || "").trim() || undefined,
     });
-    // pinCandidates = Откуда only (do not put Куда pin at head)
+    // Кандидаты для API: сначала sheet-side, потом остальные (чужой pin в хвосте).
     const pinCandidates = [
       ...new Set(
-        [pinFrom, focusPin, cardPin]
+        [sheetPin, pinFrom, pinTo, cardPin]
           .map((p) => String(p || "").trim())
           .filter(Boolean),
       ),
     ];
+    // Peer для pick-diagram — противоположный конец относительно выбранного узла.
     const peerForPick =
-      toCode && toCode !== (fromCode || focusCode)
-        ? toCode
-        : resolved.peerCode || peerCodeFromCard(item, code) || undefined;
+      fromCode && fromCode !== selectedN
+        ? fromCode
+        : toCode && toCode !== selectedN
+          ? toCode
+          : sheet.peerCode || resolved.peerCode || peerCodeFromCard(item, code) || undefined;
     onOpenDiagram(
       code,
       undefined,
       {
-        pin: pinFrom || focusPin || undefined,
+        pin: sheetPin || undefined,
         pinCandidates: pinCandidates.length ? pinCandidates : undefined,
         pinFrom: pinFrom || undefined,
         pinTo: pinTo || undefined,
         fromCode: fromCode || undefined,
         toCode: toCode || undefined,
         peerCode: peerForPick,
-        peerPin: pinTo || resolved.peerPin || undefined,
+        peerPin:
+          (peerForPick === fromCode ? pinFrom : peerForPick === toCode ? pinTo : "") ||
+          sheet.peerPin ||
+          resolved.peerPin ||
+          undefined,
         wireColor: wireCode !== "—" ? wireCode : undefined,
         ends: wireEnds.length ? wireEnds : undefined,
         wireUid: String(item.wire_uid || "").trim() || undefined,
         pinUid: cardPinUid || undefined,
+        optionTokens: String(item.option_expression || "")
+          .split(/[^A-Za-z0-9_./+-]+/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 8),
       },
       item,
     );
@@ -795,6 +977,34 @@ function renderWireCard(
         ) : null}
         {item.parts ? (
           <PartsCatalogList parts={item.parts} testId="card-parts" setNotice={setNotice} compact />
+        ) : null}
+      </div>
+      <div
+        className={`wire-context-notice ${
+          schemeInfo.status === "no-sheet" || schemeInfo.status === "missing-identity"
+            ? "wire-context-notice--warning"
+            : "wire-context-notice--info"
+        }`}
+        role={schemeInfo.status === "no-sheet" ? "alert" : "status"}
+        data-testid="wire-context-notice"
+      >
+        {schemeInfo.status === "exact-one" ? (
+          <span>
+            Провод подтверждён на схеме:{" "}
+            <strong>{schemeInfo.exactSheets[0]?.systemName || schemeInfo.exactSheets[0]?.title}</strong>.
+          </span>
+        ) : schemeInfo.status === "exact-many" ? (
+          <span>Провод подтверждён на {schemeInfo.exactSheets.length} схемах — при открытии будет выбрана наиболее точная.</span>
+        ) : schemeInfo.status === "no-sheet" ? (
+          <span>Точная схема этого провода не подтверждена. «Схемы узла» показывают общий контекст и могут не содержать этот провод.</span>
+        ) : (
+          <span>У карточки нет идентификатора провода: схема будет подобрана по контакту и цвету.</span>
+        )}
+        {schemeInfo.nearestPeer ? (
+          <span className="wire-context-notice__peer">
+            Ближайшая связь: <strong>{schemeInfo.nearestPeer.code}</strong>
+            {schemeInfo.nearestPeer.pin ? ` · контакт ${schemeInfo.nearestPeer.pin}` : ""}
+          </span>
         ) : null}
       </div>
       <div className="card-actions flex gap-2 mt-0.5">
@@ -936,6 +1146,8 @@ function App() {
     zone?: string | null;
     diagramUids?: string[];
     diagramCount?: number;
+    wireOwned?: boolean;
+    confidence?: SchemeConfidence;
   };
   const [ewdSystems, setEwdSystems] = useState<EwdSystemRow[]>([]);
   const [systemsOpen, setSystemsOpen] = useState(false);
@@ -1003,11 +1215,13 @@ function App() {
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
   const [schemeFullscreen, setSchemeFullscreen] = useState(false);
   const showSeqRef = useRef(0);
-  /** Diagram UIDs already tried after pin-miss for the current card focus (prevents loops). */
+  /** Invalidates stale load/open responses when the user changes node or wire quickly. */
+  const ewdAttemptRef = useRef(0);
+  /** Уже пробовали после pin-miss для текущего фокуса карточки (антизацикливание). */
   const pinMissTriedRef = useRef<Set<string>>(new Set());
   /** Connectivity-viable sheets for this pin (from /api/ewd/pick-diagram) — retry only inside this list. */
   const pinViableUidsRef = useRef<string[]>([]);
-  /** Auto pin-miss retries left (card open only; manual picker = 0). */
+  /** Сколько авто-повторов после pin-miss осталось (только клик карточки; ручной picker = 0). */
   const pinMissBudgetRef = useRef(0);
   /** Last card wire focus — systems tree / picker re-use anchors. */
   const lastWireFocusRef = useRef<WireFocus | null>(null);
@@ -1017,6 +1231,7 @@ function App() {
     code: string;
     color: string;
     pin: string;
+    wireUid?: string;
   } | null>(null);
   const [zones, setZones] = useState<NavZone[]>([]);
   const [navGroups, setNavGroups] = useState<NavGroup[]>([]);
@@ -1173,18 +1388,35 @@ function App() {
     if (capitalPanel && !activeSvg && isMobileViewport()) setMobileView("scheme");
   }, [capitalPanel, activeSvg]);
 
+  const focusedWireUid =
+    String(activeSvg?.wireUid || selectedPinState?.wireUid || lastWireFocusRef.current?.wireUid || "").trim() ||
+    undefined;
+
   const rankedDiagrams = useMemo(() => {
     const ctx = schemeContext || extractSchemeContext(null, selectedCode);
-    const pool =
+    let pool =
       !showAllNodeDiagrams && cardViableDiagrams.length
         ? cardViableDiagrams
         : ewdDiagrams;
+    if (focusedWireUid && !showAllNodeDiagrams) {
+      const wireOwned = pool.filter((d) => diagramContainsWireUid(d, focusedWireUid));
+      if (wireOwned.length) pool = wireOwned;
+    }
     return rankDiagramsForContext(pool, ctx);
-  }, [ewdDiagrams, cardViableDiagrams, showAllNodeDiagrams, schemeContext, selectedCode]);
+  }, [
+    ewdDiagrams,
+    cardViableDiagrams,
+    showAllNodeDiagrams,
+    schemeContext,
+    selectedCode,
+    focusedWireUid,
+  ]);
   const bestDiagramUid =
     pickBestUid ||
     (rankedDiagrams[0] &&
-    ((Number(rankedDiagrams[0].diagram.wireHits) || 0) > 0 || rankedDiagrams[0].score >= 50)
+    (focusedWireUid
+      ? diagramContainsWireUid(rankedDiagrams[0].diagram, focusedWireUid)
+      : (Number(rankedDiagrams[0].diagram.wireHits) || 0) > 0 || rankedDiagrams[0].score >= 50)
       ? rankedDiagrams[0].diagram.diagramUid
       : "");
 
@@ -1614,8 +1846,12 @@ function App() {
 
   async function searchDtc() {
     const q = dtcQuery.trim();
+    setFiltersSheetOpen(false);
+    setFiltersPopoverOpen(false);
     if (q.length < 2) {
-      setDtcNotice("Введите код (ABS-0010, P0563) или фрагмент описания.");
+      setMode("dtc");
+      setDtcResults([]);
+      setDtcNotice("Результатов нет");
       return;
     }
     setDtcLoading(true);
@@ -1638,7 +1874,7 @@ function App() {
       setDtcOpenCode("");
       setDtcDetailsByCode({});
       setDtcDetailsLoadingCode("");
-      setDtcNotice(results.length ? `Найдено: ${results.length}` : "Ничего не найдено.");
+      setDtcNotice(results.length ? `Найдено: ${results.length}` : "Результатов нет");
     } catch {
       setDtcResults([]);
       setDtcNotice("Ошибка запроса DTC.");
@@ -1658,30 +1894,45 @@ function App() {
 
   async function applyVin() {
     const vin = vinInput.trim().toUpperCase();
+    const closeFilters = () => {
+      setFiltersSheetOpen(false);
+      setFiltersPopoverOpen(false);
+    };
     if (vin.length !== 17) {
       setVinNotice("VIN должен быть 17 символов.");
+      closeFilters();
       return;
     }
     setVinNotice("Декодируем VIN…");
     try {
       const data = await fetch(`/api/vin/decode?vin=${encodeURIComponent(vin)}`).then((r) => r.json());
+      closeFilters();
       if (!data.ok) {
-        setVinNotice(data.error || "Не удалось разобрать VIN.");
+        const detail = typeof data.error === "string" && data.error.trim() ? ` ${data.error.trim()}` : "";
+        setVinNotice(`Результатов нет.${detail}`);
         setVinLocked(false);
         return;
       }
-      setSelectedModel(data.model || "");
-      setSelectedYear(data.year || "");
+      const model = String(data.model || "").trim();
+      const year = String(data.year || "").trim();
+      if (!model || !year) {
+        setVinNotice("Результатов нет");
+        setVinLocked(false);
+        return;
+      }
+      setSelectedModel(model);
+      setSelectedYear(year);
       setSelectedEngine(data.engine || "");
       setSelectedTransmission(data.transmission || "");
       setVinLocked(true);
       const notes = Array.isArray(data.notes) && data.notes.length ? ` (${data.notes[0]})` : "";
       setVinNotice(
-        `VIN → ${data.model} · ${data.year} · ${data.engine} · ${data.transmission}${notes}`,
+        `VIN → ${model} · ${year} · ${data.engine || "—"} · ${data.transmission || "—"}${notes}`,
       );
       setNotice(`Конфигурация по VIN зафиксирована. Пакет EWD: ${data.ewdPackageHint || "39363002"}`);
     } catch {
-      setVinNotice("Ошибка запроса декодера VIN.");
+      closeFilters();
+      setVinNotice("Результатов нет. Ошибка запроса декодера VIN.");
       setVinLocked(false);
     }
   }
@@ -1694,6 +1945,8 @@ function App() {
     opts?: { fromPinMissRetry?: boolean; manualPick?: boolean },
   ) {
     const code = normalizeCodeLabel(searchCode || selectedCode);
+    const attemptId = ++ewdAttemptRef.current;
+    const isCurrentAttempt = () => ewdAttemptRef.current === attemptId;
     if (!ewdDiagrams.length) {
       setNotice("Графическая схема EWD для этого узла не найдена.");
       return;
@@ -1706,27 +1959,38 @@ function App() {
     const resolved = card
       ? resolveHighlightPin(card, code, wire?.pin || "")
       : null;
+    const sheetSide = card ? sheetSideHighlightPin(card, code, wire?.pin || "") : null;
     const cardFrom = card ? cardFocusContact(card, code) : null;
     const fromCode =
       wire?.fromCode ||
+      sheetSide?.fromCode ||
       resolved?.fromCode ||
       cardFrom?.code ||
       "";
-    const toCode = wire?.toCode || resolved?.toCode || "";
+    const toCode = wire?.toCode || sheetSide?.toCode || resolved?.toCode || "";
     const pinFrom =
       wire?.pinFrom ||
+      sheetSide?.pinFrom ||
       resolved?.pinFrom ||
-      cardFrom?.pin ||
-      wire?.pin ||
       "";
-    const pinTo = wire?.pinTo || resolved?.pinTo || "";
-    const peerPin = wire?.peerPin || pinTo || resolved?.peerPin || "";
-    // Откуда pins only for pick/marker focus — never lead with Куда
+    const pinTo = wire?.pinTo || sheetSide?.pinTo || resolved?.pinTo || "";
+    const peerPin = wire?.peerPin || pinTo || sheetSide?.peerPin || resolved?.peerPin || "";
+    // Для highlight по листам searchCode нужна кавити ЭТОГО узла, не «Откуда» транзита (74/901:11).
+    const sheetPin =
+      wire?.pin ||
+      sheetSide?.pin ||
+      resolved?.pin ||
+      (normalizeCodeLabel(fromCode) === code ? pinFrom : "") ||
+      (normalizeCodeLabel(toCode) === code ? pinTo : "") ||
+      "";
+    // В focus/pick ведём с кавити выбранного узла; «Куда» только в хвосте кандидатов.
     const pinCandidates = [
       ...new Set(
         [
+          sheetPin,
           ...(wire?.pinCandidates || []),
           pinFrom,
+          pinTo,
           wire?.pin,
           cardFrom?.pin,
         ]
@@ -1738,17 +2002,37 @@ function App() {
       wire?.ends?.length
         ? wire.ends
         : [
-            ...(fromCode
+            ...(fromCode && normalizeCodeLabel(fromCode) === code
               ? [
                   {
                     code: fromCode,
-                    pin: pinFrom || undefined,
-                    pinCandidates: pinFrom ? [pinFrom] : undefined,
+                    pin: pinFrom || sheetPin || undefined,
+                    pinCandidates: (pinFrom || sheetPin) ? [pinFrom || sheetPin] : undefined,
                     role: "selected" as const,
                   },
                 ]
-              : []),
-            ...(toCode && toCode !== fromCode
+              : toCode && normalizeCodeLabel(toCode) === code
+                ? [
+                    {
+                      code: toCode,
+                      pin: pinTo || sheetPin || undefined,
+                      pinCandidates: (pinTo || sheetPin) ? [pinTo || sheetPin] : undefined,
+                      role: "selected" as const,
+                    },
+                  ]
+                : fromCode
+                  ? [
+                      {
+                        code: fromCode,
+                        pin: pinFrom || sheetPin || undefined,
+                        pinCandidates: (pinFrom || sheetPin) ? [pinFrom || sheetPin] : undefined,
+                        role: "selected" as const,
+                      },
+                    ]
+                  : []),
+            ...(toCode &&
+            toCode !== fromCode &&
+            !(normalizeCodeLabel(toCode) === code && normalizeCodeLabel(fromCode) !== code)
               ? [
                   {
                     code: toCode,
@@ -1757,7 +2041,18 @@ function App() {
                     role: "to" as const,
                   },
                 ]
-              : []),
+              : fromCode &&
+                  normalizeCodeLabel(toCode) === code &&
+                  normalizeCodeLabel(fromCode) !== code
+                ? [
+                    {
+                      code: fromCode,
+                      pin: pinFrom || undefined,
+                      pinCandidates: pinFrom ? [pinFrom] : undefined,
+                      role: "to" as const,
+                    },
+                  ]
+                : []),
           ];
     const hasPinFocus = pinCandidates.length > 0 || !!wire?.pin || wireEnds.some((e) => e.pin);
 
@@ -1770,7 +2065,7 @@ function App() {
         ...(wire || {}),
         wireUid: boundWireUid,
         pinUid: boundPinUid,
-        pin: pinFrom || wire?.pin || pinCandidates[0],
+        pin: sheetPin || pinFrom || wire?.pin || pinCandidates[0],
         pinFrom: pinFrom || wire?.pinFrom,
         pinTo: pinTo || wire?.pinTo,
         fromCode: fromCode || wire?.fromCode,
@@ -1780,10 +2075,11 @@ function App() {
         peerCode: toCode || wire?.peerCode || resolved?.peerCode || ctx.peerCode,
         peerPin: peerPin || pinTo || undefined,
         ends: wireEnds.length ? wireEnds : wire?.ends,
+        optionTokens: wire?.optionTokens,
       };
     }
 
-    // Fresh card click resets pin-miss state; retries / manual keep their own budget.
+    // Новый клик карточки: сброс pin-miss. Retry / ручной picker — свой бюджет.
     if (!preferredUid && !opts?.fromPinMissRetry) {
       pinMissTriedRef.current = new Set();
       pinViableUidsRef.current = [];
@@ -1794,7 +2090,7 @@ function App() {
       pinMissBudgetRef.current = 0;
     }
 
-    // Explicit list UID = manual / pin-miss retry; otherwise pick by card wireUid on sheet.
+    // Явный UID из списка = ручной выбор / retry после pin-miss; иначе — лист по wireUid карточки.
     let preferred: EwdDiagram | null =
       (preferredUid && ewdDiagrams.find((d) => d.diagramUid === preferredUid)) ||
       (preferredUid
@@ -1806,10 +2102,52 @@ function App() {
             pathCount: 0,
           }
         : null);
+    let lastViableDiags: EwdDiagram[] = [];
+
+    if (!preferred && boundWireUid && !opts?.manualPick) {
+      try {
+        const contextQs = new URLSearchParams({
+          code,
+          wireUid: boundWireUid,
+          pin: sheetPin || pinFrom || wire?.pin || "",
+        });
+        if (boundPinUid) contextQs.set("pinUid", boundPinUid);
+        if (wire?.wireColor) contextQs.set("color", wire.wireColor);
+        const contextPeer = toCode || wire?.peerCode || resolved?.peerCode || ctx.peerCode || "";
+        if (contextPeer) contextQs.set("peer", contextPeer);
+        if (selectedZone && selectedZone !== "all") contextQs.set("navZone", selectedZone);
+        const contextRes = await fetch(`/api/ewd/wire-context?${contextQs}`).then((r) => r.json());
+        if (!isCurrentAttempt()) return;
+        const exactUids = Array.isArray(contextRes.exactSheets)
+          ? contextRes.exactSheets
+              .map((sheet: { diagramUid?: string }) => String(sheet.diagramUid || ""))
+              .filter(Boolean)
+          : [];
+        const exactDiagrams = exactUids
+          .map((uid: string) => ewdDiagrams.find((diagram) => diagram.diagramUid === uid))
+          .filter(Boolean) as EwdDiagram[];
+        if (exactDiagrams.length) {
+          preferred = exactDiagrams[0];
+          lastViableDiags = exactDiagrams;
+          pinViableUidsRef.current = exactUids;
+          setCardViableDiagrams(exactDiagrams);
+          setPickBestUid(preferred.diagramUid);
+        } else if (contextRes.status === "no-sheet") {
+          setCardViableDiagrams([]);
+          setNotice(
+            "Точная схема этого провода не подтверждена. «Схемы узла» доступны только как общий контекст.",
+          );
+          return;
+        }
+      } catch {
+        // Fall back to the existing connectivity picker if provenance is unavailable.
+      }
+    }
 
     const applyPickRanked = (pickRes: {
       diagramUid?: string;
       viable?: string[];
+      pinOnly?: string[];
       ranked?: Array<{
         diagramUid: string;
         wireHits?: number;
@@ -1818,9 +2156,13 @@ function App() {
       }>;
       hard?: boolean;
       wireHits?: number;
-    }): { pickUid: string; viableDiags: EwdDiagram[] } => {
+      confidence?: string;
+    }): { pickUid: string; viableDiags: EwdDiagram[]; pinOnlyDiags: EwdDiagram[] } => {
       const viable = Array.isArray(pickRes.viable)
         ? (pickRes.viable as string[]).filter(Boolean)
+        : [];
+      const pinOnly = Array.isArray(pickRes.pinOnly)
+        ? (pickRes.pinOnly as string[]).filter(Boolean)
         : [];
       pinViableUidsRef.current = viable;
       const rankedRows = Array.isArray(pickRes.ranked) ? pickRes.ranked : [];
@@ -1837,7 +2179,7 @@ function App() {
           };
         }),
       );
-      const viableDiags: EwdDiagram[] = viable.map((uid) => {
+      const toDiag = (uid: string): EwdDiagram => {
         const hit = ewdDiagrams.find((d) => d.diagramUid === uid);
         const r = byUid.get(uid);
         return {
@@ -1852,11 +2194,23 @@ function App() {
           pinHits: Number(r?.pinHits) || 0,
           onSheetUidCount: Number(r?.onSheetUidCount) || 0,
         };
+      };
+      const viableDiags = viable.map(toDiag).filter((d) => {
+        if (!boundWireUid) return true;
+        return diagramContainsWireUid(d, boundWireUid);
       });
+      const pinOnlyDiags = pinOnly.map(toDiag);
+      // Default picker list = wire-owned only; pin-only stays available via “Все листы”.
       setCardViableDiagrams(viableDiags);
-      const pickUid = String(pickRes.diagramUid || "");
-      setPickBestUid(pickUid);
-      return { pickUid, viableDiags };
+      lastViableDiags = viableDiags;
+      const pickUid =
+        Number(pickRes.wireHits) > 0 || pickRes.hard || pickRes.confidence === "wire-owned"
+          ? String(pickRes.diagramUid || "")
+          : "";
+      setPickBestUid(
+        pickUid && (!boundWireUid || viableDiags.some((d) => d.diagramUid === pickUid)) ? pickUid : viableDiags[0]?.diagramUid || pickUid,
+      );
+      return { pickUid, viableDiags, pinOnlyDiags };
     };
 
     if (!preferred && hasPinFocus && !opts?.manualPick) {
@@ -1875,11 +2229,15 @@ function App() {
       try {
         const qs = new URLSearchParams({ code });
         // Pick by Откуда pin; peer = Куда (not the other way around)
-        const fromPins = [pinFrom, ...pinCandidates].filter(Boolean);
+        const fromPins = [sheetPin, pinFrom, ...pinCandidates].filter(Boolean);
         if (fromPins.length) qs.set("pins", [...new Set(fromPins)].join(","));
         if (wire?.wireColor) qs.set("color", wire.wireColor);
         const peer =
-          toCode ||
+          (fromCode && normalizeCodeLabel(fromCode) !== code
+            ? fromCode
+            : toCode && normalizeCodeLabel(toCode) !== code
+              ? toCode
+              : "") ||
           wire?.peerCode ||
           resolved?.peerCode ||
           ctx.peerCode ||
@@ -1887,23 +2245,26 @@ function App() {
         if (peer) qs.set("peer", peer);
         if (boundWireUid) qs.set("wireUid", boundWireUid);
         if (boundPinUid) qs.set("pinUid", boundPinUid);
-        if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
-        if (optionTokens.length) qs.set("optionTokens", optionTokens.join(","));
+        // Card-level Capital options (e.g. HUMIDSEN) narrow variant sheets for this net.
+        const cardOpts = [
+          ...new Set([...(wire?.optionTokens || []), ...optionTokens].filter(Boolean)),
+        ].slice(0, 12);
+        if (cardOpts.length) qs.set("optionTokens", cardOpts.join(","));
         // Probe is additive on server (netOwned ∪ requested) — never replaces netOwned
         if (probe.length) {
           qs.set("diagramUids", probe.map((r) => r.diagram.diagramUid).join(","));
         }
         const pickRes = await fetch(`/api/ewd/pick-diagram?${qs}`).then((r) => r.json());
+        if (!isCurrentAttempt()) return;
         const { pickUid, viableDiags } = applyPickRanked(pickRes);
         const preferFromSheet = (d: EwdDiagram | null): EwdDiagram | null => {
-          if (!d || !fromCodeN || fromCodeN === code) return d;
+          if (boundWireUid || !d || !fromCodeN || fromCodeN === code) return d;
           if (diagramHasCode(d, fromCodeN)) return d;
           const better =
             viableDiags.find(
               (v) =>
                 diagramHasCode(v, fromCodeN) && (Number(v.wireHits) || 0) > 0,
-            ) ||
-            viableDiags.find((v) => diagramHasCode(v, fromCodeN));
+            ) || null;
           return better || d;
         };
         const resolveUid = (uid: string): EwdDiagram | null => {
@@ -1920,45 +2281,50 @@ function App() {
             }
           );
         };
-        // Hard only when card has wireUid
-        if (boundWireUid) {
-          if (pickRes.hard && Number(pickRes.wireHits) > 0 && pickUid) {
-            preferred = preferFromSheet(resolveUid(pickUid));
-          } else {
-            setNotice(
-              "Нет схемы, где этот провод есть на листе. Откройте «Разъём» или выберите лист вручную из списка цепи.",
-            );
-            return;
-          }
-        } else {
-          preferred = preferFromSheet(
-            (Number(pickRes.wireHits) > 0 ? resolveUid(pickUid) : null) ||
-              resolveUid(String(pickRes.viable?.[0] || "")) ||
-              null,
+        // Auto-open only wire-owned sheets. Pin-only must not become a contact marker sheet.
+        if (pickRes.hard && Number(pickRes.wireHits) > 0 && pickUid) {
+          preferred = preferFromSheet(resolveUid(pickUid));
+        } else if (boundWireUid || hasPinFocus) {
+          setNotice(
+            Array.isArray(pickRes.pinOnly) && pickRes.pinOnly.length
+              ? "Есть листы, где виден контакт, но провод на схеме не подтверждён. Откройте «Разъём» или выберите лист вручную из полного списка."
+              : "Нет схемы, где этот провод есть на листе. Откройте «Разъём» или выберите лист вручную из списка цепи.",
           );
+          return;
         }
       } catch {
-        if (boundWireUid) {
+        if (boundWireUid || hasPinFocus) {
           setNotice("Не удалось подобрать схему для этого провода.");
           return;
         }
       }
     }
 
-    // Without card wireUid: score-based only; never ewdDiagrams[0] blind.
+    // Без wireUid карточки — только score, никогда слепой ewdDiagrams[0].
+    // При фокусе на pin нужен wireHits, чтобы не открыть лист «только с цифрой».
     if (!preferred && !boundWireUid) {
       const picked = pickBestDiagram(ewdDiagrams, ctx);
-      preferred = picked.diagram;
+      preferred =
+        picked.diagram && (!hasPinFocus || (Number(picked.diagram.wireHits) || 0) > 0)
+          ? picked.diagram
+          : null;
       if (!preferred) {
         const ranked = rankDiagramsForContext(ewdDiagrams, ctx);
         preferred =
-          ranked.find((r) => r.score > 0 && diagramHasCode(r.diagram, code))?.diagram ||
-          ranked.find((r) => r.score > 0)?.diagram ||
+          ranked.find(
+            (r) =>
+              r.score > 0 &&
+              diagramHasCode(r.diagram, code) &&
+              (!hasPinFocus || (Number(r.diagram.wireHits) || 0) > 0),
+          )?.diagram ||
+          (!hasPinFocus
+            ? ranked.find((r) => r.score > 0)?.diagram
+            : ranked.find((r) => (Number(r.diagram.wireHits) || 0) > 0)?.diagram) ||
           null;
       }
       if (!preferred && hasPinFocus) {
         setNotice(
-          "Нет схемы с этим контактом/цветом на листе. Выберите схему вручную или откройте «Разъём».",
+          "Нет схемы с этим проводом на листе. Выберите схему вручную из полного списка или откройте «Разъём».",
         );
         return;
       }
@@ -1971,21 +2337,91 @@ function App() {
       );
       return;
     }
+    if (boundWireUid && !diagramContainsWireUid(preferred, boundWireUid)) {
+      setNotice(
+        "Этот лист не содержит выбранный провод. Выберите «лучшая» или откройте другую карточку цепи.",
+      );
+      return;
+    }
     setPickBestUid(preferred.diagramUid);
     setCapitalPanel(null);
     // Always-on marker: bump showSeq on every click so repeat clicks re-inject + recenter
     showSeqRef.current += 1;
-    // Focus pin = Откуда — never let server/Куда override
-    const focusPin = pinFrom || wire?.pin || pinCandidates[0] || undefined;
+    // Пин фокуса на листах этого узла = sheet-side кавити (не чужой «Откуда» транзита).
+    const focusPin = sheetPin || wire?.pin || pinCandidates[0] || undefined;
     const peerTo =
-      toCode ||
+      (fromCode && normalizeCodeLabel(fromCode) !== code
+        ? fromCode
+        : toCode && normalizeCodeLabel(toCode) !== code
+          ? toCode
+          : "") ||
       wire?.peerCode ||
       resolved?.peerCode ||
       ctx.peerCode ||
       undefined;
+    const hlOpts = [
+      ...new Set([...(wire?.optionTokens || []), ...optionTokens].filter(Boolean)),
+    ].slice(0, 12);
+
+    if (boundWireUid || focusPin) {
+      const tryUids: string[] = [];
+      const pushUid = (uid?: string) => {
+        const u = String(uid || "").trim();
+        if (u && !tryUids.includes(u)) tryUids.push(u);
+      };
+      pushUid(preferred.diagramUid);
+      for (const uid of pinViableUidsRef.current) pushUid(uid);
+      for (const d of lastViableDiags) pushUid(d.diagramUid);
+
+      let resolvedSheet: EwdDiagram | null = null;
+      // Пробуем highlight по кандидатам; лист без нашего wireUid сразу пропускаем.
+      for (const uid of tryUids) {
+        const meta = ewdDiagrams.find((d) => d.diagramUid === uid);
+        if (boundWireUid && meta && !diagramContainsWireUid(meta, boundWireUid)) continue;
+        const matched = await probeHighlightMatch({
+          code,
+          diagramUid: uid,
+          pin: focusPin,
+          wireColor: wire?.wireColor,
+          wireUid: boundWireUid,
+          pinUid: boundPinUid,
+          peer: peerTo,
+          zone: undefined,
+          optionTokens: hlOpts,
+        });
+        if (!isCurrentAttempt()) return;
+        if (matched > 0) {
+          resolvedSheet = meta || preferred;
+          break;
+        }
+      }
+      if (resolvedSheet && resolvedSheet.diagramUid !== preferred.diagramUid) {
+        preferred = resolvedSheet;
+        setPickBestUid(preferred.diagramUid);
+      } else if (!resolvedSheet && boundWireUid) {
+        // Провод уже на preferred — открываем, даже если probe по цифре кавити провалился.
+        // Иначе остаёмся на старой схеме с ошибкой «Провод не найден».
+        if (preferred && diagramContainsWireUid(preferred, boundWireUid)) {
+          resolvedSheet = preferred;
+        } else {
+          setNotice(
+            "Провод не найден на подходящем листе для подсветки. Откройте «Разъём» или выберите «лучшая» в списке схем.",
+          );
+          return;
+        }
+      }
+    }
+
+    if (!isCurrentAttempt()) return;
+    const openMeta =
+      ewdDiagrams.find((d) => d.diagramUid === preferred.diagramUid) || preferred;
+    const openConfidence = schemeConfidenceForDiagram(openMeta);
     setActiveSvg({
       diagramUid: preferred.diagramUid,
       searchCode: code,
+      title: String(openMeta.title || "").trim() || undefined,
+      systemName: String(openMeta.systemName || "").trim() || undefined,
+      confidence: openConfidence,
       objectIds: diagramScopedUids(preferred, ewdObjectIds),
       pin: focusPin,
       pinCandidates: focusPin
@@ -2001,11 +2437,11 @@ function App() {
       pinUid: boundPinUid,
       peerCode: peerTo,
       peerPin: peerPin || pinTo || undefined,
-      zone: selectedZone && selectedZone !== "all" ? selectedZone : undefined,
+      zone: undefined,
       optionTokens,
       showSeq: showSeqRef.current,
     });
-    // Signal tracer: resolve GlobalSignals siblings for Откуда pin
+    // Signal tracer: соседние GlobalSignals для кавити выбранного узла (sheetPin).
     const pinForTrace = focusPin || pinCandidates[0] || "";
     if (pinForTrace) {
       const tqs = new URLSearchParams({ code, pin: pinForTrace });
@@ -2013,6 +2449,7 @@ function App() {
       fetch(`/api/ewd/trace?${tqs}`)
         .then((r) => r.json())
         .then((data) => {
+          if (!isCurrentAttempt()) return;
           if (!data?.uid) {
             setTraceInfo(null);
             return;
@@ -2024,7 +2461,9 @@ function App() {
             diagrams: Array.isArray(data.diagrams) ? data.diagrams : [],
           });
         })
-        .catch(() => setTraceInfo(null));
+        .catch(() => {
+          if (isCurrentAttempt()) setTraceInfo(null);
+        });
     } else {
       setTraceInfo(null);
     }
@@ -2035,6 +2474,8 @@ function App() {
   async function loadWires(code: string, zone = selectedZone, opts?: { ignoreZone?: boolean }) {
     if (!code) return;
     if (!requireVehicleMin()) return;
+    const attemptId = ++ewdAttemptRef.current;
+    const isCurrentAttempt = () => ewdAttemptRef.current === attemptId;
     const useZone = opts?.ignoreZone ? "all" : zone;
     setMode("search");
     setOwnerWires([]);
@@ -2057,16 +2498,15 @@ function App() {
     try {
       const params = new URLSearchParams({ code });
       if (useZone && useZone !== "all") params.set("zone", useZone);
+      // Physical nav zone scopes cards only. EWD sheet ownership is global for the wire.
       const ewdQs = new URLSearchParams({ code });
-      if (useZone && useZone !== "all") ewdQs.set("zone", useZone);
       const sysQs = new URLSearchParams({ code });
-      if (useZone && useZone !== "all") sysQs.set("zone", useZone);
       const [data, ewdData, sysData] = await Promise.all([
         fetch(`/api/nav/wires?${params}`).then((r) => r.json()),
         fetch(`/api/ewd/diagrams?${ewdQs}`).then((r) => r.json()).catch(() => ({ diagrams: [], objectIds: [], sheetUids: [] })),
         fetch(`/api/ewd/systems?${sysQs}`).then((r) => r.json()).catch(() => ({ systems: [] })),
       ]);
-      setEwdSystems(Array.isArray(sysData.systems) ? (sysData.systems as EwdSystemRow[]) : []);
+      if (!isCurrentAttempt()) return;
       let ownerRaw = Array.isArray(data.owner_wires) ? data.owner_wires : [];
       let transitRaw = Array.isArray(data.transit_wires) ? data.transit_wires : [];
       let zoneEmptyFallback = false;
@@ -2074,6 +2514,7 @@ function App() {
       // Zone filter emptied results — offer / auto-check unscoped wires
       if (!ownerRaw.length && !transitRaw.length && useZone && useZone !== "all" && !opts?.ignoreZone) {
         const unscoped = await fetch(`/api/nav/wires?code=${encodeURIComponent(code)}`).then((r) => r.json());
+        if (!isCurrentAttempt()) return;
         const uOwner = Array.isArray(unscoped.owner_wires) ? unscoped.owner_wires : [];
         const uTransit = Array.isArray(unscoped.transit_wires) ? unscoped.transit_wires : [];
         if (uOwner.length || uTransit.length) {
@@ -2095,21 +2536,81 @@ function App() {
       const codeCtx = extractSchemeContext(null, code);
       const preferredDiagram = pickBestDiagram(ewdDiags, codeCtx).diagram;
       const epQs = new URLSearchParams({ code });
-      if (useZone && useZone !== "all") epQs.set("zone", useZone);
       if (preferredDiagram?.diagramUid) epQs.set("diagramUid", preferredDiagram.diagramUid);
       if (optionTokens.length) epQs.set("optionTokens", optionTokens.join(","));
       const epData = await fetch(`/api/ewd/endpoints?${epQs}`)
         .then((r) => r.json())
         .catch(() => ({ endpoints: [] }));
+      if (!isCurrentAttempt()) return;
       const endpoints = Array.isArray(epData.endpoints) ? (epData.endpoints as EwdEndpoint[]) : [];
-      setOwnerWires(mergeEwdEndpoints(ownerRaw, endpoints, code));
-      setTransitWires(mergeEwdEndpoints(transitRaw, endpoints, code));
-      setEwdDiagrams(ewdDiags);
+      const mergedOwner = mergeEwdEndpoints(ownerRaw, endpoints, code);
+      const mergedTransit = mergeEwdEndpoints(transitRaw, endpoints, code);
+      setOwnerWires(mergedOwner);
+      setTransitWires(mergedTransit);
+      // Nav/SQLite card wire_uids may be absent from pin_wire_index — score sheets by onSheetUids too.
+      const cardWireUids = [
+        ...new Set(
+          [...mergedOwner, ...mergedTransit]
+            .map((w) => String(w.wire_uid || "").trim())
+            .filter(Boolean),
+        ),
+      ];
+      const scoredDiags = ewdDiags.map((d) => {
+        const sheet = new Set<string>([
+          ...(d.onSheetUids || []),
+          ...((d.groups || []).flatMap((g) => g.uids || [])),
+        ]);
+        const cardUidHits = cardWireUids.filter((u) => sheet.has(u)).length;
+        const wireHits = Number(d.wireHits) || 0;
+        const pinHits = Number(d.pinHits) || 0;
+        return {
+          ...d,
+          wireHits,
+          pinHits,
+          onSheetUidCount: Math.max(Number(d.onSheetUidCount) || 0, cardUidHits),
+          confidence: schemeConfidenceForDiagram({ wireHits, pinHits }),
+        };
+      });
+      setEwdDiagrams(scoredDiags);
       setEwdObjectIds(objectIds);
+      // Per-wire picker list fills only after a card click (pick-diagram). Until then show all node sheets.
       setCardViableDiagrams([]);
       setPickBestUid("");
       setShowAllNodeDiagrams(false);
       lastWireFocusRef.current = null;
+      // Systems: keep API wire-owned, plus designs of sheets that hold card wires.
+      const apiViableUids = new Set<string>(
+        Array.isArray(ewdData.viable) ? (ewdData.viable as string[]) : [],
+      );
+      const nodeViableDiags = scoredDiags.filter((d) => apiViableUids.has(d.diagramUid));
+      const sysRows = Array.isArray(sysData.systems) ? (sysData.systems as EwdSystemRow[]) : [];
+      const cardDesigns = new Set(
+        nodeViableDiags.map((d) => d.designFolder).filter(Boolean),
+      );
+      const systemsMerged = sysRows.map((s) => ({
+        ...s,
+        wireOwned: Boolean(s.wireOwned) || cardDesigns.has(s.systemUid),
+        confidence: (Boolean(s.wireOwned) || cardDesigns.has(s.systemUid)
+          ? "wire-owned"
+          : s.confidence || "text-only") as SchemeConfidence,
+      }));
+      // If API omitted a design that holds a card wire, synthesize a row from diagrams.
+      for (const d of nodeViableDiags) {
+        if (!d.designFolder || systemsMerged.some((s) => s.systemUid === d.designFolder)) continue;
+        systemsMerged.push({
+          systemUid: d.designFolder,
+          name: d.systemName || d.title || d.designFolder,
+          diagramUids: [d.diagramUid],
+          diagramCount: 1,
+          wireOwned: true,
+          confidence: "wire-owned",
+        });
+      }
+      setEwdSystems(
+        systemsMerged
+          .filter((s) => s.wireOwned)
+          .sort((a, b) => a.name.localeCompare(b.name) || a.systemUid.localeCompare(b.systemUid)),
+      );
       const pinCount = infoSource.pin_count || {
         owner: ownerRaw.length,
         transit: transitRaw.length,
@@ -2145,11 +2646,12 @@ function App() {
       } else {
         setNotice(
           n || ewdDiags.length
-            ? `${codeLabel}: ${ewdDiags.length} схем EWD · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
+            ? `${codeLabel}: ${nodeViableDiags.length || ewdDiags.length} схем с проводом · ${ewdDiags.length} листов · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
             : `Для ${codeLabel} ничего не найдено`,
         );
       }
     } catch {
+      if (!isCurrentAttempt()) return;
       setOwnerWires([]);
       setTransitWires([]);
       setEwdDiagrams([]);
@@ -2158,7 +2660,7 @@ function App() {
       setNodeInfo(null);
       setNotice("Ошибка загрузки контактов");
     } finally {
-      setLoading(false);
+      if (isCurrentAttempt()) setLoading(false);
     }
   }
 
@@ -2352,23 +2854,7 @@ function App() {
     </>
   ) : null;
 
-  const themeToggleControl = (
-    <div className="theme-toggle" role="group" aria-label="Тема">
-      {THEMES.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          data-testid={`theme-${t.id}`}
-          className={theme === t.id ? "theme-toggle__btn is-active" : "theme-toggle__btn"}
-          onClick={() => setTheme(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-
-  /** Compact theme switch, styled like the brand wordmark — sits right next to "Volvo EWD" on desktop. */
+  /** Compact theme switch, styled like the brand wordmark and shared by mobile and desktop headers. */
   const themeInlineControl = (
     <div className="app-bar__theme-inline" role="group" aria-label="Тема">
       {THEMES.map((t) => (
@@ -2378,6 +2864,7 @@ function App() {
           data-testid={`theme-inline-${t.id}`}
           className={theme === t.id ? "app-bar__theme-inline-btn is-active" : "app-bar__theme-inline-btn"}
           title={`Тема: ${t.label}`}
+          aria-pressed={theme === t.id}
           onClick={() => setTheme(t.id)}
         >
           {t.label}
@@ -2386,9 +2873,8 @@ function App() {
     </div>
   );
 
-  const themeAndPushControls = (
+  const pushControls = (
     <>
-      {isMobileUi ? themeToggleControl : null}
       {pushState === "unsupported" || pushState === "unavailable" ? null : (
         <button
           type="button"
@@ -2432,12 +2918,12 @@ function App() {
   );
 
   const vinControls = features.vinSearch ? (
-    <>
-      <label className="flex items-center gap-1 text-[var(--muted)]">
-        VIN
+    <div className="vin-controls flex flex-col gap-1 min-w-0 w-full basis-full" data-testid="vin-controls">
+      <div className="flex flex-nowrap items-center gap-2 min-w-0 w-full">
+        <span className="text-[var(--muted)] shrink-0">VIN</span>
         <input
           data-testid="vehicle-vin"
-          className="app-input rounded px-1.5 py-1 font-mono w-[11.5rem] tracking-wider"
+          className="app-input rounded px-1.5 py-1 font-mono tracking-wider flex-1 min-w-0"
           maxLength={17}
           placeholder="17 символов"
           autoComplete="off"
@@ -2453,36 +2939,38 @@ function App() {
             if (e.key === "Enter") void applyVin();
           }}
         />
-      </label>
-      <button
-        type="button"
-        data-testid="vin-decode-btn"
-        className="md-btn md-btn--tonal text-[11px] px-2 py-1"
-        onClick={() => void applyVin()}
-      >
-        По VIN
-      </button>
-      {(vinInput || vinLocked) ? (
         <button
           type="button"
-          data-testid="vin-clear-btn"
-          className="md-btn md-btn--text text-[11px] px-2 py-1"
-          onClick={clearVin}
+          data-testid="vin-decode-btn"
+          className="md-btn md-btn--tonal text-[11px] px-2 py-1 shrink-0"
+          onClick={() => void applyVin()}
         >
-          Сброс VIN
+          По VIN
         </button>
+      </div>
+      {(vinInput || vinLocked) ? (
+        <div className="flex flex-nowrap items-center gap-2">
+          <button
+            type="button"
+            data-testid="vin-clear-btn"
+            className="md-btn md-btn--text text-[11px] px-2 py-1 shrink-0"
+            onClick={clearVin}
+          >
+            Сброс VIN
+          </button>
+          {vinLocked ? <span className="md-chip shrink-0" data-testid="vin-chip">из VIN</span> : null}
+        </div>
       ) : null}
-      {vinLocked ? <span className="md-chip" data-testid="vin-chip">из VIN</span> : null}
-    </>
+    </div>
   ) : null;
 
   const dtcControls = features.dtcSearch ? (
     <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
       <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-nowrap items-center gap-2 min-w-0">
         <input
           data-testid="dtc-query"
-          className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-[12rem]"
+          className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-0"
           placeholder="ABS-0010, CEM-1A05, P0563, датчик колеса…"
           value={dtcQuery}
           onChange={(e) => setDtcQuery(e.target.value)}
@@ -2493,7 +2981,7 @@ function App() {
         <button
           type="button"
           data-testid="dtc-search-btn"
-          className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5"
+          className="md-btn md-btn--filled text-[11px] px-2.5 py-1.5 shrink-0"
           onClick={() => void searchDtc()}
           disabled={dtcLoading}
         >
@@ -2502,7 +2990,7 @@ function App() {
         <button
           type="button"
           data-testid="dtc-clear-btn"
-          className="md-btn md-btn--text text-[11px] px-2.5 py-1.5"
+          className="md-btn md-btn--text text-[11px] px-2.5 py-1.5 shrink-0"
           onClick={clearDtc}
           disabled={!dtcQuery && !dtcResults.length && mode !== "dtc"}
         >
@@ -2519,7 +3007,7 @@ function App() {
   const filterPopoverControls = (
     <>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {themeAndPushControls}
+        {pushControls}
         {vinControls}
       </div>
       {vinNotice ? (
@@ -2532,9 +3020,15 @@ function App() {
   /** Mobile sheet: full set. */
   const filterControls = (
     <>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {themeAndPushControls}
+      <div
+        className="mobile-vehicle-filters"
+        data-testid="mobile-vehicle-filters"
+        aria-label="Параметры автомобиля"
+      >
         {vehicleQuickFields}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {pushControls}
         {vinControls}
         {selectedModel && selectedYear && (
           <span className="md-chip md-chip--accent ml-auto" data-testid="vehicle-chip">
@@ -2615,7 +3109,7 @@ function App() {
         </button>
         <div className="app-bar__brand-group shrink-0">
           <span className="font-semibold text-[var(--accent)] tracking-wide app-bar__brand">Volvo EWD</span>
-          {!isMobileUi ? themeInlineControl : null}
+          {themeInlineControl}
         </div>
         {!isMobileUi ? (
           <div
@@ -2892,7 +3386,7 @@ function App() {
             </article>
           ))}
           {!dtcLoading && !dtcResults.length ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-8">Нет совпадений.</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-8">Результатов нет</p>
           ) : null}
         </div>
       </section>
@@ -2971,13 +3465,11 @@ function App() {
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
-      <div
-        data-testid="cards-column-scroll"
-        className="cards-column__scroll flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-y-contain space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]"
-      >
+      {/* Outside scrollport: mobile bottom-sheet uses position:fixed; fixed inside overflow
+          creates a containing block and cards scroll through the sheet (overlap). */}
       <details
         data-testid="cards-column-sticky"
-        className="cards-column__sticky cards-column__chrome mobile-node-tools"
+        className="cards-column__sticky cards-column__chrome mobile-node-tools shrink-0"
         open={isMobileUi ? toolsSheetOpen : true}
         onToggle={(e) => {
           if (!isMobileUi) return;
@@ -3082,6 +3574,8 @@ function App() {
                       type="button"
                       role="option"
                       data-testid="systems-tree-item"
+                      data-wire-owned={s.wireOwned ? "1" : "0"}
+                      data-confidence={s.confidence || (s.wireOwned ? "wire-owned" : "text-only")}
                       className="diagram-picker__item"
                       onClick={() => {
                         const uids = (s.diagramUids || []).filter(Boolean);
@@ -3115,12 +3609,17 @@ function App() {
                             if (focus?.peerCode) qs.set("peer", focus.peerCode);
                             if (focus?.wireUid) qs.set("wireUid", focus.wireUid);
                             if (focus?.pinUid) qs.set("pinUid", focus.pinUid);
+                            if (focus?.optionTokens?.length) {
+                              qs.set("optionTokens", focus.optionTokens.join(","));
+                            } else if (optionTokens.length) {
+                              qs.set("optionTokens", optionTokens.join(","));
+                            }
                             if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
                             const pickRes = await fetch(`/api/ewd/pick-diagram?${qs}`).then((r) =>
                               r.json(),
                             );
                             const pickUid = String(pickRes.diagramUid || "");
-                            if (pickUid && (Number(pickRes.wireHits) > 0 || !focus?.wireUid)) {
+                            if (pickUid && Number(pickRes.wireHits) > 0) {
                               void openEwdDiagram(
                                 selectedCode,
                                 pickUid,
@@ -3130,7 +3629,7 @@ function App() {
                               );
                             } else {
                               setNotice(
-                                `Система «${s.name}»: нет листа с этим проводом. Сначала откройте карточку цепи.`,
+                                `Система «${s.name}»: нет листа с этим проводом. Сначала откройте карточку цепи или полный список схем.`,
                               );
                             }
                           } catch {
@@ -3142,6 +3641,7 @@ function App() {
                       <span className="diagram-picker__item-title">{s.name || s.systemUid}</span>
                       <span className="diagram-picker__item-meta">
                         {s.zone || "—"} · листов {s.diagramCount ?? (s.diagramUids || []).length}
+                        {s.wireOwned ? " · провод" : " · текст"}
                       </span>
                     </button>
                   ))}
@@ -3159,12 +3659,17 @@ function App() {
                 aria-expanded={diagramPickerOpen}
                 onClick={() => setDiagramPickerOpen((v) => !v)}
               >
-                🗺️ Выбрать схему (
                 {cardViableDiagrams.length > 0 && !showAllNodeDiagrams
-                  ? cardViableDiagrams.length
-                  : ewdDiagrams.length}
-                )
+                  ? `🗺️ Схемы провода (${cardViableDiagrams.length})`
+                  : focusedWireUid && ewdDiagrams.some((d) => diagramContainsWireUid(d, focusedWireUid))
+                    ? `🗺️ Схемы провода (${ewdDiagrams.filter((d) => diagramContainsWireUid(d, focusedWireUid)).length})`
+                    : `🗺️ Схемы узла (${ewdDiagrams.length})`}
               </button>
+              {!focusedWireUid || showAllNodeDiagrams ? (
+                <p className="diagram-picker__helper" role="status">
+                  Схемы узла — общий контекст. Наличие выбранного провода подтверждает только раздел «Схемы провода».
+                </p>
+              ) : null}
               {diagramPickerOpen ? (
                 <div
                   data-testid="diagram-picker-menu"
@@ -3186,14 +3691,30 @@ function App() {
                       </span>
                     </button>
                   ) : null}
+                  <p className="diagram-picker__section-label">
+                    {showAllNodeDiagrams ? "Все схемы узла" : "Схемы выбранного провода"}
+                  </p>
                   {rankedDiagrams.map(({ diagram: d, score }) => {
-                    const label = String(d.title || d.systemName || d.designFolder || "").trim();
+                    const systemLabel = String(d.systemName || "").trim();
+                    const titleLabel = String(d.title || d.designFolder || "").trim();
+                    const label =
+                      systemLabel && titleLabel && systemLabel !== titleLabel
+                        ? `${systemLabel} — ${titleLabel}`
+                        : systemLabel || titleLabel;
                     const isOpen = activeSvg?.diagramUid === d.diagramUid;
                     const bestUid = pickBestUid || bestDiagramUid;
+                    const confidence = schemeConfidenceForFocusedWire(d, focusedWireUid);
+                    const wireOwned = confidence === "wire-owned";
+                    const pinOnly = confidence === "pin-only";
+                    const confLabel =
+                      showAllNodeDiagrams && focusedWireUid && confidence !== "wire-owned"
+                        ? "не этот провод"
+                        : schemeConfidenceLabel(confidence, Boolean(focusedWireUid));
                     const isBest =
                       !!bestUid &&
                       d.diagramUid === bestUid &&
-                      (cardViableDiagrams.length > 0 || score >= 50);
+                      wireOwned &&
+                      (cardViableDiagrams.length > 0 || score >= 50 || Boolean(focusedWireUid));
                     const focus = lastWireFocusRef.current;
                     return (
                       <button
@@ -3202,6 +3723,9 @@ function App() {
                         role="option"
                         aria-selected={isOpen}
                         data-testid="diagram-picker-item"
+                        data-wire-owned={wireOwned ? "1" : "0"}
+                        data-pin-only={pinOnly ? "1" : "0"}
+                        data-confidence={confidence}
                         className={`diagram-picker__item${isOpen ? " is-active" : ""}`}
                         onClick={() => {
                           setDiagramPickerOpen(false);
@@ -3230,6 +3754,8 @@ function App() {
                         <span className="diagram-picker__title">{label || d.diagramUid}</span>
                         {isBest ? (
                           <span className="diagram-picker__badge">лучшая</span>
+                        ) : confLabel ? (
+                          <span className="diagram-picker__badge">{confLabel}</span>
                         ) : isOpen ? (
                           <span className="diagram-picker__badge">открыта</span>
                         ) : null}
@@ -3246,8 +3772,18 @@ function App() {
             data-testid="wire-color-filter"
             className="wire-color-filter"
             role="toolbar"
-            aria-label="Фильтр по цвету провода"
+            aria-label="Фильтр карточек по цвету провода из списка контактов"
           >
+            <p
+              className="w-full basis-full text-[10px] leading-snug text-[var(--text-muted)] mb-1"
+              data-testid="wire-color-provenance-note"
+            >
+              {capitalPanel?.kind === "location"
+                ? "Цвета из карточек контактов — не из карты расположения. Это фильтр списка слева, не провода на схеме."
+                : activeSvg
+                  ? "Цвета фильтруют список контактов слева (не легенда открытой схемы)."
+                  : "Цвета = фильтр карточек контактов. Схема ещё не открыта — это не провода текущего листа."}
+            </p>
             <button
               type="button"
               data-testid="wire-color-filter-all"
@@ -3280,14 +3816,18 @@ function App() {
       </div>
         </div>
       </details>
+      <div
+        data-testid="cards-column-scroll"
+        className="cards-column__scroll flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-y-contain space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]"
+      >
         {filteredOwnerWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
         ) : null}
-        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, cardCanShowOnDiagram(item), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
+        {filteredOwnerWires.map((item, index) => renderWireCard(item, index, cardCanShowOnDiagram(item), cardSchemeInfo(item, selectedCode, ewdDiagrams), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {filteredTransitWires.length > 0 ? (
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
         ) : null}
-        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, cardCanShowOnDiagram(item), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
+        {filteredTransitWires.map((item, index) => renderWireCard(item, index + 10000, cardCanShowOnDiagram(item), cardSchemeInfo(item, selectedCode, ewdDiagrams), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx))}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
         ) : null}
@@ -3307,8 +3847,29 @@ function App() {
         >
           <div className="ewd-scheme-header bg-[var(--input-bg)] px-3 py-1.5 border-b border-[var(--border-color)] flex justify-between items-center text-xs shrink-0 gap-2">
             <div className="flex items-center gap-3 min-w-0">
-              <span data-testid="svg-diagram-label" className="ewd-data font-semibold font-mono truncate max-w-[280px]">{activeSvg.searchCode}</span>
-              <span className="ewd-data font-mono truncate max-w-[200px]">{activeSvg.diagramUid.slice(0, 18)}…</span>
+              <span data-testid="svg-diagram-label" className="ewd-data font-semibold font-mono truncate max-w-[120px]">{activeSvg.searchCode}</span>
+              <span
+                data-testid="svg-diagram-title"
+                className="truncate max-w-[220px] text-[var(--text-main)]"
+                title={activeSvg.systemName || activeSvg.title || activeSvg.diagramUid}
+              >
+                {activeSvg.systemName || activeSvg.title || `${activeSvg.diagramUid.slice(0, 18)}…`}
+              </span>
+              {schemeConfidenceLabel(activeSvg.confidence) ? (
+                <span
+                  data-testid="svg-diagram-confidence"
+                  className="diagram-picker__badge shrink-0"
+                  title={
+                    activeSvg.confidence === "wire-owned"
+                      ? "Провод подтверждён на этом листе"
+                      : activeSvg.confidence === "pin-only"
+                        ? "На листе есть контакт, но провод не подтверждён"
+                        : "Лист найден по тексту/системе, без wireHits"
+                  }
+                >
+                  {schemeConfidenceLabel(activeSvg.confidence)}
+                </span>
+              ) : null}
               {traceInfo && traceInfo.siblingCount > 0 ? (
                 <details data-testid="signal-tracer" className="relative">
                   <summary className="cursor-pointer text-[var(--accent)] whitespace-nowrap">

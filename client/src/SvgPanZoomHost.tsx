@@ -48,6 +48,8 @@ type SvgPanZoomHostProps = {
   markerAt?: Pt | null;
   /** Bump to re-run comfort fit to markerAt. */
   fitToken?: string | number;
+  /** Bust markup cache when the logical sheet changes (same SVG bytes, different focus). */
+  contentKey?: string;
   /**
    * When no marker: fit the whole SVG into the viewport and center it
    * (Location views). Schematics keep top-left padding unless a marker is set.
@@ -75,6 +77,7 @@ export function SvgPanZoomHost({
   markerAt = null,
   fitToken = 0,
   fitMode = "marker",
+  contentKey = "",
   onMarkupApplied,
   children,
 }: SvgPanZoomHostProps) {
@@ -95,6 +98,7 @@ export function SvgPanZoomHost({
     ty0: number;
   } | null>(null);
   const appliedMarkupRef = useRef("");
+  const appliedContentKeyRef = useRef("");
   const markerRef = useRef<Pt | null>(null);
   markerRef.current = markerAt;
   const fitModeRef = useRef(fitMode);
@@ -172,29 +176,27 @@ export function SvgPanZoomHost({
     const svg = contentRef.current?.querySelector("svg") as SVGSVGElement | null;
     const at = markerRef.current;
     if (!viewport || !base || !svg) return;
-    if (!at && fitModeRef.current === "contain") {
+    if (!at) {
+      // Маркера нет (pin-miss / soft-ban): не оставляем translate {40,40} на comfort scale —
+      // центрируем лист целиком, иначе «пустой» кадр после смены карточки.
       fitContainCenter();
       return;
     }
     const comfortScale = 1.1;
     scaleRef.current = comfortScale;
-    if (at) {
-      try {
-        const vb = svg.viewBox?.baseVal;
-        const vbW = vb?.width || base.w;
-        const vbH = vb?.height || base.h;
-        const vbX = vb?.x || 0;
-        const vbY = vb?.y || 0;
-        const sx = (base.w * comfortScale) / vbW;
-        const sy = (base.h * comfortScale) / vbH;
-        translateRef.current = {
-          x: viewport.clientWidth / 2 - (at.x - vbX) * sx,
-          y: viewport.clientHeight / 2 - (at.y - vbY) * sy,
-        };
-      } catch {
-        translateRef.current = { x: 40, y: 40 };
-      }
-    } else {
+    try {
+      const vb = svg.viewBox?.baseVal;
+      const vbW = vb?.width || base.w;
+      const vbH = vb?.height || base.h;
+      const vbX = vb?.x || 0;
+      const vbY = vb?.y || 0;
+      const sx = (base.w * comfortScale) / vbW;
+      const sy = (base.h * comfortScale) / vbH;
+      translateRef.current = {
+        x: viewport.clientWidth / 2 - (at.x - vbX) * sx,
+        y: viewport.clientHeight / 2 - (at.y - vbY) * sy,
+      };
+    } catch {
       translateRef.current = { x: 40, y: 40 };
     }
     applyPanZoomDom();
@@ -209,9 +211,16 @@ export function SvgPanZoomHost({
       baseSizeRef.current = null;
       return;
     }
-    if (appliedMarkupRef.current === markup && host.querySelector("svg")) return;
+    if (
+      appliedMarkupRef.current === markup &&
+      appliedContentKeyRef.current === contentKey &&
+      host.querySelector("svg")
+    ) {
+      return;
+    }
     host.innerHTML = markup;
     appliedMarkupRef.current = markup;
+    appliedContentKeyRef.current = contentKey;
 
     const svg = host.querySelector("svg");
     if (!svg) return;
@@ -244,7 +253,7 @@ export function SvgPanZoomHost({
     if (fitModeRef.current === "contain" && !markerRef.current) {
       requestAnimationFrame(() => fitContainCenter());
     }
-  }, [markup]);
+  }, [markup, contentKey]);
 
   useEffect(() => {
     if (!markup) return;
