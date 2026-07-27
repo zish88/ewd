@@ -1,15 +1,20 @@
 #pragma once
 #include <Arduino.h>
 
-/** Volvo P3 HS-CAN diagnostic addresses (starter map — expand on vehicle). */
+/**
+ * Candidate HS-CAN diagnostic request/response IDs (11-bit).
+ * Vehicle-agnostic: not tied to a model, year, or platform family.
+ * Scan reports only ECUs that answer TesterPresent; silent addresses are offline.
+ * Expand the table from on-vehicle discovery — never assume a fixed car profile.
+ */
 struct EcuEntry {
   const char* id;
   uint32_t reqId;
   uint32_t rspId;
 };
 
-// 11-bit IDs commonly used on OBD HS-CAN for powertrain / body modules.
-// CEM / others may need extended addressing on some cars — extend after road tests.
+// SAE powertrain pairs (7E0/7E8, 7E1/7E9) + common body/chassis candidates.
+// Label strings are stable keys for UI/API, not claims about a specific vehicle.
 static const EcuEntry kEcuMap[] = {
   {"ECM", 0x7E0, 0x7E8},
   {"TCM", 0x7E1, 0x7E9},

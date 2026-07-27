@@ -2,6 +2,8 @@
 
 Контракт JSON между прошивкой [`firmware/obd-gateway`](../firmware/obd-gateway) и UI ewd-volvo.ru.
 
+**Vehicle-agnostic:** шлюз и протокол не привязаны к модели, году или платформе. ECU в `/scan` — результат probe кандидатных адресов; live `signals` — Mode 01 discovery на конкретной машине.
+
 ## Транспорт
 
 | Канал | Назначение |

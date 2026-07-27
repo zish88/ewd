@@ -61,6 +61,7 @@ bool udsReadDtcs(const EcuEntry& ecu, std::vector<UdsDtcItem>& out, uint32_t tim
 }
 
 UdsScanResult udsFullScan(uint32_t timeoutMs) {
+  // Probe every candidate address; do not assume model/year/platform.
   UdsScanResult result;
   for (size_t i = 0; i < kEcuMapLen; i++) {
     const EcuEntry& e = kEcuMap[i];

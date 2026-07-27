@@ -74,7 +74,7 @@ bool canBusGetStats(CanBusStats* out) {
 }
 
 #else
-// Default: MCP2515 (proven on XC70 via vedomaya_OBD_v2)
+// Default: MCP2515 + TJA1050 (SPI path; vehicle-agnostic)
 #include <SPI.h>
 #include <mcp_can.h>
 
