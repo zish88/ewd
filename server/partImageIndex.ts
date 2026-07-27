@@ -2,7 +2,8 @@
  * Lookup for extracted VIDA/EPC part illustrations (SLICE-03).
  * Index: data/vida_part_image_index.json → files under data/vida_part_images/
  *
- * Prefer wiring-code-scoped plates (e.g. 3/80) over worldwide largest drawings.
+ * When a wiring code is given (repair card), only plates tagged for that code count —
+ * a PN extracted for 10/1 must not light the "has image" indicator on 3/80.
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
@@ -47,7 +48,7 @@ const EXT_MIME: Record<string, string> = {
   ".cgm": "image/cgm",
 };
 
-/** Prefer browser-viewable formats. */
+/** Prefer browser-viewable formats. CGM is not displayable in <img>. */
 const EXT_RANK: Record<string, number> = {
   ".svg": 0,
   ".png": 1,
@@ -58,6 +59,8 @@ const EXT_RANK: Record<string, number> = {
   ".cgm": 9,
 };
 
+const BROWSER_VIEWABLE = new Set([".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+
 export function resetPartImageIndexCache(path?: string | null) {
   cache = undefined;
   cacheMtimeMs = -1;
@@ -66,6 +69,15 @@ export function resetPartImageIndexCache(path?: string | null) {
 
 function indexPath(): string {
   return indexPathOverride || join(process.cwd(), "data", "vida_part_image_index.json");
+}
+
+/** Infer wiring code from filename like 978305__3-80.svg or 978305__3-80_85e59bc8.svg */
+export function wiringCodeFromPath(relPath: string): string {
+  const base = String(relPath || "")
+    .replace(/^.*[/\\]/, "")
+    .replace(/\.[^.]+$/, "");
+  const m = base.match(/__(\d+)-(\d+)(?:_|$)/);
+  return m ? `${m[1]}/${m[2]}` : "";
 }
 
 export function loadPartImageIndex(): Map<string, PartImageRecord> {
@@ -100,7 +112,7 @@ export function loadPartImageIndex(): Map<string, PartImageRecord> {
   }
 }
 
-function normalizeWiringCode(code?: string | null): string {
+export function normalizeWiringCode(code?: string | null): string {
   const m = String(code || "")
     .trim()
     .match(/^(\d+)\s*\/\s*(\d+)/);
@@ -129,11 +141,17 @@ export function resolvePartImageFile(
       const rel = String(f.path || "").replace(/^[/\\]+/, "");
       const abs = join(process.cwd(), "data", rel);
       const ext = extname(abs).toLowerCase();
-      const fileCode = normalizeWiringCode(f.wiring_code);
-      let codeRank = 2;
-      if (wantCode && fileCode === wantCode) codeRank = 0;
-      else if (wantCode && fileCode) codeRank = 3; // other code — deprioritize
-      else if (!fileCode) codeRank = 1;
+      // Indicator + popover need a browser-viewable file (CGM alone is a false positive).
+      if (!BROWSER_VIEWABLE.has(ext)) {
+        return null;
+      }
+      const fileCode =
+        normalizeWiringCode(f.wiring_code) || normalizeWiringCode(wiringCodeFromPath(rel));
+      // When card has a wiring code: only accept plates for that exact code.
+      // Untagged / other-code plates must not show the "has image" indicator.
+      if (wantCode && fileCode !== wantCode) {
+        return null;
+      }
       let sizeRank = 1;
       try {
         if (existsSync(abs)) {
@@ -146,15 +164,15 @@ export function resolvePartImageFile(
         /* ignore */
       }
       return {
-        f,
+        f: { ...f, wiring_code: fileCode || f.wiring_code || null },
         rel,
         abs,
         ext,
-        rank: [codeRank, EXT_RANK[ext] ?? 5, sizeRank] as [number, number, number],
+        rank: [EXT_RANK[ext] ?? 5, sizeRank] as [number, number],
       };
     })
-    .filter((x) => existsSync(x.abs))
-    .sort((a, b) => a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.rank[2] - b.rank[2]);
+    .filter((x): x is NonNullable<typeof x> => Boolean(x && existsSync(x.abs)))
+    .sort((a, b) => a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1]);
 
   const best = ranked[0];
   if (!best) return null;

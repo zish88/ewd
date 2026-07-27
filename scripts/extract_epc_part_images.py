@@ -35,6 +35,23 @@ CONNECTOR_PARTS_DEFAULT = str(_REPO / "data" / "vida_connector_parts.json")
 DEFAULT_SAMPLE_PNS = ("30658204", "30656635")
 
 
+def load_catalog_wiring_codes(catalog_path: Path) -> list[str]:
+    """Sorted wiring designations from vida_harness_repair_catalog.json connectors map."""
+    if not catalog_path.is_file():
+        return []
+    try:
+        raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    codes = [str(k).strip() for k in (raw.get("connectors") or {}) if str(k).strip()]
+
+    def sort_key(c: str) -> tuple[int, str]:
+        head = c.split("/")[0]
+        return (int(head) if head.isdigit() else 9999, c)
+
+    return sorted(codes, key=sort_key)
+
+
 def sniff_ext(blob: bytes, format_hint: str | None = None) -> str:
     hint = (format_hint or "").strip().lower()
     if hint:
@@ -1008,6 +1025,14 @@ def main() -> int:
         help="Extract every PN found in harness repair catalog + connector parts",
     )
     ap.add_argument(
+        "--from-repair-catalog",
+        action="store_true",
+        help=(
+            "SLICE-04: all connector codes from harness repair catalog as wiring scope "
+            "(unless --wiring-codes given) and all catalog PNs (--all-catalog)"
+        ),
+    )
+    ap.add_argument(
         "--primary-only",
         action="store_true",
         help="Keep best plate per PN (wiring-scoped / mid-size; not huge HVAC drawings)",
@@ -1023,6 +1048,11 @@ def main() -> int:
         help="Comma-separated Volvo codes (e.g. 3/80,10/1) — extract plates in that catalogue context",
     )
     ap.add_argument(
+        "--skip-probe",
+        action="store_true",
+        help="Skip ImageRepository/EPC probe dumps (faster batch runs)",
+    )
+    ap.add_argument(
         "--merge-index",
         action="store_true",
         default=True,
@@ -1036,6 +1066,8 @@ def main() -> int:
     args = ap.parse_args()
     if args.replace_index:
         args.merge_index = False
+    if args.from_repair_catalog:
+        args.all_catalog = True
 
     manual = Path(args.manual_dir)
     tmp = Path(args.tmp_dir)
@@ -1048,8 +1080,18 @@ def main() -> int:
     else:
         part_numbers = {p.strip() for p in args.part_numbers.split(",") if p.strip()}
 
+    wiring_codes = {c.strip() for c in str(args.wiring_codes or "").split(",") if c.strip()}
+    if args.from_repair_catalog and not wiring_codes:
+        wiring_codes = set(load_catalog_wiring_codes(Path(args.catalog)))
+        ve.log(f"--from-repair-catalog: {len(wiring_codes)} wiring codes from catalog")
+
     ve.log(f"MANUAL_DIR={manual}")
     ve.log(f"Target PNs ({len(part_numbers)}): {sorted(part_numbers)[:20]}{'…' if len(part_numbers)>20 else ''}")
+    if wiring_codes:
+        ve.log(
+            f"Target wiring codes ({len(wiring_codes)}): "
+            f"{sorted(wiring_codes)[:15]}{'…' if len(wiring_codes) > 15 else ''}"
+        )
 
     try:
         import pyodbc  # noqa: F401
@@ -1076,20 +1118,22 @@ def main() -> int:
         img_conn = ve.get_odbc_connection(server, ve.DB_IMAGE)
         epc_conn = ve.get_odbc_connection(server, ve.DB_EPC)
         try:
-            ve.log("=== PROBE ImageRepository ===")
-            probe["image"] = probe_image_repo(img_conn)
-            ve.log("=== PROBE EPC ===")
-            probe["epc"] = probe_epc(epc_conn)
+            if not args.skip_probe:
+                ve.log("=== PROBE ImageRepository ===")
+                probe["image"] = probe_image_repo(img_conn)
+                ve.log("=== PROBE EPC ===")
+                probe["epc"] = probe_epc(epc_conn)
 
-            probe_path = _REPO / "data" / "reports" / "epc-part-images-probe.json"
-            probe_path.parent.mkdir(parents=True, exist_ok=True)
-            probe_path.write_text(json.dumps(probe, ensure_ascii=False, indent=2), encoding="utf-8")
-            ve.log(f"Wrote probe → {probe_path}")
+                probe_path = _REPO / "data" / "reports" / "epc-part-images-probe.json"
+                probe_path.parent.mkdir(parents=True, exist_ok=True)
+                probe_path.write_text(json.dumps(probe, ensure_ascii=False, indent=2), encoding="utf-8")
+                ve.log(f"Wrote probe → {probe_path}")
+            else:
+                ve.log("=== SKIP PROBE (--skip-probe) ===")
 
             if args.probe_only:
                 return 0
 
-            wiring_codes = {c.strip() for c in str(args.wiring_codes or "").split(",") if c.strip()}
             if wiring_codes:
                 ve.log(f"=== EXTRACT wiring-scoped plates: {sorted(wiring_codes)} ===")
                 # When only wiring codes given, don't force default sample PNs

@@ -724,11 +724,7 @@ function PartNumberPopover({
   }, [onClose]);
 
   const badge = confidenceBadge(part.confidence);
-  const img =
-    part.image_url ||
-    (wiringCode
-      ? `/api/parts/image/${encodeURIComponent(part.part_number)}?code=${encodeURIComponent(wiringCode)}`
-      : null);
+  const img = part.image_url || null;
 
   return (
     <div className="part-popover-backdrop" role="presentation" onClick={onClose}>
