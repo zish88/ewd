@@ -51,7 +51,7 @@ npm test
 После правок из обычного PowerShell, Terminal или SSH:
 
 ```bash
-npm run git:save -- --message "Кратко описать изменение"
+npm run git:save -- --message "Кратко описать изменение" --note "Конкретное изменение для пользователей"
 ```
 
 Скрипт запускает `npm run build`, добавляет изменённые tracked-файлы, создаёт
@@ -59,23 +59,27 @@ npm run git:save -- --message "Кратко описать изменение"
 с явным `--all`:
 
 ```bash
-npm run git:save -- --message "Добавить новую функцию" --all
+npm run git:save -- --message "Добавить новую функцию" --note "В карточках появился новый полезный блок" --all
 ```
 
 Для прямой отправки из `main` / `master` требуется подтверждающий флаг:
 
 ```bash
-npm run git:save -- --message "Исправить карточки" --all --allow-protected
+npm run git:save -- --message "Исправить карточки" --note "Карточки стали компактнее и понятнее" --all --allow-protected
 ```
+
+`--note` можно повторить для нескольких пунктов. Текст записывается в коммит
+как `Release-Note-RU` и без пересказа попадает на страницу обновления. Для
+технического изменения без пользовательского эффекта используйте `--internal`.
 
 Полезные варианты:
 
 ```bash
 # Только конкретные файлы
-npm run git:save -- --message "Обновить справку" --path README.md --path scripts/commit-push.mjs
+npm run git:save -- --message "Обновить справку" --internal --path README.md --path scripts/commit-push.mjs
 
 # Создать локальный коммит без push
-npm run git:save -- --message "Черновик исправления" --no-push
+npm run git:save -- --message "Черновик исправления" --internal --no-push
 
 # Полная справка
 npm run git:save -- --help

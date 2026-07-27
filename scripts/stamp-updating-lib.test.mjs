@@ -5,6 +5,7 @@ import {
   MAX_ITEMS,
   collectUserFacingNotes,
   expandDeploySubject,
+  deployInputsFromGitLog,
   formatGitShort,
   isInternalDeploySubject,
   isValidPublicNote,
@@ -14,6 +15,19 @@ import {
   toRussianDeployNote,
   createRng,
 } from "./stamp-updating-lib.mjs";
+
+test("explicit Release-Note-RU trailers replace subject guessing", () => {
+  const log = [
+    "Correct vehicle engine availability\x1fBody\nRelease-Note-RU: Уточнены двигатели по моделям и годам.\nRelease-Note-RU: Региональные моторы получили подпись рынка.\x1e",
+    "Refactor scripts\x1fRelease-Note-RU: internal\x1e",
+    "Fallback subject\x1fNo trailer here\x1e",
+  ].join("");
+  assert.deepEqual(deployInputsFromGitLog(log), [
+    "Уточнены двигатели по моделям и годам.",
+    "Региональные моторы получили подпись рынка.",
+    "Fallback subject",
+  ]);
+});
 
 test("internal: admin / VAPID / ops subjects are hidden", () => {
   assert.equal(isInternalDeploySubject("Improve admin visit tiles"), true);

@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import {
   GIT_SHORT_LEN,
   MAX_ITEMS,
+  deployInputsFromGitLog,
   formatGitShort,
   pickUserFacingDeployNotes,
 } from "./stamp-updating-lib.mjs";
@@ -78,9 +79,9 @@ function readPreviousNotes() {
  */
 function commitSubjects(prevGit) {
   const lookbackOut = git(
-    `git -c i18n.logOutputEncoding=utf-8 log -${LOOKBACK} --pretty=format:%s`,
+    `git -c i18n.logOutputEncoding=utf-8 log -${LOOKBACK} --pretty=format:%s%x1f%b%x1e`,
   );
-  const lookback = lookbackOut ? lookbackOut.split("\n").filter(Boolean) : [];
+  const lookback = deployInputsFromGitLog(lookbackOut);
 
   let fresh = [];
   let window = `HEAD~${LOOKBACK}..HEAD`;
@@ -91,9 +92,9 @@ function commitSubjects(prevGit) {
       // Кавычки обязательны: на Windows голый sha^{commit} ломается на `^`.
       git(`git rev-parse --verify "${prevGit}"`);
       const ranged = git(
-        `git -c i18n.logOutputEncoding=utf-8 log "${prevGit}..HEAD" --pretty=format:%s`,
+        `git -c i18n.logOutputEncoding=utf-8 log "${prevGit}..HEAD" --pretty=format:%s%x1f%b%x1e`,
       );
-      fresh = ranged ? ranged.split("\n").filter(Boolean) : [];
+      fresh = deployInputsFromGitLog(ranged);
       window = `${prevGit}..HEAD`;
       hasFreshWindow = true;
     } catch {

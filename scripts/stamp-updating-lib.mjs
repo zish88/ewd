@@ -79,6 +79,35 @@ export function normalizeSubject(raw) {
     .replace(/\s+/g, " ");
 }
 
+/**
+ * Convert `git log --format=%s%x1f%b%x1e` into deploy-note inputs.
+ * Explicit Release-Note-RU trailers win over subject guessing.
+ * `Release-Note-RU: internal` intentionally suppresses a commit.
+ */
+export function deployInputsFromGitLog(raw) {
+  const inputs = [];
+  for (const record of String(raw || "").split("\x1e")) {
+    const [subjectRaw = "", ...bodyParts] = record.split("\x1f");
+    const subject = normalizeSubject(subjectRaw);
+    const body = bodyParts.join("\x1f");
+    const trailerLines = body
+      .split(/\r?\n/)
+      .map((line) => line.match(/^\s*Release-Note-RU:\s*(.*?)\s*$/i))
+      .filter(Boolean);
+
+    if (trailerLines.length) {
+      for (const match of trailerLines) {
+        const note = normalizeSubject(match[1]);
+        if (!note || /^(?:-|none|internal)$/i.test(note)) continue;
+        inputs.push(note);
+      }
+      continue;
+    }
+    if (subject) inputs.push(subject);
+  }
+  return inputs;
+}
+
 /** Stable key for dedupe / "already shown" checks. */
 export function noteKey(raw) {
   return normalizeSubject(raw)

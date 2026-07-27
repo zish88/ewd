@@ -51,10 +51,12 @@ if (args.includes("--help") || args.includes("-h")) {
 Безопасный commit + push для Volvo EWD.
 
 Использование:
-  npm run git:save -- --message "Описание изменений"
+  npm run git:save -- --message "Описание изменений" --note "Что увидит пользователь"
 
 Параметры:
   --message, -m TEXT       сообщение коммита (обязательно)
+  --note TEXT              русская заметка обновления; можно повторять
+  --internal               внутреннее изменение без публичной заметки
   --path PATH              добавить только путь; можно повторять
   --all                    включить новые безопасные файлы
   --skip-check             не запускать npm run build
@@ -76,11 +78,21 @@ if (!message.trim()) fail("укажите --message \"Описание изме�
 
 const remote = valueAfter("--remote") || "origin";
 const paths = valuesAfter("--path");
+const releaseNotes = valuesAfter("--note").map((note) => note.trim()).filter(Boolean);
+const internal = args.includes("--internal");
 const includeAll = args.includes("--all");
 const skipCheck = args.includes("--skip-check");
 const noPush = args.includes("--no-push");
 const allowProtected = args.includes("--allow-protected");
 const includeStaged = args.includes("--include-staged");
+if (internal && releaseNotes.length) fail("используйте либо --note, либо --internal");
+if (!internal && !releaseNotes.length) {
+  fail("укажите --note \"Конкретное изменение для пользователей\" или --internal");
+}
+for (const note of releaseNotes) {
+  if (!/[а-яё]/i.test(note)) fail(`--note должна быть на русском: ${note}`);
+  if (note.length < 8) fail(`слишком короткая --note: ${note}`);
+}
 
 run("git", ["rev-parse", "--is-inside-work-tree"], { capture: true });
 const branch = run("git", ["branch", "--show-current"], { capture: true }).stdout.trim();
@@ -139,7 +151,10 @@ console.log(staged);
 run("git", ["diff", "--cached", "--stat"]);
 
 console.log("==> commit");
-run("git", ["commit", "-m", message.trim()]);
+const releaseBody = internal
+  ? "Release-Note-RU: internal"
+  : releaseNotes.map((note) => `Release-Note-RU: ${note}`).join("\n");
+run("git", ["commit", "-m", message.trim(), "-m", releaseBody]);
 
 if (noPush) {
   console.log(`Готово: локальный коммит в ${branch}; push пропущен.`);
