@@ -46,6 +46,45 @@ npm run typecheck
 npm test
 ```
 
+## Commit и push без Cursor
+
+После правок из обычного PowerShell, Terminal или SSH:
+
+```bash
+npm run git:save -- --message "Кратко описать изменение"
+```
+
+Скрипт запускает `npm run build`, добавляет изменённые tracked-файлы, создаёт
+коммит и отправляет текущую ветку в `origin`. Новые файлы добавляются только
+с явным `--all`:
+
+```bash
+npm run git:save -- --message "Добавить новую функцию" --all
+```
+
+Для прямой отправки из `main` / `master` требуется подтверждающий флаг:
+
+```bash
+npm run git:save -- --message "Исправить карточки" --all --allow-protected
+```
+
+Полезные варианты:
+
+```bash
+# Только конкретные файлы
+npm run git:save -- --message "Обновить справку" --path README.md --path scripts/commit-push.mjs
+
+# Создать локальный коммит без push
+npm run git:save -- --message "Черновик исправления" --no-push
+
+# Полная справка
+npm run git:save -- --help
+```
+
+Скрипт не использует force-push и исключает `.env`, SQLite, `data/reports`,
+`client/dist` и `node_modules`. Перед запуском убедитесь, что подключение
+находится в нужной ветке и `git diff` содержит только ожидаемые изменения.
+
 ## Данные в репозитории
 
 | Что | Назначение |
