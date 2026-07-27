@@ -9,6 +9,10 @@ export const MAX_ITEMS = 4;
 /** Exact Russian lines for known English commit subjects (display only). */
 export const RU_BY_SUBJECT = new Map(
   Object.entries({
+    "Fix wire-context sheet pick and tighten conductor paint for card focus.":
+      "Точнее выбор схемы по проводу и аккуратная подсветка линии на карточке.",
+    "Fix Safari Mac schematic zoom for FABs, pinch, and mouse wheel.":
+      "Удобнее зум схем на Mac/Safari: кнопки, pinch и колёсико мыши.",
     "Add admin appearance CMS, tabbed settings save, and fresher deploy notes.":
       "Админка: настройка внешнего вида, вкладки и сохранение черновика; актуальные заметки деплоя.",
     "Restore mouse-wheel zoom on schematics without breaking trackpad pan/pinch.":
@@ -90,9 +94,11 @@ export function isNoiseSubject(s) {
   if (/^Stamp updating\.html\b/i.test(s)) return true;
   if (/^Skip stamp-only\b/i.test(s)) return true;
   if (/\bmeta deploy-note\b/i.test(s)) return true;
-  if (/\bdeploy note\b/i.test(s)) return true;
+  if (/\bdeploy notes?\b/i.test(s)) return true;
   if (/заметк/i.test(s) && /страниц/i.test(s) && /обновл/i.test(s)) return true;
   if (/force utf-8 git log/i.test(s)) return true;
+  if (/^Fix deploy notes\b/i.test(s)) return true;
+  if (/updating page shows only fresh/i.test(s)) return true;
   return false;
 }
 
@@ -135,6 +141,9 @@ export function isInternalDeploySubject(s) {
   if (/push-stats/i.test(t)) return true;
   if (/repo-hygiene/i.test(t)) return true;
   if (/DEPLOY\.md/i.test(t)) return true;
+  // Docs-only / firmware comment commits — не для публичной страницы обновления
+  if (/^Document\b/i.test(t)) return true;
+  if (/vehicle-agnostic/i.test(t) && /obd|gateway|probe/i.test(t)) return true;
 
   // Pure refactor noise for visitors (\b is ASCII-only — avoid for Cyrillic)
   if (/^рефактор(инг)?(\s|$|:|и\b)/i.test(t)) return true;
@@ -142,6 +151,52 @@ export function isInternalDeploySubject(s) {
   if (/\bрефактор(инг)?\b/i.test(t) && /nav/i.test(t)) return true;
 
   return false;
+}
+
+/** Доля латинских букв среди букв строки (0..1). */
+function latinLetterRatio(s) {
+  const letters = String(s || "").match(/\p{L}/gu) || [];
+  if (!letters.length) return 0;
+  const latin = letters.filter((ch) => /[a-z]/i.test(ch)).length;
+  return latin / letters.length;
+}
+
+/**
+ * Короткая русская сводка по ключевым словам, если нет curated-строки.
+ * Без дословного EN→RU (иначе «Исправлено: wire-context…»).
+ */
+function summarizeUnmappedEnglish(subject) {
+  const s = normalizeSubject(subject);
+  const lower = s.toLowerCase();
+  const bits = [];
+  if (/wire-context|wire.?paint|conductor paint|highlight|card focus/i.test(lower)) {
+    bits.push("точнее подсветка и выбор схемы по проводу");
+  }
+  if (/safari|mouse.?wheel|pinch|trackpad|fab/i.test(lower) && /zoom|схем|schem/i.test(lower)) {
+    bits.push("удобнее зум схем на Mac/Safari");
+  } else if (/zoom|pinch|trackpad|mouse.?wheel/i.test(lower) && /schem|схем/i.test(lower)) {
+    bits.push("удобнее зум и жесты на схемах");
+  }
+  if (/fullscreen/i.test(lower) && /schem|схем/i.test(lower)) {
+    bits.push("полноэкранный режим схем");
+  }
+  if (/web push|уведомлен/i.test(lower)) {
+    bits.push("уведомления об обновлении сайта");
+  }
+  if (/dual-?colou?r|dual-?wire|wire badge/i.test(lower)) {
+    bits.push("читаемые подписи на двухцветных проводах");
+  }
+  if (/obd/i.test(lower) && !/admin|document/i.test(lower)) {
+    bits.push("улучшения OBD");
+  }
+  if (!bits.length) {
+    if (/^Fix(ed)?\b/i.test(s)) return "Исправления в работе сайта.";
+    if (/^Add\b/i.test(s)) return "Новые улучшения на сайте.";
+    if (/^Improve\b|^Polish\b|^Update\b/i.test(s)) return "Улучшения интерфейса.";
+    return "Доступна новая версия справочника.";
+  }
+  const line = bits.join("; ");
+  return line.charAt(0).toUpperCase() + line.slice(1) + (/\.$/.test(line) ? "" : ".");
 }
 
 /** Russian line for the updating page (keeps Cyrillic subjects as-is). */
@@ -157,52 +212,8 @@ export function toRussianDeployNote(subject) {
   const exact = RU_BY_SUBJECT.get(s.toLowerCase());
   if (exact) return exact;
 
-  let t = s.replace(/\.$/, "");
-  const verb = [
-    [/^Add\b/i, "Добавлено:"],
-    [/^Fix(ed)?\b/i, "Исправлено:"],
-    [/^Restore\b/i, "Восстановлено:"],
-    [/^Show\b/i, "Показано:"],
-    [/^Mark\b/i, "Помечено:"],
-    [/^Improve\b/i, "Улучшено:"],
-    [/^Polish\b/i, "Доработано:"],
-    [/^Update\b/i, "Обновлено:"],
-    [/^Serve\b/i, "Добавлено:"],
-    [/^Remove\b/i, "Удалено:"],
-    [/^Refactor\b/i, "Рефакторинг:"],
-    [/^Make\b/i, "Сделано:"],
-    [/^Ship\b/i, "Сделано:"],
-    [/^Tighten\b/i, "Уточнены:"],
-  ];
-  for (const [re, ru] of verb) {
-    if (re.test(t)) {
-      t = t.replace(re, ru);
-      break;
-    }
-  }
-
-  t = t
-    .replace(/\badmin(istration)?\b/gi, "админка")
-    .replace(/\bappearance\b/gi, "внешний вид")
-    .replace(/\bsettings?\b/gi, "настройки")
-    .replace(/\bschematics?\b/gi, "схемы")
-    .replace(/\bschemes?\b/gi, "схемы")
-    .replace(/\bdeploy notes\b/gi, "заметки деплоя")
-    .replace(/\bupdating page\b/gi, "страница обновления")
-    .replace(/\bmouse-wheel zoom\b/gi, "зум колёсиком")
-    .replace(/\btrackpad\b/gi, "трекпад")
-    .replace(/\bfullscreen\b/gi, "полноэкранный режим")
-    .replace(/\bpart numbers?\b/gi, "номера деталей")
-    .replace(/\bengine-zone rules\b/gi, "правила зон двигателя")
-    .replace(/\bwithout breaking\b/gi, "без поломки")
-    .replace(/\band\b/gi, "и")
-    .replace(/\bwith\b/gi, "с")
-    .replace(/\bon\b/gi, "на")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!/[.!?…]$/.test(t)) t += ".";
-  return t;
+  // Не мешаем EN слово-в-слово («and»→«и») — получается каша для посетителей.
+  return summarizeUnmappedEnglish(s);
 }
 
 function finishNote(s) {
@@ -216,10 +227,15 @@ function finishNote(s) {
 /**
  * Expand a multi-topic subject into several short bullets.
  * Prefer curated RU map (may already join topics); else split on ; · |
- * Avoid comma-splitting English sentences (too noisy).
+ * Comma-split только для ИСХОДНО кириллических subject — иначе
+ * «Fix … FABs, pinch, and mouse wheel» → «И mouse wheel».
  */
 export function expandDeploySubject(subject) {
-  const ru = toRussianDeployNote(subject);
+  const original = normalizeSubject(subject);
+  if (!original) return [];
+  const nativeCyrillic = hasCyrillic(original);
+
+  const ru = toRussianDeployNote(original);
   if (!ru) return [];
 
   // Curated multi-topic lines use ; — split those
@@ -233,8 +249,8 @@ export function expandDeploySubject(subject) {
     return semi.map(finishNote).filter((n) => n && !isInternalDeploySubject(n));
   }
 
-  // Cyrillic subjects often use commas between topics
-  if (hasCyrillic(ru)) {
+  // Запятые: только у русских коммитов (не у machine-translated EN)
+  if (nativeCyrillic) {
     const parts = ru
       .replace(/\.$/, "")
       .split(/\s*,\s+/)
@@ -246,7 +262,11 @@ export function expandDeploySubject(subject) {
   }
 
   const one = finishNote(ru);
+  // Отсечь остатки английской каши на всякий случай
   if (!one || isInternalDeploySubject(one)) return [];
+  if (!nativeCyrillic && latinLetterRatio(one) > 0.45 && !RU_BY_SUBJECT.has(original.toLowerCase())) {
+    return [finishNote(summarizeUnmappedEnglish(original))].filter(Boolean);
+  }
   return [one];
 }
 
@@ -359,6 +379,12 @@ export function pickUserFacingDeployNotes(subjects, max = MAX_ITEMS, options = {
   }
 
   if (!pool.length) return [finishNote(fallback)];
+
+  // Свежие коммиты — по порядку git log (новые сверху), без random:
+  // иначе wire-context/Safari выпадают, а в списке оказываются старые «размытие авто».
+  if (freshNew.length > 0) {
+    return pool.slice(0, max);
+  }
 
   const rng = typeof options.rng === "function" ? options.rng : createRng(seed);
   return sampleNotes(pool, max, rng);

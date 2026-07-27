@@ -104,6 +104,37 @@ test("toRussianDeployNote keeps Cyrillic", () => {
   assert.equal(toRussianDeployNote("Читаемые подписи на двухцветных проводах."), "Читаемые подписи на двухцветных проводах.");
 });
 
+test("English Fix commits get curated RU — no EN jargon leftovers", () => {
+  const wire = toRussianDeployNote(
+    "Fix wire-context sheet pick and tighten conductor paint for card focus.",
+  );
+  assert.match(wire, /подсветк|схем|провод/i);
+  assert.doesNotMatch(wire, /wire-context|conductor paint|card focus/i);
+
+  const safari = expandDeploySubject(
+    "Fix Safari Mac schematic zoom for FABs, pinch, and mouse wheel.",
+  );
+  assert.equal(safari.length, 1, JSON.stringify(safari));
+  assert.match(safari[0], /зум|Safari|Mac/i);
+  assert.doesNotMatch(safari[0], /^И mouse/i);
+  assert.doesNotMatch(safari[0], /FABs,/i);
+});
+
+test("Document OBD vehicle-agnostic is hidden from public notes", () => {
+  assert.equal(
+    isInternalDeploySubject(
+      "Document OBD gateway as vehicle-agnostic probe, not a fixed XC70 profile.",
+    ),
+    true,
+  );
+  const notes = collectUserFacingNotes([
+    "Document OBD gateway as vehicle-agnostic probe, not a fixed XC70 profile.",
+    "Fix wire-context sheet pick and tighten conductor paint for card focus.",
+  ]);
+  assert.ok(notes.every((n) => !/vehicle-agnostic|Document OBD/i.test(n)));
+  assert.ok(notes.some((n) => /подсветк|схем|провод/i.test(n)));
+});
+
 test("MAX_ITEMS is 4", () => {
   assert.equal(MAX_ITEMS, 4);
 });
