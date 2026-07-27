@@ -37,6 +37,32 @@ export function isDiscreteMouseWheel(e: WheelEvent): boolean {
   return ay >= 100 && (ay % 100 === 0 || ay % 120 === 0);
 }
 
+/**
+ * Safari/WebKit: зум через CSS scale (иначе width/height SVG не перерисовывается).
+ * Chrome/Edge/Firefox: зум через width/height — схема остаётся чёткой.
+ * CSS scale на базе ~900px давал «мыло» на всех схемах.
+ */
+export function usesCssScaleZoom(
+  ua = typeof navigator !== "undefined" ? navigator.userAgent : "",
+): boolean {
+  const s = String(ua || "");
+  if (!s) return false;
+  // iOS / iPadOS Safari + desktop Safari (не Chrome/Chromium).
+  if (/CriOS|FxiOS|EdgiOS|Chrome|Chromium|Edg\//i.test(s)) return false;
+  return /Safari/i.test(s) && /AppleWebKit/i.test(s);
+}
+
+/** Целевая ширина базового растра SVG (px) до CSS-scale / до умножения на zoom. */
+export function schematicBaseTargetPx(
+  cssScaleZoom: boolean,
+  dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+): number {
+  // CSS-scale путь нуждается в более высоком базовом разрешении, иначе при zoom — мыло.
+  if (cssScaleZoom) return Math.round(Math.max(1600, 2000 * Math.min(dpr, 2)));
+  // Size-mutate: база умеренная — при zoom SVG перерисовывается в новом размере.
+  return Math.round(Math.max(1200, 1400 * Math.min(dpr, 2)));
+}
+
 type SvgPanZoomHostProps = {
   /** Inner SVG/HTML markup (applied via DOM, not React dangerouslySetInnerHTML). */
   markup: string;
@@ -65,8 +91,9 @@ type SvgPanZoomHostProps = {
  * Shared wheel / pinch / drag pan-zoom host for EWD schematics and Location SVGs.
  * FABs are always visible (desktop + mobile).
  *
- * Zoom is applied via CSS `translate + scale` (not SVG width mutation) so Safari
- * WebKit actually repaints when FABs / gestures change scale.
+ * Zoom:
+ * - Chrome/Edge/Firefox: меняем width/height SVG (чёткая перерисовка).
+ * - Safari/WebKit: CSS translate+scale (иначе WebKit не репейнтит width).
  */
 export function SvgPanZoomHost({
   markup,
@@ -105,6 +132,8 @@ export function SvgPanZoomHost({
   fitModeRef.current = fitMode;
   const onMarkupAppliedRef = useRef(onMarkupApplied);
   onMarkupAppliedRef.current = onMarkupApplied;
+  // Режим зума фиксируем на mount (UA не меняется в сессии).
+  const cssScaleZoomRef = useRef(usesCssScaleZoom());
 
   const applyPanZoomDom = () => {
     const pan = panRef.current;
@@ -112,17 +141,21 @@ export function SvgPanZoomHost({
     const base = baseSizeRef.current;
     const t = translateRef.current;
     const s = scaleRef.current;
+    const cssScale = cssScaleZoomRef.current;
     if (pan) {
-      // Single transform: Safari reliably composites scale here; mutating SVG
-      // width/height under a transformed ancestor often does not repaint.
       pan.style.transformOrigin = "0 0";
-      pan.style.transform = `translate(${t.x}px, ${t.y}px) scale(${s})`;
+      // Safari: scale в CSS. Остальные: только translate — зум через размер SVG (чётко).
+      pan.style.transform = cssScale
+        ? `translate(${t.x}px, ${t.y}px) scale(${s})`
+        : `translate(${t.x}px, ${t.y}px)`;
     }
     if (svg && base) {
-      svg.setAttribute("width", String(base.w));
-      svg.setAttribute("height", String(base.h));
-      svg.style.width = `${base.w}px`;
-      svg.style.height = `${base.h}px`;
+      const w = cssScale ? base.w : Math.max(1, base.w * s);
+      const h = cssScale ? base.h : Math.max(1, base.h * s);
+      svg.setAttribute("width", String(w));
+      svg.setAttribute("height", String(h));
+      svg.style.width = `${w}px`;
+      svg.style.height = `${h}px`;
       svg.style.maxWidth = "none";
       syncPinMarkerScreenSize(svg);
     }
@@ -241,7 +274,7 @@ export function SvgPanZoomHost({
         h = 800;
       }
     }
-    const fit = Math.min(1, 900 / w);
+    const fit = Math.min(1, schematicBaseTargetPx(cssScaleZoomRef.current) / w);
     baseSizeRef.current = { w: w * fit, h: h * fit };
     if (!svg.getAttribute("viewBox") && w && h) {
       svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
