@@ -639,13 +639,14 @@ function hasCardParts(parts?: CardParts | null): boolean {
   return hasLegacyCardParts(parts) || hasRepairCatalog(parts?.repair);
 }
 
-function confidenceBadge(c: RepairConfidence): { label: string; className: string } {
-  if (c === "exact") return { label: "точно", className: "repair-badge repair-badge--exact" };
+function confidenceBadge(c: RepairConfidence): { label: string; className: string; title: string } {
+  if (c === "exact")
+    return { label: "", className: "repair-dot repair-dot--exact", title: "отлично" };
   if (c === "compatible")
-    return { label: "кандидат — сверить", className: "repair-badge repair-badge--compatible" };
+    return { label: "", className: "repair-dot repair-dot--compatible", title: "необходимо сверить" };
   if (c === "reference")
-    return { label: "справочно", className: "repair-badge repair-badge--reference" };
-  return { label: "данных нет", className: "repair-badge repair-badge--unknown" };
+    return { label: "", className: "repair-dot repair-dot--reference", title: "справочно" };
+  return { label: "", className: "repair-dot repair-dot--unknown", title: "данных нет" };
 }
 
 function RepairPartRow({
@@ -664,7 +665,7 @@ function RepairPartRow({
     <li className="repair-part-row">
       <div className="repair-part-row__top">
         <span className="repair-part-row__role">{roleLabel}</span>
-        <span className={badge.className}>{badge.label}</span>
+        <span className={badge.className} title={badge.title} aria-label={badge.title} />
         <button
           type="button"
           className="repair-part-row__pn font-mono"
@@ -742,7 +743,7 @@ function PartNumberPopover({
           <div className="part-popover__title">
             <span className="part-popover__role">{roleLabel}</span>
             <span className="part-popover__pn font-mono">{part.part_number}</span>
-            <span className={badge.className}>{badge.label}</span>
+            <span className={badge.className} title={badge.title} aria-label={badge.title} />
           </div>
           {wiringCode ? <span className="part-popover__code font-mono">{wiringCode}</span> : null}
         </div>
@@ -796,18 +797,20 @@ function PartNumberPopover({
             <p className="part-popover__placeholder">Нет изображения в каталоге</p>
           )}
         </div>
-        <p className="part-popover__hint">Колёсико / +− — масштаб, перетаскивание — сдвиг. Callout на чертеже EPC.</p>
+        <p className="part-popover__hint">Колёсико / +− — масштаб, перетаскивание — сдвиг.</p>
         {part.reason ? <p className="part-popover__reason">{part.reason}</p> : null}
         {(related.housing || related.mate || related.terminals.length > 0) && (
           <div className="part-popover__related">
             {related.housing && related.housing.part_number !== part.part_number ? (
               <div className="part-popover__rel-row">
-                Корпус <span className="font-mono">{related.housing.part_number}</span>
+                <span className="part-popover__rel-label">Корпус</span>
+                <span className="part-popover__rel-pn font-mono">{related.housing.part_number}</span>
               </div>
             ) : null}
             {related.mate && related.mate.part_number !== part.part_number ? (
               <div className="part-popover__rel-row">
-                Ответная <span className="font-mono">{related.mate.part_number}</span>
+                <span className="part-popover__rel-label">Ответная</span>
+                <span className="part-popover__rel-pn font-mono">{related.mate.part_number}</span>
               </div>
             ) : null}
             {related.terminals
@@ -815,7 +818,8 @@ function PartNumberPopover({
               .slice(0, 4)
               .map((t) => (
                 <div key={t.part_number} className="part-popover__rel-row">
-                  Клемма <span className="font-mono">{t.part_number}</span>
+                  <span className="part-popover__rel-label">Клемма</span>
+                  <span className="part-popover__rel-pn font-mono">{t.part_number}</span>
                 </div>
               ))}
           </div>
@@ -857,7 +861,7 @@ function RepairCatalogBlock({
       <details className="repair-catalog" data-testid={testId}>
         <summary className="repair-catalog__summary">
           Ремонт разъёма
-          <span className={statusBadge.className}>{statusBadge.label}</span>
+          <span className={statusBadge.className} title={statusBadge.title} aria-label={statusBadge.title} />
         </summary>
         <p className="repair-catalog__summary-text">{r.summary_ru}</p>
         <ul className="parts-catalog parts-catalog--repair">
@@ -924,6 +928,20 @@ function RepairCatalogBlock({
         </ul>
         <p className="repair-catalog__hint">
           Нажмите партномер — чертёж EPC для этого кода. Увеличивайте в окне (+/− / колёсико).
+        </p>
+        <p className="repair-catalog__legend" aria-label="Обозначения">
+          <span className="repair-catalog__legend-item">
+            <span className="repair-dot repair-dot--exact" aria-hidden />
+            отлично
+          </span>
+          <span className="repair-catalog__legend-item">
+            <span className="repair-dot repair-dot--compatible" aria-hidden />
+            необходимо сверить
+          </span>
+          <span className="repair-catalog__legend-item">
+            <span className="repair-dot repair-dot--reference" aria-hidden />
+            справочно
+          </span>
         </p>
       </details>
       {openPart ? (

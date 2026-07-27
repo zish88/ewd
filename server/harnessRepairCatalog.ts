@@ -400,7 +400,7 @@ export function matchHarnessRepair(opts: MatchRepairOpts): RepairCatalogResult {
       : "Найдена точная ремонтная позиция";
   } else if (finalTerminals.length || sealsOut.length || pigtailsOut.length) {
     summary_ru =
-      "Есть кандидаты по корпусу — сверьте контакт/сечение (EPC не указал точный cavity)";
+      "Есть кандидаты по корпусу — сверьте контакт/сечение (EPC не указал точный контакт)";
   } else if (housing || mate || device) {
     summary_ru = "Известны корпус/ответная часть; клеммы в BOM не найдены";
     status = "exact";
