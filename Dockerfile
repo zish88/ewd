@@ -6,6 +6,8 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY client ./client
+COPY server/optionExpression.ts ./server/optionExpression.ts
+COPY data/ewd/option_token_labels.json ./data/ewd/option_token_labels.json
 COPY vite.config.ts tsconfig.json ./
 RUN npm run build
 
