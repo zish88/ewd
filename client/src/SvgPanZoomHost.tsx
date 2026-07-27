@@ -12,8 +12,10 @@ const BUTTON_ZOOM_OUT = 0.8;
 
 type Pt = { x: number; y: number };
 
+type WheelEventLegacy = WheelEvent & { wheelDelta?: number; wheelDeltaY?: number };
+
 /** True for a physical mouse wheel notch; false for trackpad two-finger pixel scroll. */
-function isDiscreteMouseWheel(e: WheelEvent): boolean {
+export function isDiscreteMouseWheel(e: WheelEvent): boolean {
   if (e.deltaMode === WheelEvent.DOM_DELTA_LINE || e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
     return true;
   }
@@ -21,7 +23,14 @@ function isDiscreteMouseWheel(e: WheelEvent): boolean {
   const ax = Math.abs(e.deltaX);
   const ay = Math.abs(e.deltaY);
   // Trackpad pans often include a horizontal component or small continuous steps.
-  if (ax > 1 || ay < 40) return false;
+  if (ax > 1) return false;
+
+  // Safari / older WebKit still expose wheelDelta (±120 per mouse notch).
+  const legacy = e as WheelEventLegacy;
+  const wd = typeof legacy.wheelDeltaY === "number" ? legacy.wheelDeltaY : legacy.wheelDelta;
+  if (typeof wd === "number" && Math.abs(wd) >= 120) return true;
+
+  if (ay < 40) return false;
   // Chrome/Edge Windows mouse: typically 100/120 per notch (sometimes multiples).
   const notches = [90, 96, 100, 108, 120, 150];
   if (notches.includes(ay)) return true;
@@ -53,6 +62,9 @@ type SvgPanZoomHostProps = {
 /**
  * Shared wheel / pinch / drag pan-zoom host for EWD schematics and Location SVGs.
  * FABs are always visible (desktop + mobile).
+ *
+ * Zoom is applied via CSS `translate + scale` (not SVG width mutation) so Safari
+ * WebKit actually repaints when FABs / gestures change scale.
  */
 export function SvgPanZoomHost({
   markup,
@@ -96,12 +108,17 @@ export function SvgPanZoomHost({
     const base = baseSizeRef.current;
     const t = translateRef.current;
     const s = scaleRef.current;
-    if (pan) pan.style.transform = `translate(${t.x}px, ${t.y}px)`;
+    if (pan) {
+      // Single transform: Safari reliably composites scale here; mutating SVG
+      // width/height under a transformed ancestor often does not repaint.
+      pan.style.transformOrigin = "0 0";
+      pan.style.transform = `translate(${t.x}px, ${t.y}px) scale(${s})`;
+    }
     if (svg && base) {
-      svg.setAttribute("width", String(Math.max(1, base.w * s)));
-      svg.setAttribute("height", String(Math.max(1, base.h * s)));
-      svg.style.width = `${base.w * s}px`;
-      svg.style.height = `${base.h * s}px`;
+      svg.setAttribute("width", String(base.w));
+      svg.setAttribute("height", String(base.h));
+      svg.style.width = `${base.w}px`;
+      svg.style.height = `${base.h}px`;
       svg.style.maxWidth = "none";
       syncPinMarkerScreenSize(svg);
     }
@@ -115,6 +132,7 @@ export function SvgPanZoomHost({
     const my = clientY - rect.top;
     const prev = scaleRef.current;
     const next = Math.min(6, Math.max(0.15, prev * factor));
+    if (!(prev > 0) || next === prev) return;
     const ratio = next / prev;
     const t = translateRef.current;
     scaleRef.current = next;
@@ -123,6 +141,13 @@ export function SvgPanZoomHost({
       y: my - (my - t.y) * ratio,
     };
     applyPanZoomDom();
+  };
+
+  const zoomFromCenter = (factor: number) => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor);
   };
 
   const fitContainCenter = () => {
@@ -217,7 +242,6 @@ export function SvgPanZoomHost({
     applyPanZoomDom();
     onMarkupAppliedRef.current?.(host, svg as SVGSVGElement);
     if (fitModeRef.current === "contain" && !markerRef.current) {
-      // Center after layout so viewport has real size
       requestAnimationFrame(() => fitContainCenter());
     }
   }, [markup]);
@@ -262,18 +286,31 @@ export function SvgPanZoomHost({
 
     /** Safari trackpad pinch reports absolute scale relative to gesturestart. */
     let safariGestureScale0 = 1;
+    let gestureActive = false;
+
+    const eventInViewer = (e: Event) => {
+      const t = e.target;
+      if (t instanceof Node && el.contains(t)) return true;
+      // WebKit sometimes targets root nodes for gesture*; fall back to hit-test.
+      const ge = e as Event & { clientX?: number; clientY?: number };
+      if (typeof ge.clientX === "number" && typeof ge.clientY === "number") {
+        const top = document.elementFromPoint(ge.clientX, ge.clientY);
+        if (top && el.contains(top)) return true;
+      }
+      return gestureActive;
+    };
 
     const onWheel = (e: WheelEvent) => {
+      if (!el.contains(e.target as Node)) return;
       e.preventDefault();
+      e.stopPropagation();
       // Chrome Mac: pinch → wheel + ctrlKey.
-      // Option/Alt + two-finger scroll → intentional zoom (Mac habit).
-      // Cmd alone is left for browser chrome; still accept meta+wheel if browser sends it.
+      // Safari Mac: pinch is usually gesture*; Option/Alt + scroll still zooms.
+      // Cmd/Ctrl + wheel accepted when the browser delivers it.
       const pinchZoom = e.ctrlKey || e.metaKey || e.altKey;
-      // Mouse wheel zoom: LINE/PAGE (Firefox) or discrete PIXEL notches (Chrome/Edge).
-      // Continuous PIXEL without modifier (trackpad two-finger) stays pan.
       const mouseWheel = !pinchZoom && isDiscreteMouseWheel(e);
       if (pinchZoom || mouseWheel) {
-        const sensitivity = e.altKey && !e.ctrlKey ? 0.0025 : 0.01;
+        const sensitivity = e.altKey && !e.ctrlKey && !e.metaKey ? 0.0025 : 0.01;
         const factor = pinchZoom
           ? Math.min(1.28, Math.max(0.78, Math.exp(-e.deltaY * sensitivity)))
           : e.deltaY > 0
@@ -290,10 +327,13 @@ export function SvgPanZoomHost({
     };
 
     const onGestureStart = (e: Event) => {
+      if (!eventInViewer(e)) return;
       e.preventDefault();
+      gestureActive = true;
       safariGestureScale0 = scaleRef.current;
     };
     const onGestureChange = (e: Event) => {
+      if (!eventInViewer(e)) return;
       e.preventDefault();
       const ge = e as Event & { scale?: number; clientX?: number; clientY?: number };
       const gScale = Number(ge.scale);
@@ -307,26 +347,40 @@ export function SvgPanZoomHost({
       zoomAt(cx, cy, next / prev);
     };
     const onGestureEnd = (e: Event) => {
+      if (!gestureActive && !eventInViewer(e)) return;
       e.preventDefault();
+      gestureActive = false;
     };
 
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2) e.preventDefault();
     };
 
-    el.addEventListener("wheel", onWheel, { passive: false });
+    const wheelOpts: AddEventListenerOptions = { passive: false, capture: true };
+    const gestureOpts: AddEventListenerOptions = { passive: false, capture: true };
+
+    el.addEventListener("wheel", onWheel, wheelOpts);
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    // WebKit / Safari Mac trackpad pinch (not exposed as standard wheel+ctrl).
-    el.addEventListener("gesturestart", onGestureStart as EventListener, { passive: false });
-    el.addEventListener("gesturechange", onGestureChange as EventListener, { passive: false });
-    el.addEventListener("gestureend", onGestureEnd as EventListener, { passive: false });
+    // WebKit / Safari Mac trackpad pinch (often not exposed as wheel+ctrl).
+    // Listen on element + document: Safari may target html/body for gestures.
+    el.addEventListener("gesturestart", onGestureStart, gestureOpts);
+    el.addEventListener("gesturechange", onGestureChange, gestureOpts);
+    el.addEventListener("gestureend", onGestureEnd, gestureOpts);
+    document.addEventListener("gesturestart", onGestureStart, gestureOpts);
+    document.addEventListener("gesturechange", onGestureChange, gestureOpts);
+    document.addEventListener("gestureend", onGestureEnd, gestureOpts);
+
     return () => {
-      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("wheel", onWheel, wheelOpts);
       el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("gesturestart", onGestureStart as EventListener);
-      el.removeEventListener("gesturechange", onGestureChange as EventListener);
-      el.removeEventListener("gestureend", onGestureEnd as EventListener);
+      el.removeEventListener("gesturestart", onGestureStart, gestureOpts);
+      el.removeEventListener("gesturechange", onGestureChange, gestureOpts);
+      el.removeEventListener("gestureend", onGestureEnd, gestureOpts);
+      document.removeEventListener("gesturestart", onGestureStart, gestureOpts);
+      document.removeEventListener("gesturechange", onGestureChange, gestureOpts);
+      document.removeEventListener("gestureend", onGestureEnd, gestureOpts);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bind once; zoom uses refs
   }, []);
 
   const pointerDistance = () => {
@@ -443,7 +497,7 @@ export function SvgPanZoomHost({
       <div
         ref={panRef}
         className="origin-top-left will-change-transform"
-        style={{ transform: "translate(40px, 40px)" }}
+        style={{ transform: "translate(40px, 40px) scale(1)", transformOrigin: "0 0" }}
       >
         <div ref={contentRef} data-testid="svg-canvas" className="ewd-svg-root" />
       </div>
@@ -451,19 +505,19 @@ export function SvgPanZoomHost({
       <div
         data-testid="svg-zoom-fab"
         className="svg-zoom-fab"
-        title="Щипок / ⌥+скролл / кнопки — зум · два пальца — сдвиг"
+        title="Щипок / ⌥+скролл / колесо / кнопки — зум · два пальца — сдвиг"
         onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="Увеличить"
           title="Увеличить"
           className="svg-zoom-fab__btn"
-          onClick={() => {
-            const el = viewportRef.current;
-            if (!el) return;
-            const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, BUTTON_ZOOM_IN);
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zoomFromCenter(BUTTON_ZOOM_IN);
           }}
         >
           +
@@ -473,11 +527,10 @@ export function SvgPanZoomHost({
           aria-label="Уменьшить"
           title="Уменьшить"
           className="svg-zoom-fab__btn"
-          onClick={() => {
-            const el = viewportRef.current;
-            if (!el) return;
-            const r = el.getBoundingClientRect();
-            zoomAt(r.left + r.width / 2, r.top + r.height / 2, BUTTON_ZOOM_OUT);
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zoomFromCenter(BUTTON_ZOOM_OUT);
           }}
         >
           −
@@ -487,7 +540,11 @@ export function SvgPanZoomHost({
           aria-label="Сброс масштаба"
           title="Сброс масштаба"
           className="svg-zoom-fab__btn svg-zoom-fab__btn--reset"
-          onClick={() => fitComfortToMarker()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fitComfortToMarker();
+          }}
         >
           Сброс
         </button>
