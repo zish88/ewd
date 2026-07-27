@@ -345,7 +345,11 @@ function formatDiagramButtonTitle(raw: string, page: number, componentCode: stri
   return `Схема (стр. ${page})`;
 }
 
-/** Semantic identity for wire cards (ignores wire_uid / row id — those spawn visual clones). */
+/**
+ * Семантический ключ карточки провода.
+ * option_expression обязателен: иначе разные комплектации одной пины/цвета схлопываются.
+ * wire_uid / row id не входят — иначе визуальные клоны.
+ */
 function navCardDedupeKey(card: {
   match_role?: string;
   subject_code?: string;
@@ -357,6 +361,7 @@ function navCardDedupeKey(card: {
   wire_gauge?: string;
   from_detail?: string;
   to_detail?: string;
+  option_expression?: string;
 }): string {
   const norm = (s: unknown) => String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
   const color = norm(card.wire_color).replace(/\//g, "-");
@@ -371,6 +376,7 @@ function navCardDedupeKey(card: {
     norm(card.wire_gauge),
     norm(card.from_detail),
     norm(card.to_detail),
+    norm(card.option_expression),
   ].join("|");
 }
 

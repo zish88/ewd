@@ -16,7 +16,8 @@ export function normalizeOptionExpression(raw: string): string {
     .trim();
 }
 
-function tokenize(expr: string): string[] {
+/** Токены выражения: операнды, &&, ||, !, скобки (для humanize / отладки). */
+export function tokenizeOptionExpression(expr: string): string[] {
   const s = normalizeOptionExpression(expr);
   const tokens: string[] = [];
   let i = 0;
@@ -127,11 +128,27 @@ export function evaluateOptionExpression(
   const hasToken = (t: string) => upper.has(String(t).trim().toUpperCase());
 
   try {
-    const toks = tokenize(expr);
+    const toks = tokenizeOptionExpression(expr);
     if (!toks.length) return true;
     return parseOr(toks, { i: 0 }, hasToken);
   } catch {
     // Fail open: do not hide a wire when expression is malformed
     return true;
   }
+}
+
+const OP_TOKENS = new Set(["&&", "||", "!", "(", ")"]);
+
+/** Только операнды комплектации (без операторов и скобок). */
+export function listOptionOperandTokens(expression: string | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of tokenizeOptionExpression(String(expression || ""))) {
+    if (OP_TOKENS.has(t)) continue;
+    const key = t.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
 }

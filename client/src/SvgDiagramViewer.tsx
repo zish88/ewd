@@ -40,6 +40,21 @@ function normalizeCodeLabel(s: string): string {
   return m ? `${m[1]}/${m[2]}` : String(s || "").trim();
 }
 
+/** Кэш разметки SVG по diagramUid — смена карточки на уже открытом листе без повторной загрузки. */
+const svgMarkupCache = new Map<string, string>();
+const SVG_CACHE_MAX = 24;
+
+function cacheSvgMarkup(diagramUid: string, markup: string): void {
+  if (!diagramUid || !markup) return;
+  if (svgMarkupCache.has(diagramUid)) svgMarkupCache.delete(diagramUid);
+  svgMarkupCache.set(diagramUid, markup);
+  while (svgMarkupCache.size > SVG_CACHE_MAX) {
+    const oldest = svgMarkupCache.keys().next().value;
+    if (oldest == null) break;
+    svgMarkupCache.delete(oldest);
+  }
+}
+
 export function SvgDiagramViewer({
   diagramUid,
   searchCode,
@@ -85,15 +100,21 @@ export function SvgDiagramViewer({
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     setError(null);
-    setSvgMarkup("");
     setResolveUids([]);
-    setWireUids([]);
     setPinUids([]);
     setMarkerAt(null);
-    setFitToken(0);
     paintedKeyRef.current = "";
+    // Уже видели этот лист в сессии — показываем сразу, без пустого экрана.
+    const cached = svgMarkupCache.get(diagramUid);
+    if (cached) {
+      setSvgMarkup(cached);
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+    setLoading(true);
     fetch(`/api/ewd/svg?diagramUid=${encodeURIComponent(diagramUid)}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(await r.text());
@@ -105,6 +126,7 @@ export function SvgDiagramViewer({
           .replace(/^\uFEFF?<\?xml[\s\S]*?\?>\s*/i, "")
           .replace(/<!DOCTYPE[\s\S]*?>\s*/i, "")
           .trim();
+        cacheSvgMarkup(diagramUid, cleaned);
         setSvgMarkup(cleaned);
         setLoading(false);
       })
@@ -118,16 +140,26 @@ export function SvgDiagramViewer({
     };
   }, [diagramUid]);
 
+  // Стабильные ключи — иначе новый [] pinCandidates/ends на каждый клик сбрасывал highlightReady.
+  const pinCandidatesKey = pinCandidates.join("|");
+  const optionTokensKey = optionTokens.join("|");
+
   useEffect(() => {
     let alive = true;
-    setHighlightReady(false);
-    if (!pin && !pinCandidates.length && !wireColor && !peerCode) {
+    if (!pin && !pinCandidates.length && !wireColor && !peerCode && !wireUid) {
       setResolveUids([]);
       setWireUids([]);
       setPinUids([]);
       setNetPins({});
       setHighlightReady(true);
       return;
+    }
+    // Мгновенная покраска по wireUid карточки — схему не блокируем ожиданием /highlight.
+    if (wireUid) {
+      setWireUids([wireUid]);
+      setHighlightReady(true);
+    } else {
+      setHighlightReady(false);
     }
     const params = new URLSearchParams({ code: searchCode, diagramUid });
     const pinForApi = pin || pinCandidates[0] || "";
@@ -223,11 +255,14 @@ export function SvgDiagramViewer({
     return () => {
       alive = false;
     };
+    // pinCandidates/optionTokens — через стабильные ключи (см. выше).
+    // ends/objectIds в fetch не участвуют — не кладём в deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pinCandidatesKey/optionTokensKey
   }, [
     diagramUid,
     searchCode,
     pin,
-    pinCandidates,
+    pinCandidatesKey,
     wireColor,
     wireUid,
     pinUid,
@@ -237,9 +272,7 @@ export function SvgDiagramViewer({
     pinTo,
     fromCode,
     toCode,
-    ends,
-    objectIds,
-    optionTokens,
+    optionTokensKey,
   ]);
 
   useEffect(() => {
@@ -307,43 +340,54 @@ export function SvgDiagramViewer({
     if (toEnd && secondaryUid) toEnd.uid = secondaryUid;
     const primaryEnd = primary || null;
     const focusKey = `${diagramUid}|${endFromCode}|${wireEnds.map((e) => `${e.code}:${e.pin || ""}:${e.uid || ""}`).join("/")}|${wireColor}|${primaryUid}|${showSeq}|${wireUids.join(",")}`;
+    if (paintedKeyRef.current === focusKey) return;
 
-    const result = highlightTarget(root, svg, {
-      connectorCode: primaryEnd?.code || endFromCode || searchCode,
-      pinNumber: primaryEnd?.pin || selectedPins[0] || pin,
-      pinCandidates: primaryEnd?.pin
-        ? [primaryEnd.pin, ...selectedPins.filter((p) => p !== primaryEnd.pin)]
-        : selectedPins,
-      wireColor,
-      systemUid: primaryUid || resolveUids[0],
-      resolveUids: primaryUid ? [primaryUid] : resolveUids,
-      wireUids,
-      pinUids: primaryUid ? [primaryUid] : pinUids,
-      diagramUid,
-      peerCode: endToCode || peerCode,
-      peerPin: peerPin || pinTo || netPins.pinTo,
-      ends: wireEnds,
+    // Сначала отдаём кадр браузеру, потом тяжёлую покраску ~600 path — UI не клинит на клике.
+    let cancelled = false;
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled || !contentRootRef.current) return;
+        const liveSvg = contentRootRef.current.querySelector("svg") as SVGSVGElement | null;
+        if (!liveSvg) return;
+        const result = highlightTarget(contentRootRef.current, liveSvg, {
+          connectorCode: primaryEnd?.code || endFromCode || searchCode,
+          pinNumber: primaryEnd?.pin || selectedPins[0] || pin,
+          pinCandidates: primaryEnd?.pin
+            ? [primaryEnd.pin, ...selectedPins.filter((p) => p !== primaryEnd.pin)]
+            : selectedPins,
+          wireColor,
+          systemUid: primaryUid || resolveUids[0],
+          resolveUids: primaryUid ? [primaryUid] : resolveUids,
+          wireUids,
+          pinUids: primaryUid ? [primaryUid] : pinUids,
+          diagramUid,
+          peerCode: endToCode || peerCode,
+          peerPin: peerPin || pinTo || netPins.pinTo,
+          ends: wireEnds,
+        });
+
+        paintedKeyRef.current = focusKey;
+
+        if (selectedPins.length && result.stage === "none") {
+          try {
+            clearPinMarkers(liveSvg);
+          } catch {
+            /* ignore */
+          }
+          setMarkerAt(null);
+          setFitToken((n) => n + 1);
+          onPinMissRef.current?.(result.reason || "pin-miss");
+          return;
+        }
+
+        setMarkerAt(result.markerAt || null);
+        setFitToken((n) => n + 1);
+      });
     });
-
-    paintedKeyRef.current = focusKey;
-
-    if (selectedPins.length && result.stage === "none") {
-      // Strip leftover circles before retry — never leave Куда marker (keep wire paint)
-      try {
-        clearPinMarkers(svg);
-      } catch {
-        /* ignore */
-      }
-      setMarkerAt(null);
-      // No marker → contain-fit so Windows/laptop panels are not stuck at {40,40}+1.1×.
-      setFitToken((n) => n + 1);
-      onPinMissRef.current?.(result.reason || "pin-miss");
-      return;
-    }
-
-    setMarkerAt(result.markerAt || null);
-    // Always re-fit: marker comfort when present, else full-sheet contain.
-    setFitToken((n) => n + 1);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
   }, [
     svgMarkup,
     searchCode,

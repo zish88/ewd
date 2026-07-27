@@ -58,6 +58,20 @@ export type SchemeDiagramLike = {
   onSheetUidCount?: number;
 };
 
+/** Кэш множества UID на лист — cardSchemeInfo зовёт это на каждый рендер × N карточек. */
+const diagramUidSetCache = new WeakMap<object, Set<string>>();
+
+function diagramUidSet(diagram: SchemeDiagramLike): Set<string> {
+  const cached = diagramUidSetCache.get(diagram as object);
+  if (cached) return cached;
+  const set = new Set<string>([
+    ...(diagram.onSheetUids || []),
+    ...((diagram.groups || []).flatMap((g) => g.uids || [])),
+  ]);
+  diagramUidSetCache.set(diagram as object, set);
+  return set;
+}
+
 /** Есть ли этот wireUid на листе (onSheetUids или uids групп SVG). */
 export function diagramContainsWireUid(
   diagram: SchemeDiagramLike | null | undefined,
@@ -65,12 +79,7 @@ export function diagramContainsWireUid(
 ): boolean {
   const wu = String(wireUid || "").trim();
   if (!wu || !diagram) return false;
-  // Собираем все UID с листа: индекс onSheet + разбор групп разметки.
-  const onSheet = new Set<string>([
-    ...(diagram.onSheetUids || []),
-    ...((diagram.groups || []).flatMap((g) => g.uids || [])),
-  ]);
-  return onSheet.has(wu);
+  return diagramUidSet(diagram).has(wu);
 }
 
 export type SchemeContext = {

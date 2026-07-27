@@ -7,7 +7,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["server", "scripts", "client/src", "vite.config.ts"]
+  "include": ["server", "scripts", "client/src", "data/ewd/option_token_labels.json", "vite.config.ts"]
 }
