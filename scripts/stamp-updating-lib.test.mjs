@@ -137,6 +137,32 @@ test("English Fix commits get curated RU — no EN jargon leftovers", () => {
   assert.doesNotMatch(safari[0], /FABs,/i);
 });
 
+test("EPC repair commits receive specific public notes", () => {
+  const subjects = [
+    "Expand EPC illustration coverage across repair catalog.",
+    "Polish repair PN card UI and Russian copy.",
+    "Add EPC part illustrations and harness repair PN cards.",
+  ];
+  const notes = pickUserFacingDeployNotes(subjects, MAX_ITEMS, {
+    freshSubjects: subjects,
+    seed: "epc-repair-release",
+  });
+
+  assert.deepEqual(notes, [
+    "Иллюстрации EPC добавлены для большинства ремонтных разъёмов.",
+    "Карточки ремонтных номеров стали понятнее и удобнее.",
+    "В карточках разъёмов появились номера деталей и иллюстрации EPC.",
+  ]);
+  assert.ok(notes.every((note) => !/доступна новая версия|улучшения интерфейса|новые улучшения/i.test(note)));
+});
+
+test("unmapped EPC repair commit gets a specific fallback", () => {
+  assert.equal(
+    toRussianDeployNote("Improve EPC repair part illustrations for connector catalog."),
+    "Иллюстрации EPC для ремонтных разъёмов и деталей.",
+  );
+});
+
 test("Document OBD vehicle-agnostic is hidden from public notes", () => {
   assert.equal(
     isInternalDeploySubject(

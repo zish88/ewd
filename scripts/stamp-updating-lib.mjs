@@ -63,6 +63,12 @@ export const RU_BY_SUBJECT = new Map(
       "Читаемые подписи на двухцветных проводах; пуш при обновлении сайта.",
     "Stamp updating.html with user-facing dual-wire and push-notify notes.":
       "Читаемые подписи на двухцветных проводах; пуш при обновлении сайта.",
+    "Add EPC part illustrations and harness repair PN cards.":
+      "В карточках разъёмов появились номера деталей и иллюстрации EPC.",
+    "Polish repair PN card UI and Russian copy.":
+      "Карточки ремонтных номеров стали понятнее и удобнее.",
+    "Expand EPC illustration coverage across repair catalog.":
+      "Иллюстрации EPC добавлены для большинства ремонтных разъёмов.",
     "Пуш/SW баннеры, детали DTC VIDA, рефактор nav-зон и pinch-zoom схем.":
       "Пуш-баннеры работают надёжнее; детали DTC VIDA; удобнее pinch-zoom на схемах.",
     "OBD: динамический discovery PID и универсальный API сигналов ESP-шлюза.":
@@ -228,6 +234,9 @@ function summarizeUnmappedEnglish(subject) {
   }
   if (/dual-?colou?r|dual-?wire|wire badge/i.test(lower)) {
     bits.push("читаемые подписи на двухцветных проводах");
+  }
+  if (/epc|part illustration|repair (?:catalog|pn|part)|harness repair/i.test(lower)) {
+    bits.push("иллюстрации EPC для ремонтных разъёмов и деталей");
   }
   if (/obd/i.test(lower) && !/admin|document/i.test(lower)) {
     bits.push("улучшения OBD");
