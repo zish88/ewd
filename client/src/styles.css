@@ -2210,11 +2210,20 @@ html {
   cursor: pointer;
 }
 
-.modern-select__trigger > span {
+.modern-select__label-viewport {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.modern-select__label-text {
+  display: inline-block;
+  min-width: max-content;
+  white-space: nowrap;
+  will-change: transform;
 }
 
 .modern-select__trigger:focus-visible {
@@ -2301,11 +2310,22 @@ html {
   cursor: pointer;
 }
 
-.modern-select__option > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@media (max-width: 768px), (hover: none), (pointer: coarse) {
+  .modern-select__label-text.is-overflowing {
+    animation: modern-select-marquee 6s ease-in-out 0.7s infinite;
+  }
+}
+
+@keyframes modern-select-marquee {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+
+  78%,
+  100% {
+    transform: translateX(var(--marquee-shift, 0));
+  }
 }
 
 .modern-select__option:hover,
@@ -2360,6 +2380,10 @@ html {
 
   .modern-select__chevron {
     transition: none;
+  }
+
+  .modern-select__label-text.is-overflowing {
+    animation: none;
   }
 }
 

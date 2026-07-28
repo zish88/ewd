@@ -42,6 +42,37 @@ type PopupPosition = {
 const EDGE = 8;
 const GAP = 6;
 
+function OverflowingLabel({ text, placeholder = false }: { text: string; placeholder?: boolean }) {
+  const viewportRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const label = textRef.current;
+    if (!viewport || !label) return;
+
+    const updateOverflow = () => {
+      const shift = Math.max(0, label.scrollWidth - viewport.clientWidth);
+      label.classList.toggle("is-overflowing", shift > 1);
+      label.style.setProperty("--marquee-shift", `${-shift}px`);
+    };
+
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [text]);
+
+  return (
+    <span
+      ref={viewportRef}
+      className={`modern-select__label-viewport${placeholder ? " modern-select__placeholder" : ""}`}
+    >
+      <span ref={textRef} className="modern-select__label-text">{text}</span>
+    </span>
+  );
+}
+
 export function ModernSelect({
   value,
   onChange,
@@ -203,6 +234,7 @@ export function ModernSelect({
         type="button"
         role="option"
         aria-selected={isSelected}
+        title={option.label}
         tabIndex={-1}
         disabled={option.disabled}
         data-option-index={index}
@@ -216,7 +248,7 @@ export function ModernSelect({
         }}
         onClick={() => choose(option)}
       >
-        <span>{option.label}</span>
+        <OverflowingLabel text={option.label} />
         {isSelected ? (
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m5 12 4 4L19 6" />
@@ -246,13 +278,12 @@ export function ModernSelect({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        title={selected?.label || placeholder}
         disabled={disabled}
         onClick={() => (open ? closeList() : openList())}
         onKeyDown={onTriggerKeyDown}
       >
-        <span className={selected ? "" : "modern-select__placeholder"}>
-          {selected?.label || placeholder}
-        </span>
+        <OverflowingLabel text={selected?.label || placeholder} placeholder={!selected} />
         <svg className="modern-select__chevron" viewBox="0 0 24 24" aria-hidden="true">
           <path d="m7 10 5 5 5-5" />
         </svg>
