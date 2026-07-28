@@ -444,6 +444,11 @@ html {
     z-index: 1;
   }
 
+  /* Search results must paint above the later cards/results sibling. */
+  .app-shell > .app-bar {
+    z-index: 100;
+  }
+
   .filters-host {
     position: relative;
     /* vertical scroll allowed in the later desktop rules; keep x clipped for bg art */
