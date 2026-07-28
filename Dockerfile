@@ -6,6 +6,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY client ./client
+COPY shared ./shared
 COPY server/optionExpression.ts ./server/optionExpression.ts
 COPY data/ewd/option_token_labels.json ./data/ewd/option_token_labels.json
 COPY vite.config.ts tsconfig.json ./
@@ -32,6 +33,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY server ./server
+COPY shared ./shared
 COPY scripts ./scripts
 COPY --from=build /app/client/dist ./client/dist
 
