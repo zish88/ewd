@@ -75,6 +75,8 @@ export const RU_BY_SUBJECT = new Map(
       "OBD: авто-поиск PID и универсальные сигналы ESP-шлюза.",
     "Move OBD testing to admin, tighten engine-zone rules, sanitize public docs":
       "Точнее зоны двигателя на схемах.",
+    "Align zone homes, smart search, and modern nav dropdowns.":
+      "Узлы точнее разложены по зонам кузова; поиск понимает обычные фразы вроде «проводка двери»; новые удобные списки выбора зоны и узла.",
   }).map(([en, ru]) => [en.toLowerCase(), ru]),
 );
 
@@ -140,6 +142,7 @@ export function isNoiseSubject(s) {
   if (/^Skip stamp-only\b/i.test(s)) return true;
   if (/\bmeta deploy-note\b/i.test(s)) return true;
   if (/\bdeploy notes?\b/i.test(s)) return true;
+  if (/\brelease notes?\b/i.test(s)) return true;
   if (/заметк/i.test(s) && /страниц/i.test(s) && /обновл/i.test(s)) return true;
   if (/force utf-8 git log/i.test(s)) return true;
   if (/^Fix deploy notes\b/i.test(s)) return true;
@@ -172,7 +175,7 @@ export function isInternalDeploySubject(s) {
   if (/\.env\b/i.test(t)) return true;
   if (/\bdeploy\.sh\b/i.test(t)) return true;
   if (/\bvps-deploy\b/i.test(t)) return true;
-  if (/\bdockerfile\b/i.test(t)) return true;
+  if (/\bdocker(file|-compose)?\b/i.test(t)) return true;
   if (/\bnginx\b/i.test(t) && /snippet|install|config/i.test(t)) return true;
   if (/скрипт на vps/i.test(t)) return true;
   if (/setup-vapid/i.test(t)) return true;
@@ -240,6 +243,15 @@ function summarizeUnmappedEnglish(subject) {
   }
   if (/obd/i.test(lower) && !/admin|document/i.test(lower)) {
     bits.push("улучшения OBD");
+  }
+  if (/home.?zone|zone homes|zone (?:rules|assignment)|park assist|parking sensor/i.test(lower)) {
+    bits.push("узлы точнее разложены по зонам кузова");
+  }
+  if (/smart search|search (?:lexicon|synonym|across)|synonym|fuzzy search/i.test(lower)) {
+    bits.push("поиск понимает обычные фразы и синонимы");
+  }
+  if (/dropdown|modern select|custom select|listbox/i.test(lower)) {
+    bits.push("новые удобные списки выбора");
   }
   if (!bits.length) {
     if (/^Fix(ed)?\b/i.test(s)) return "Исправления в работе сайта.";
@@ -384,6 +396,21 @@ export function formatGitShort(sha) {
   return hex || "local";
 }
 
+/** Заглушки для коммитов без внятной темы — годятся только когда больше нечего показать. */
+const GENERIC_NOTES = [
+  "Доступна новая версия справочника.",
+  "Исправления в работе сайта.",
+  "Новые улучшения на сайте.",
+  "Улучшения интерфейса.",
+];
+const GENERIC_NOTE_KEYS = new Set(GENERIC_NOTES.map((x) => noteKey(x)));
+
+/** Заглушки уходят, если в релизе есть конкретные заметки. */
+function dropGenericWhenSpecific(notes) {
+  const specific = notes.filter((x) => !GENERIC_NOTE_KEYS.has(noteKey(x)));
+  return specific.length ? specific : notes;
+}
+
 /** Публичный буллет: короткий, по-русски, без EN-каши. */
 export function isValidPublicNote(s) {
   const t = normalizeSubject(s);
@@ -425,7 +452,7 @@ export function pickUserFacingDeployNotes(subjects, max = MAX_ITEMS, options = {
   );
 
   const sanitize = (list) =>
-    list.map(finishNote).filter((n) => n && isValidPublicNote(n));
+    dropGenericWhenSpecific(list.map(finishNote).filter((n) => n && isValidPublicNote(n)));
 
   // --- Deploy path: явно передали окно fresh (даже пустое) ---
   if (freshSubjects) {

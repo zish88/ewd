@@ -163,6 +163,44 @@ test("unmapped EPC repair commit gets a specific fallback", () => {
   );
 });
 
+test("zone/search/dropdown release gets specific bullets, not the generic line", () => {
+  const subjects = [
+    "Include shared/ in Docker client and runtime images.",
+    "Align zone homes, smart search, and modern nav dropdowns.",
+    "Generate specific EPC repair release notes.",
+    "Expand EPC illustration coverage across repair catalog.",
+  ];
+  const notes = pickUserFacingDeployNotes(subjects, MAX_ITEMS, {
+    freshSubjects: subjects,
+    seed: "zone-search-release",
+  });
+
+  assert.ok(notes.some((n) => /зонам кузова/i.test(n)), JSON.stringify(notes));
+  assert.ok(notes.some((n) => /поиск/i.test(n)), JSON.stringify(notes));
+  assert.ok(notes.some((n) => /списк/i.test(n)), JSON.stringify(notes));
+  assert.ok(!notes.some((n) => /доступна новая версия/i.test(n)), JSON.stringify(notes));
+  assert.ok(!notes.some((n) => /docker|shared/i.test(n)), JSON.stringify(notes));
+});
+
+test("unmapped zone/search/select commits summarize by topic", () => {
+  assert.match(
+    toRussianDeployNote("Fix home_zone rules for park assist sensors."),
+    /зонам кузова/i,
+  );
+  assert.match(
+    toRussianDeployNote("Extend smart search synonyms to every zone."),
+    /поиск/i,
+  );
+  assert.match(
+    toRussianDeployNote("Replace native selects with modern dropdowns."),
+    /списк/i,
+  );
+});
+
+test("release-notes plumbing commits stay internal", () => {
+  assert.equal(isInternalDeploySubject("Generate specific EPC repair release notes."), true);
+});
+
 test("Document OBD vehicle-agnostic is hidden from public notes", () => {
   assert.equal(
     isInternalDeploySubject(
