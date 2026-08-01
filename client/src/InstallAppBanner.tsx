@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isTelegramMiniApp } from "./telegram.js";
 
 const DISMISS_KEY = "ewd_install_banner_dismissed_v1";
 
@@ -60,6 +61,7 @@ export function InstallAppBanner() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
+    if (isTelegramMiniApp()) return;
     if (isStandaloneDisplay()) return;
     try {
       if (localStorage.getItem(DISMISS_KEY) === "1") return;

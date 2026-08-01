@@ -84,7 +84,8 @@ export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
           className={`empty-state-hero__car${carVisible ? " is-visible" : ""}`}
           data-testid="empty-state-silhouette"
           style={{
-            ["--esh-car-mask" as string]: `url("${displayMask}")`,
+            WebkitMaskImage: `url("${displayMask}"), radial-gradient(ellipse 78% 72% at 50% 50%, #000 48%, transparent 88%)`,
+            maskImage: `url("${displayMask}"), radial-gradient(ellipse 78% 72% at 50% 50%, #000 48%, transparent 88%)`,
           }}
         />
 

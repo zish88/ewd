@@ -46,6 +46,12 @@ import {
   optionApplicabilityLabel,
   optionApplicabilityStatus,
 } from "./optionExpressionHumanize.js";
+import {
+  bootstrapTelegramIdentity,
+  initializeTelegramWebApp,
+  isTelegramMiniApp,
+  setTelegramBackButton,
+} from "./telegram.js";
 
 
 type RepairConfidence = "exact" | "compatible" | "unknown" | "reference";
@@ -2047,6 +2053,23 @@ function App() {
   }
 
   useEffect(() => {
+    const hasOverlay = Boolean(activeSvg || capitalPanel || filtersSheetOpen || filtersPopoverOpen || schemeFullscreen);
+    return setTelegramBackButton(hasOverlay, () => {
+      if (schemeFullscreen) {
+        exitSchemeFullscreen();
+      } else if (filtersSheetOpen) {
+        setFiltersSheetOpen(false);
+      } else if (filtersPopoverOpen) {
+        setFiltersPopoverOpen(false);
+      } else if (activeSvg) {
+        closeActiveScheme();
+      } else if (capitalPanel) {
+        closeCapitalPanel();
+      }
+    });
+  }, [activeSvg, capitalPanel, filtersPopoverOpen, filtersSheetOpen, schemeFullscreen]);
+
+  useEffect(() => {
     setDiagramPickerOpen(false);
   }, [selectedCode]);
 
@@ -3772,7 +3795,7 @@ function App() {
      page (tab "OBD") while it's being tuned — see AdminPage.tsx. Restore here
      once it's ready for public use again. */
 
-  return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}${mode === null ? " is-empty-state" : ""}`}>
+  return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}${mode === null ? " is-empty-state" : ""}${isTelegramMiniApp() ? " is-telegram-mini-app" : ""}`}>
     <InstallAppBanner />
     <div className="desktop-bg-art" aria-hidden="true">
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
@@ -4762,7 +4785,9 @@ function App() {
         </div>
       )}
       </div></section> : (
-      <EmptyStateHero selectedModel={selectedModel} />
+      <div className="h-full min-h-0 relative">
+        <EmptyStateHero selectedModel={selectedModel} />
+      </div>
     )}
     </div>
     {editingItem && (
@@ -5009,13 +5034,16 @@ function SuggestEditModal({
 
 function Root() {
   const path = typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") || "/" : "/";
-  if (path === "/admin") return <AdminPage />;
+  // Telegram Mini App is a public reference surface; privileged admin stays web-only.
+  if (path === "/admin" && !isTelegramMiniApp()) return <AdminPage />;
   return <App />;
 }
 
+initializeTelegramWebApp();
+void bootstrapTelegramIdentity();
 createRoot(document.getElementById("root")!).render(<Root />);
 
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+if (import.meta.env.PROD && "serviceWorker" in navigator && !isTelegramMiniApp()) {
   window.addEventListener("load", () => {
     // iOS 16.4+ / Mac Safari standalone + Android Chrome
     navigator.serviceWorker.register("/sw.js").catch(() => {});

@@ -13,6 +13,7 @@ import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
 import { createObdRouter } from "./routes/obd.js";
 import { createPushRouter } from "./routes/push.js";
+import { createTelegramAuthRouter, telegramConfigured } from "./telegramAuth.js";
 import { dtcStats } from "./dtcDb.js";
 import { adminConfigured, isAdminRequest } from "./adminAuth.js";
 import { publicSiteStatus, readSiteSettings } from "./siteSettings.js";
@@ -124,6 +125,7 @@ app.use("/api", (req, res, next) => {
 });
 
 app.use("/api/push", createPushRouter());
+app.use("/api/telegram", createTelegramAuthRouter());
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/parts", createPartsRouter());
@@ -181,6 +183,7 @@ app.get("/api/health", (_req, res) => {
     faceViewIndex: existsSync(join(ewdData, "face_view_index.json")),
     capitalOnly: true,
     adminConfigured: adminConfigured(),
+    telegramConfigured: telegramConfigured(),
     error,
     hint: hints.length ? hints.join(" ") : undefined,
   });

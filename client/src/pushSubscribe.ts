@@ -1,3 +1,5 @@
+import { isTelegramMiniApp } from "./telegram.js";
+
 /** Web Push opt-in for deploy update notifications. */
 
 export type PushUiState = "unsupported" | "unavailable" | "off" | "on" | "pending";
@@ -15,6 +17,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export function pushFeatureSupported(): boolean {
   return (
+    !isTelegramMiniApp() &&
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
     "PushManager" in window &&

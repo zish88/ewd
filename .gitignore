@@ -51,6 +51,8 @@ data/visits.sqlite
 data/push.sqlite
 data/push.sqlite-*
 data/push-last-notified.json
+data/telegram.sqlite
+data/telegram.sqlite-*
 data/admin-corrections.sqlite
 data/admin-corrections.sqlite-*
 data/pages/

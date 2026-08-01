@@ -104,6 +104,16 @@ html {
   max-height: 100dvh;
 }
 
+/* Telegram reports a stable WebView height; use it instead of browser chrome heuristics. */
+.app-shell--viewport.is-telegram-mini-app {
+  height: var(--tg-viewport-height, 100dvh);
+  max-height: var(--tg-viewport-height, 100dvh);
+}
+
+html[data-telegram="true"] {
+  background: var(--bg-main);
+}
+
 /* PWA install hint — iOS / Mac Safari / Android Chrome */
 .install-app-banner {
   position: fixed;
@@ -560,12 +570,6 @@ html {
   background: var(--esh-car);
   opacity: 0;
   transform: scale(0.985);
-  -webkit-mask-image:
-    var(--esh-car-mask),
-    radial-gradient(ellipse 72% 68% at 50% 50%, #000 34%, transparent 78%);
-  mask-image:
-    var(--esh-car-mask),
-    radial-gradient(ellipse 72% 68% at 50% 50%, #000 34%, transparent 78%);
   -webkit-mask-repeat: no-repeat, no-repeat;
   mask-repeat: no-repeat, no-repeat;
   -webkit-mask-position: center, center;
@@ -574,12 +578,12 @@ html {
   mask-size: contain, 100% 100%;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
-  filter: blur(0.4px);
+  filter: blur(0.35px);
   transition: opacity 180ms ease;
 }
 
 .empty-state-hero__car.is-visible {
-  opacity: 0.34;
+  opacity: 0.52;
   transform: scale(1);
   animation:
     esh-car-in 640ms ease-out 120ms both,
@@ -758,7 +762,7 @@ html {
 .empty-state-hero__copy {
   position: absolute;
   left: 50%;
-  top: clamp(0.35rem, 1.2vh, 0.75rem);
+  top: clamp(0.75rem, 2.5vh, 1.5rem);
   z-index: 3;
   width: min(36rem, calc(100% - 2rem));
   max-width: 36rem;
@@ -794,12 +798,12 @@ html {
 
 @keyframes esh-car-in {
   from { opacity: 0; transform: scale(0.985); }
-  to { opacity: 0.34; transform: scale(1); }
+  to { opacity: 0.52; transform: scale(1); }
 }
 
 @keyframes esh-car-breathe {
-  0%, 100% { transform: translateY(0) scale(1); opacity: 0.34; }
-  50% { transform: translateY(-2px) scale(1); opacity: 0.38; }
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
+  50% { transform: translateY(-2px) scale(1); opacity: 0.56; }
 }
 
 @keyframes esh-route-draw {
@@ -923,7 +927,7 @@ html {
   }
 
   .empty-state-hero__copy {
-    top: clamp(0.3rem, 1vh, 0.65rem);
+    top: clamp(0.6rem, 2vh, 1.25rem);
   }
 }
 
@@ -962,7 +966,7 @@ html {
   }
 
   .empty-state-hero__copy {
-    top: clamp(0.25rem, 0.8vh, 0.55rem);
+    top: clamp(0.5rem, 1.5vh, 1rem);
   }
 
   .empty-state-hero__route--b,
@@ -993,7 +997,7 @@ html {
   }
 
   .empty-state-hero__car.is-visible {
-    opacity: 0.34;
+    opacity: 0.52;
     transform: none;
   }
 
