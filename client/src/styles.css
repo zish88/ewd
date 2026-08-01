@@ -559,7 +559,7 @@ html[data-telegram="true"] {
   left: 50%;
   top: 45%;
   width: clamp(18rem, 38vw, 32rem);
-  aspect-ratio: 480 / 320;
+  aspect-ratio: 475.469 / 344.941;
   transform: translate(-50%, -50%);
   z-index: 1;
 }
@@ -600,31 +600,55 @@ html[data-telegram="true"] {
 
 .empty-state-hero__route {
   stroke: var(--esh-circuit);
-  stroke-width: 1.25;
+  stroke-width: 1.15;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-  opacity: 0.85;
-  stroke-dasharray: 420;
-  stroke-dashoffset: 420;
-  animation: esh-route-draw 690ms ease-out 360ms forwards;
+  opacity: 0.95;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: esh-route-draw 820ms ease-out 360ms forwards;
 }
 
-.empty-state-hero__route--b { animation-delay: 430ms; }
-.empty-state-hero__route--c { animation-delay: 500ms; }
-.empty-state-hero__route--d { animation-delay: 560ms; }
+.empty-state-hero__route--a,
+.empty-state-hero__route--b,
+.empty-state-hero__route--c,
+.empty-state-hero__route--d,
+.empty-state-hero__route--e,
+.empty-state-hero__route--j {
+  stroke-width: 1.45;
+  stroke: color-mix(in srgb, var(--esh-accent) 42%, var(--border-color));
+}
+
+.empty-state-hero__route--b { animation-delay: 420ms; }
+.empty-state-hero__route--c { animation-delay: 480ms; }
+.empty-state-hero__route--d { animation-delay: 540ms; }
+.empty-state-hero__route--e { animation-delay: 600ms; }
+.empty-state-hero__route--f { animation-delay: 660ms; opacity: 0.8; }
+.empty-state-hero__route--g { animation-delay: 700ms; opacity: 0.7; }
+.empty-state-hero__route--h { animation-delay: 740ms; opacity: 0.7; }
+.empty-state-hero__route--i { animation-delay: 780ms; opacity: 0.7; }
+.empty-state-hero__route--j { animation-delay: 820ms; }
+.empty-state-hero__route--k { animation-delay: 860ms; opacity: 0.75; }
+.empty-state-hero__route--l { animation-delay: 900ms; opacity: 0.75; }
 
 .empty-state-hero__pulse {
   stroke: var(--esh-accent);
-  stroke-width: 2.2;
+  stroke-width: 2.35;
   stroke-linecap: round;
   fill: none;
-  stroke-dasharray: 18 420;
+  stroke-dasharray: 48 1000;
   stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--esh-accent) 55%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--esh-accent) 60%, transparent));
   opacity: 0;
-  animation: esh-pulse-travel 5.4s linear 1400ms infinite;
+  animation: esh-pulse-travel 5.2s linear infinite;
 }
+
+.empty-state-hero__pulse--1 { animation-delay: 1.2s; }
+.empty-state-hero__pulse--2 { animation-delay: 2.1s; }
+.empty-state-hero__pulse--3 { animation-delay: 3s; }
+.empty-state-hero__pulse--4 { animation-delay: 3.9s; }
+.empty-state-hero__pulse--5 { animation-delay: 4.8s; }
 
 .empty-state-hero__node {
   fill: color-mix(in srgb, var(--esh-accent) 55%, var(--bg-main));
@@ -635,17 +659,17 @@ html[data-telegram="true"] {
   transform-box: fill-box;
 }
 
+.empty-state-hero__node--lamp {
+  animation: esh-node-glow 6s ease-in-out 1.9s infinite;
+}
 .empty-state-hero__node--connector {
-  animation: esh-node-glow 5.4s ease-in-out 2.5s infinite;
+  animation: esh-node-glow 6s ease-in-out 2.6s infinite;
 }
 .empty-state-hero__node--door {
-  animation: esh-node-glow 5.4s ease-in-out 2.85s infinite;
-}
-.empty-state-hero__node--lamp {
-  animation: esh-node-glow 5.4s ease-in-out 3.15s infinite;
+  animation: esh-node-glow 6s ease-in-out 3.5s infinite;
 }
 .empty-state-hero__node--ecu {
-  animation: esh-node-glow 5.4s ease-in-out 3.45s infinite;
+  animation: esh-node-glow 6s ease-in-out 4.4s infinite;
 }
 
 .empty-state-hero[data-active-detail="connector"] .empty-state-hero__node--connector,
@@ -812,9 +836,9 @@ html[data-telegram="true"] {
 
 @keyframes esh-pulse-travel {
   0% { opacity: 0; stroke-dashoffset: 0; }
-  4% { opacity: 1; }
-  24% { opacity: 1; stroke-dashoffset: -420; }
-  28%, 100% { opacity: 0; stroke-dashoffset: -420; }
+  5% { opacity: 1; }
+  78% { opacity: 1; stroke-dashoffset: -1000; }
+  84%, 100% { opacity: 0; stroke-dashoffset: -1000; }
 }
 
 @keyframes esh-node-glow {
@@ -922,7 +946,10 @@ html[data-telegram="true"] {
     transform: translate(-50%, -50%) rotate(240deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-240deg);
   }
 
-  .empty-state-hero__route--d {
+  .empty-state-hero__route--g,
+  .empty-state-hero__route--h,
+  .empty-state-hero__route--i,
+  .empty-state-hero__pulse--5 {
     display: none;
   }
 
@@ -946,8 +973,15 @@ html[data-telegram="true"] {
     height: 48px;
   }
 
-  .empty-state-hero__route--b,
-  .empty-state-hero__route--c {
+  .empty-state-hero__route--f,
+  .empty-state-hero__route--g,
+  .empty-state-hero__route--h,
+  .empty-state-hero__route--i,
+  .empty-state-hero__route--k,
+  .empty-state-hero__route--l,
+  .empty-state-hero__pulse--3,
+  .empty-state-hero__pulse--4,
+  .empty-state-hero__pulse--5 {
     display: none;
   }
 
@@ -969,9 +1003,17 @@ html[data-telegram="true"] {
     top: clamp(0.5rem, 1.5vh, 1rem);
   }
 
-  .empty-state-hero__route--b,
-  .empty-state-hero__route--c,
-  .empty-state-hero__route--d {
+  .empty-state-hero__route--f,
+  .empty-state-hero__route--g,
+  .empty-state-hero__route--h,
+  .empty-state-hero__route--i,
+  .empty-state-hero__route--j,
+  .empty-state-hero__route--k,
+  .empty-state-hero__route--l,
+  .empty-state-hero__pulse--2,
+  .empty-state-hero__pulse--3,
+  .empty-state-hero__pulse--4,
+  .empty-state-hero__pulse--5 {
     display: none;
   }
 }
