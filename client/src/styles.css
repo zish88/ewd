@@ -492,6 +492,556 @@ html {
   }
 }
 
+/* Empty-state hero (C+D): hush desktop lattice so the central silhouette wins */
+.app-shell.is-empty-state .desktop-bg-art__piece--a {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+.app-shell.is-empty-state .desktop-bg-art__piece:not(.desktop-bg-art__piece--a) {
+  opacity: 0.065;
+}
+
+.app-shell.is-empty-state .desktop-bg-art__piece--b {
+  opacity: 0.075;
+}
+
+.empty-state-hero {
+  --esh-accent: var(--accent);
+  --esh-car: color-mix(in srgb, var(--accent) 58%, var(--text-muted));
+  --esh-detail: color-mix(in srgb, var(--accent) 45%, var(--text-muted));
+  --esh-circuit: color-mix(in srgb, var(--accent) 28%, var(--border-color));
+  --esh-halo: color-mix(in srgb, var(--accent) 12%, transparent);
+  position: relative;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.75rem 1rem 1.25rem;
+  pointer-events: none;
+}
+
+.empty-state-hero__halo,
+.empty-state-hero__stage,
+.empty-state-hero__circuit,
+.empty-state-hero__car {
+  pointer-events: none;
+}
+
+.empty-state-hero__halo {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(52rem, 88vw);
+  height: min(28rem, 52vh);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--esh-halo) 0%, transparent 68%);
+  opacity: 0;
+  animation: esh-halo-in 450ms ease-out forwards;
+}
+
+.empty-state-hero__stage {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: clamp(18rem, 38vw, 32rem);
+  aspect-ratio: 480 / 320;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.empty-state-hero__car {
+  position: absolute;
+  inset: 0;
+  background: var(--esh-car);
+  opacity: 0;
+  transform: scale(0.985);
+  -webkit-mask-image:
+    var(--esh-car-mask),
+    radial-gradient(ellipse 72% 68% at 50% 50%, #000 34%, transparent 78%);
+  mask-image:
+    var(--esh-car-mask),
+    radial-gradient(ellipse 72% 68% at 50% 50%, #000 34%, transparent 78%);
+  -webkit-mask-repeat: no-repeat, no-repeat;
+  mask-repeat: no-repeat, no-repeat;
+  -webkit-mask-position: center, center;
+  mask-position: center, center;
+  -webkit-mask-size: contain, 100% 100%;
+  mask-size: contain, 100% 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  filter: blur(0.4px);
+  transition: opacity 180ms ease;
+}
+
+.empty-state-hero__car.is-visible {
+  opacity: 0.34;
+  transform: scale(1);
+  animation:
+    esh-car-in 640ms ease-out 120ms both,
+    esh-car-breathe 9s ease-in-out 1400ms infinite;
+}
+
+.empty-state-hero__circuit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.empty-state-hero__route {
+  stroke: var(--esh-circuit);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0.85;
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  animation: esh-route-draw 690ms ease-out 360ms forwards;
+}
+
+.empty-state-hero__route--b { animation-delay: 430ms; }
+.empty-state-hero__route--c { animation-delay: 500ms; }
+.empty-state-hero__route--d { animation-delay: 560ms; }
+
+.empty-state-hero__pulse {
+  stroke: var(--esh-accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 18 420;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--esh-accent) 55%, transparent));
+  opacity: 0;
+  animation: esh-pulse-travel 5.4s linear 1400ms infinite;
+}
+
+.empty-state-hero__node {
+  fill: color-mix(in srgb, var(--esh-accent) 55%, var(--bg-main));
+  stroke: var(--esh-accent);
+  stroke-width: 1;
+  opacity: 0.55;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.empty-state-hero__node--connector {
+  animation: esh-node-glow 5.4s ease-in-out 2.5s infinite;
+}
+.empty-state-hero__node--door {
+  animation: esh-node-glow 5.4s ease-in-out 2.85s infinite;
+}
+.empty-state-hero__node--lamp {
+  animation: esh-node-glow 5.4s ease-in-out 3.15s infinite;
+}
+.empty-state-hero__node--ecu {
+  animation: esh-node-glow 5.4s ease-in-out 3.45s infinite;
+}
+
+.empty-state-hero[data-active-detail="connector"] .empty-state-hero__node--connector,
+.empty-state-hero[data-active-detail="door"] .empty-state-hero__node--door,
+.empty-state-hero[data-active-detail="lamp"] .empty-state-hero__node--lamp,
+.empty-state-hero[data-active-detail="ecu"] .empty-state-hero__node--ecu {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--esh-accent) 70%, transparent));
+  animation: none;
+}
+
+.empty-state-hero__orbit {
+  --esh-orbit-radius: calc(clamp(24rem, 58vw, 46rem) / 2 - 1.1rem);
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: clamp(24rem, 58vw, 46rem);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.empty-state-hero__detail {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(44px, min(72px, 14vw));
+  height: max(44px, min(72px, 14vw));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+}
+
+.empty-state-hero__detail-icon {
+  display: block;
+  width: min(72px, 14vw);
+  height: min(72px, 14vw);
+  max-width: 96px;
+  max-height: 96px;
+  background: var(--esh-detail);
+  opacity: 0.72;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: opacity 160ms ease, filter 160ms ease, transform 160ms ease;
+}
+
+.empty-state-hero__detail-icon--connector {
+  -webkit-mask-image: url("/bg/bg-detail-connector.svg");
+  mask-image: url("/bg/bg-detail-connector.svg");
+}
+.empty-state-hero__detail-icon--door {
+  -webkit-mask-image: url("/bg/bg-detail-door.svg");
+  mask-image: url("/bg/bg-detail-door.svg");
+}
+.empty-state-hero__detail-icon--lamp {
+  -webkit-mask-image: url("/bg/bg-detail-lamp.svg");
+  mask-image: url("/bg/bg-detail-lamp.svg");
+}
+.empty-state-hero__detail-icon--ecu {
+  -webkit-mask-image: url("/bg/bg-detail-ecu.svg");
+  mask-image: url("/bg/bg-detail-ecu.svg");
+}
+
+.empty-state-hero__detail-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.2rem);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--esh-accent);
+  background: color-mix(in srgb, var(--bg-main) 82%, transparent);
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.empty-state-hero__detail.is-active .empty-state-hero__detail-icon,
+.empty-state-hero__detail:hover .empty-state-hero__detail-icon,
+.empty-state-hero__detail:focus-visible .empty-state-hero__detail-icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--esh-accent) 55%, transparent));
+  transform: scale(1.06);
+}
+
+.empty-state-hero__detail.is-active .empty-state-hero__detail-label,
+.empty-state-hero__detail:hover .empty-state-hero__detail-label,
+.empty-state-hero__detail:focus-visible .empty-state-hero__detail-label {
+  opacity: 1;
+}
+
+.empty-state-hero__detail:focus-visible {
+  outline: 2px solid var(--esh-accent);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+.empty-state-hero__copy {
+  position: absolute;
+  left: 50%;
+  top: clamp(0.35rem, 1.2vh, 0.75rem);
+  z-index: 3;
+  width: min(36rem, calc(100% - 2rem));
+  max-width: 36rem;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  animation: esh-copy-in 550ms ease-out 650ms forwards;
+}
+
+.empty-state-hero__wordmark {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1rem, 1.9vw, 1.25rem);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--esh-accent);
+}
+
+.empty-state-hero__instruction {
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-main) 72%, transparent);
+  border-radius: 0.35rem;
+}
+
+@keyframes esh-halo-in {
+  to { opacity: 1; }
+}
+
+@keyframes esh-car-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 0.34; transform: scale(1); }
+}
+
+@keyframes esh-car-breathe {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.34; }
+  50% { transform: translateY(-2px) scale(1); opacity: 0.38; }
+}
+
+@keyframes esh-route-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes esh-pulse-travel {
+  0% { opacity: 0; stroke-dashoffset: 0; }
+  4% { opacity: 1; }
+  24% { opacity: 1; stroke-dashoffset: -420; }
+  28%, 100% { opacity: 0; stroke-dashoffset: -420; }
+}
+
+@keyframes esh-node-glow {
+  0%, 18%, 32%, 100% {
+    opacity: 0.45;
+    filter: none;
+  }
+  22%, 28% {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--esh-accent) 65%, transparent));
+  }
+}
+
+@keyframes esh-detail-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes esh-copy-in {
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.empty-state-hero__detail--connector {
+  transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(0deg);
+  animation: esh-detail-in 400ms ease-out 900ms forwards, esh-counter-0 48s linear 1400ms infinite;
+}
+.empty-state-hero__detail--door {
+  transform: translate(-50%, -50%) rotate(90deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-90deg);
+  animation: esh-detail-in 400ms ease-out 1000ms forwards, esh-counter-90 48s linear 1400ms infinite;
+}
+.empty-state-hero__detail--lamp {
+  transform: translate(-50%, -50%) rotate(180deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-180deg);
+  animation: esh-detail-in 400ms ease-out 1100ms forwards, esh-counter-180 48s linear 1400ms infinite;
+}
+.empty-state-hero__detail--ecu {
+  transform: translate(-50%, -50%) rotate(270deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-270deg);
+  animation: esh-detail-in 400ms ease-out 1200ms forwards, esh-counter-270 48s linear 1400ms infinite;
+}
+
+.empty-state-hero[data-active-detail] .empty-state-hero__detail--connector,
+.empty-state-hero[data-active-detail] .empty-state-hero__detail--door,
+.empty-state-hero[data-active-detail] .empty-state-hero__detail--lamp,
+.empty-state-hero[data-active-detail] .empty-state-hero__detail--ecu {
+  animation-duration: 400ms, 96s;
+}
+
+@keyframes esh-counter-0 {
+  from { transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-360deg); }
+}
+@keyframes esh-counter-90 {
+  from { transform: translate(-50%, -50%) rotate(90deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-90deg); }
+  to { transform: translate(-50%, -50%) rotate(450deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-450deg); }
+}
+@keyframes esh-counter-180 {
+  from { transform: translate(-50%, -50%) rotate(180deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-180deg); }
+  to { transform: translate(-50%, -50%) rotate(540deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-540deg); }
+}
+@keyframes esh-counter-270 {
+  from { transform: translate(-50%, -50%) rotate(270deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-270deg); }
+  to { transform: translate(-50%, -50%) rotate(630deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-630deg); }
+}
+
+@media (max-width: 1023px) and (min-width: 769px) {
+  .empty-state-hero__orbit {
+    width: clamp(20rem, 48vw, 38rem);
+    --esh-orbit-radius: calc(clamp(20rem, 48vw, 38rem) / 2 - 1rem);
+  }
+
+  .empty-state-hero__detail-icon {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+@media (max-width: 768px) {
+  .empty-state-hero__stage {
+    width: min(78vw, 22rem);
+  }
+
+  .empty-state-hero__orbit {
+    width: min(88vw, 26rem);
+    --esh-orbit-radius: calc(min(88vw, 26rem) / 2 - 0.85rem);
+    animation: esh-orbit-sway 10s ease-in-out 1400ms infinite;
+  }
+
+  .empty-state-hero__detail--door {
+    display: none;
+  }
+
+  /* Fixed angles on mobile; parent sway only (4–6°) */
+  .empty-state-hero__detail--connector {
+    animation: esh-detail-in 400ms ease-out 900ms forwards;
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(0deg);
+  }
+  .empty-state-hero__detail--lamp {
+    animation: esh-detail-in 400ms ease-out 1100ms forwards;
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(120deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-120deg);
+  }
+  .empty-state-hero__detail--ecu {
+    animation: esh-detail-in 400ms ease-out 1200ms forwards;
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(240deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-240deg);
+  }
+
+  .empty-state-hero__route--d {
+    display: none;
+  }
+
+  .empty-state-hero__copy {
+    top: clamp(0.3rem, 1vh, 0.65rem);
+  }
+}
+
+@keyframes esh-orbit-sway {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-5deg); }
+  50% { transform: translate(-50%, -50%) rotate(5deg); }
+}
+
+@media (max-width: 430px) {
+  .empty-state-hero {
+    padding-inline: 0.75rem;
+  }
+
+  .empty-state-hero__detail-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .empty-state-hero__route--b,
+  .empty-state-hero__route--c {
+    display: none;
+  }
+
+  .empty-state-hero__instruction {
+    font-size: 0.875rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@media (max-height: 559px) {
+  .empty-state-hero__orbit {
+    display: none;
+  }
+
+  .empty-state-hero__copy {
+    top: clamp(0.25rem, 0.8vh, 0.55rem);
+  }
+
+  .empty-state-hero__route--b,
+  .empty-state-hero__route--c,
+  .empty-state-hero__route--d {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state-hero__halo,
+  .empty-state-hero__car.is-visible,
+  .empty-state-hero__route,
+  .empty-state-hero__pulse,
+  .empty-state-hero__node,
+  .empty-state-hero__orbit,
+  .empty-state-hero__detail,
+  .empty-state-hero__detail--connector,
+  .empty-state-hero__detail--door,
+  .empty-state-hero__detail--lamp,
+  .empty-state-hero__detail--ecu,
+  .empty-state-hero__copy {
+    animation: none !important;
+  }
+
+  .empty-state-hero__halo {
+    opacity: 1;
+  }
+
+  .empty-state-hero__car.is-visible {
+    opacity: 0.34;
+    transform: none;
+  }
+
+  .empty-state-hero__route {
+    stroke-dashoffset: 0;
+    opacity: 0.85;
+  }
+
+  .empty-state-hero__pulse {
+    opacity: 0;
+  }
+
+  .empty-state-hero__node {
+    opacity: 0.55;
+  }
+
+  .empty-state-hero__node--ecu {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--esh-accent) 55%, transparent));
+  }
+
+  .empty-state-hero__orbit {
+    transform: translate(-50%, -50%);
+  }
+
+  .empty-state-hero__detail {
+    opacity: 1;
+  }
+
+  .empty-state-hero__detail--connector {
+    transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(0deg);
+  }
+  .empty-state-hero__detail--door {
+    transform: translate(-50%, -50%) rotate(90deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-90deg);
+  }
+  .empty-state-hero__detail--lamp {
+    transform: translate(-50%, -50%) rotate(180deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-180deg);
+  }
+  .empty-state-hero__detail--ecu {
+    transform: translate(-50%, -50%) rotate(270deg) translateY(calc(-1 * var(--esh-orbit-radius))) rotate(-270deg);
+  }
+
+  .empty-state-hero__copy {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .app-panel,
 .app-bar {
   background: var(--bg-header);

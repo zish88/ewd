@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { EmptyStateHero } from "./EmptyStateHero.js";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
@@ -3771,7 +3772,7 @@ function App() {
      page (tab "OBD") while it's being tuned — see AdminPage.tsx. Restore here
      once it's ready for public use again. */
 
-  return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}`}>
+  return <main className={`app-shell app-shell--viewport overflow-hidden flex flex-col${anySheetOpen ? " is-filters-sheet-open" : ""}${mode === null ? " is-empty-state" : ""}`}>
     <InstallAppBanner />
     <div className="desktop-bg-art" aria-hidden="true">
       <div className="desktop-bg-art__piece desktop-bg-art__piece--a" />
@@ -4761,9 +4762,7 @@ function App() {
         </div>
       )}
       </div></section> : (
-      <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-sm px-4 text-center">
-        Выберите авто, зону и узел — или найдите код ошибки DTC / OBD выше.
-      </div>
+      <EmptyStateHero selectedModel={selectedModel} />
     )}
     </div>
     {editingItem && (
