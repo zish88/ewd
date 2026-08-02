@@ -35,7 +35,37 @@ function webApp(): TelegramWebApp | null {
 }
 
 export function isTelegramMiniApp(): boolean {
-  return Boolean(webApp());
+  return Boolean(webApp()?.initData?.trim());
+}
+
+/** Telegram app launches carry these parameters; ordinary browsers do not. */
+export function hasTelegramLaunchParams(location: Pick<Location, "search" | "hash">): boolean {
+  const raw = `${location.search || ""}&${location.hash || ""}`;
+  return /(?:^|[?#&])tgWebApp(?:Data|Version|Platform|ThemeParams)=/i.test(raw);
+}
+
+/** Load the Telegram bridge only for an actual Mini App launch. */
+export function loadTelegramWebAppSdk(): Promise<void> {
+  if (typeof window === "undefined" || typeof document === "undefined") return Promise.resolve();
+  if (window.Telegram?.WebApp || !hasTelegramLaunchParams(window.location)) return Promise.resolve();
+
+  const existing = document.querySelector<HTMLScriptElement>('script[data-telegram-web-app-sdk="true"]');
+  if (existing) {
+    return new Promise((resolve) => {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => resolve(), { once: true });
+    });
+  }
+
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-web-app.js?58";
+    script.async = true;
+    script.dataset.telegramWebAppSdk = "true";
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener("error", () => resolve(), { once: true });
+    document.head.appendChild(script);
+  });
 }
 
 function setColor(name: string, value: string | undefined) {
@@ -70,7 +100,7 @@ function applyViewport(app: TelegramWebApp) {
 /** Enables Telegram-only presentation without changing ordinary browser behavior. */
 export function initializeTelegramWebApp(): TelegramWebApp | null {
   const app = webApp();
-  if (!app || typeof document === "undefined") return null;
+  if (!app?.initData?.trim() || typeof document === "undefined") return null;
   app.ready();
   app.expand();
   applyTelegramTheme(app);
@@ -83,7 +113,7 @@ export function initializeTelegramWebApp(): TelegramWebApp | null {
 /** Telegram's native back affordance follows the active in-app overlay state. */
 export function setTelegramBackButton(visible: boolean, onBack?: () => void): () => void {
   const app = webApp();
-  if (!app?.BackButton) return () => {};
+  if (!app?.initData?.trim() || !app.BackButton) return () => {};
   if (visible) app.BackButton.show();
   else app.BackButton.hide();
   if (!visible || !onBack) return () => {};

@@ -50,8 +50,10 @@ import {
   bootstrapTelegramIdentity,
   initializeTelegramWebApp,
   isTelegramMiniApp,
+  loadTelegramWebAppSdk,
   setTelegramBackButton,
 } from "./telegram.js";
+import { rootSurfaceForPath } from "./rootRoute.js";
 
 
 type RepairConfidence = "exact" | "compatible" | "unknown" | "reference";
@@ -5033,19 +5035,27 @@ function SuggestEditModal({
 }
 
 function Root() {
-  const path = typeof window !== "undefined" ? window.location.pathname.replace(/\/+$/, "") || "/" : "/";
-  // Telegram Mini App is a public reference surface; privileged admin stays web-only.
-  if (path === "/admin" && !isTelegramMiniApp()) return <AdminPage />;
+  const surface = rootSurfaceForPath(typeof window !== "undefined" ? window.location.pathname : "/");
+  if (surface === "admin") return <AdminPage />;
   return <App />;
 }
 
-initializeTelegramWebApp();
-void bootstrapTelegramIdentity();
-createRoot(document.getElementById("root")!).render(<Root />);
+async function startClient() {
+  const surface = rootSurfaceForPath(window.location.pathname);
+  if (surface !== "admin") {
+    await loadTelegramWebAppSdk();
+    initializeTelegramWebApp();
+    void bootstrapTelegramIdentity();
+  }
 
-if (import.meta.env.PROD && "serviceWorker" in navigator && !isTelegramMiniApp()) {
-  window.addEventListener("load", () => {
-    // iOS 16.4+ / Mac Safari standalone + Android Chrome
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
+  createRoot(document.getElementById("root")!).render(<Root />);
+
+  if (import.meta.env.PROD && "serviceWorker" in navigator && !isTelegramMiniApp()) {
+    window.addEventListener("load", () => {
+      // iOS 16.4+ / Mac Safari standalone + Android Chrome
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+  }
 }
+
+void startClient();
