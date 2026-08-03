@@ -52,6 +52,31 @@ test("user-facing product subjects are kept", () => {
   assert.equal(isInternalDeploySubject("Улучшен pinch-zoom на схемах для трекпада."), false);
 });
 
+test("current release shows fresh user changes and hides verification/docs chores", () => {
+  const fresh = [
+    "Add styled social links to the app header",
+    "Add Yandex site verification file",
+    "Fix admin routing blocked by Telegram SDK",
+    "Align empty-state circuit animation to the car SVG contours.",
+    "Fix empty-state hero visibility and keep Telegram Mini App wiring.",
+    "Add animated C+D empty-state hero for the wiring workspace.",
+    "Rewrite public README for Volvo P3 VIDA/EWD, drop PDF and local paths",
+    "Длинные названия в списках узлов на телефоне прокручиваются сами.",
+    "Список поиска узлов больше не прячется за карточками.",
+  ];
+  const items = pickUserFacingDeployNotes(fresh, MAX_ITEMS, {
+    previousItems: [],
+    freshSubjects: fresh,
+    seed: "current-release",
+  });
+  assert.deepEqual(items, [
+    "В шапке появились ссылки на Telegram-бот и профиль Drive2.",
+    "Стартовый экран получил анимированный силуэт автомобиля и электрические цепи.",
+    "Длинные названия в списках узлов на телефоне прокручиваются сами.",
+    "Список поиска узлов больше не прячется за карточками.",
+  ]);
+});
+
 test("expandDeploySubject splits multi-topic curated lines", () => {
   const parts = expandDeploySubject(
     "Пуш/SW баннеры, детали DTC VIDA, рефактор nav-зон и pinch-zoom схем.",

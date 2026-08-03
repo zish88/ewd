@@ -77,6 +77,14 @@ export const RU_BY_SUBJECT = new Map(
       "Точнее зоны двигателя на схемах.",
     "Align zone homes, smart search, and modern nav dropdowns.":
       "Узлы точнее разложены по зонам кузова; поиск понимает обычные фразы вроде «проводка двери»; новые удобные списки выбора зоны и узла.",
+    "Add styled social links to the app header":
+      "В шапке появились ссылки на Telegram-бот и профиль Drive2.",
+    "Add animated C+D empty-state hero for the wiring workspace.":
+      "Стартовый экран получил анимированный силуэт автомобиля и электрические цепи.",
+    "Fix empty-state hero visibility and keep Telegram Mini App wiring.":
+      "Стартовый экран получил анимированный силуэт автомобиля и электрические цепи.",
+    "Align empty-state circuit animation to the car SVG contours.":
+      "Стартовый экран получил анимированный силуэт автомобиля и электрические цепи.",
   }).map(([en, ru]) => [en.toLowerCase(), ru]),
 );
 
@@ -191,6 +199,8 @@ export function isInternalDeploySubject(s) {
   if (/push-stats/i.test(t)) return true;
   if (/repo-hygiene/i.test(t)) return true;
   if (/DEPLOY\.md/i.test(t)) return true;
+  if (/site verification/i.test(t)) return true;
+  if (/public README/i.test(t)) return true;
   // Docs-only / firmware comment commits — не для публичной страницы обновления
   if (/^Document\b/i.test(t)) return true;
   if (/vehicle-agnostic/i.test(t) && /obd|gateway|probe/i.test(t)) return true;
