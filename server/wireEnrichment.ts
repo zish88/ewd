@@ -149,11 +149,15 @@ export function wireEnrichmentKey(parts: {
   wire_color?: string;
 }): string {
   const wu = String(parts.wire_uid || "").trim();
+  const from = String(parts.from_node || "").trim();
+  const to = String(parts.to_node || "").trim();
+  // Один wire_uid бывает в двух ориентациях (A→B и B→A) — ключ обязан их различать.
+  if (wu && from && to) return `uid:${wu}|${from}>${to}`;
   if (wu) return `uid:${wu}`;
   return [
     "ft",
-    String(parts.from_node || "").trim(),
-    String(parts.to_node || "").trim(),
+    from,
+    to,
     String(parts.pin_number || "").trim(),
     String(parts.wire_color || "").trim(),
   ].join("|");
@@ -198,8 +202,8 @@ export function loadWireEnrichmentCache(root = process.cwd()): WireEnrichmentCac
 }
 
 /**
- * Собрать enrichment для карточки: кэш → иначе rules on-the-fly.
- * Не меняет факты (цвет/пин/expr).
+ * Собрать enrichment для карточки: факты карточки (Откуда/Куда) — источник истины.
+ * Кэш только fallback / role_ru. Не меняет цвет/пин/expr.
  */
 export function cardEnrichmentFromFacts(
   card: {
@@ -235,31 +239,31 @@ export function cardEnrichmentFromFacts(
 
   const wKey = wireEnrichmentKey(card);
   const cachedWire = cache?.wires?.[wKey];
-  if (cachedWire?.from_to_plain_ru) {
+
+  // Plain всегда из текущих from/to карточки — совпадает с «Откуда/Куда» в UI.
+  const livePlain = buildFromToPlainRu(card.from_detail, card.to_detail);
+  if (livePlain) {
+    out.from_to_plain_ru = livePlain.text;
+    out.confidence = livePlain.confidence;
+    out.sources = [...(out.sources || []), ...livePlain.sources];
+  } else if (cachedWire?.from_to_plain_ru) {
     out.from_to_plain_ru = cachedWire.from_to_plain_ru;
-    if (cachedWire.purpose_ru) out.purpose_ru = cachedWire.purpose_ru;
     out.confidence = cachedWire.confidence || out.confidence;
     out.sources = [...(out.sources || []), ...(cachedWire.sources || [])];
-  } else {
-    const plain = buildFromToPlainRu(card.from_detail, card.to_detail);
-    if (plain) {
-      out.from_to_plain_ru = plain.text;
-      out.confidence = plain.confidence;
-      out.sources = [...(out.sources || []), ...plain.sources];
-    }
   }
 
-  if (!out.purpose_ru) {
-    const purpose = buildPurposeRu({
-      fromDetail: card.from_detail,
-      toDetail: card.to_detail,
-      functionText: card.function_text,
-    });
-    if (purpose) {
-      out.purpose_ru = purpose.text;
-      out.sources = [...(out.sources || []), ...purpose.sources];
-      if (!out.confidence) out.confidence = purpose.confidence;
-    }
+  const livePurpose = buildPurposeRu({
+    fromDetail: card.from_detail,
+    toDetail: card.to_detail,
+    functionText: card.function_text,
+  });
+  if (livePurpose) {
+    out.purpose_ru = livePurpose.text;
+    out.sources = [...(out.sources || []), ...livePurpose.sources];
+    if (!out.confidence) out.confidence = livePurpose.confidence;
+  } else if (cachedWire?.purpose_ru) {
+    out.purpose_ru = cachedWire.purpose_ru;
+    out.sources = [...(out.sources || []), ...(cachedWire.sources || [])];
   }
 
   if (!out.role_ru && !out.from_to_plain_ru && !out.purpose_ru) return null;

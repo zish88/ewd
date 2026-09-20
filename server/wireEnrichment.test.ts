@@ -72,4 +72,42 @@ test("cardEnrichmentFromFacts: on-the-fly without file cache", () => {
   assert.equal(e!.role_ru, "Переключатель опоры поясницы, левый");
   assert.match(e!.from_to_plain_ru || "", /3\/362:1/);
   assert.match(e!.from_to_plain_ru || "", /6\/210:1/);
+  assert.match(e!.from_to_plain_ru || "", /^От Переключатель/);
+  assert.match(e!.purpose_ru || "", /Соединяет переключатель/i);
+});
+
+test("cardEnrichmentFromFacts: live ends beat reversed cache by same wire_uid", () => {
+  const wire_uid = "UID-same-both-ways";
+  const cache = {
+    version: 1,
+    model_pass: "test",
+    generated_at: "",
+    components: {},
+    wires: {
+      [`uid:${wire_uid}|6/210>3/362`]: {
+        from_to_plain_ru:
+          "От Электродвигатель для массажа поясницы, левый (6/210:1) к Переключатель опоры поясницы, левый (3/362:1)",
+        purpose_ru: "Соединяет электродвигатель для массажа поясницы с переключателем опоры поясницы",
+        confidence: "high" as const,
+        sources: ["cache-reversed"],
+      },
+    },
+  };
+  const e = cardEnrichmentFromFacts(
+    {
+      component_code: "3/362",
+      wire_uid,
+      from_node: "3/362",
+      to_node: "6/210",
+      from_detail: "3/362:1 — Переключатель опоры поясницы, левый",
+      to_detail: "6/210:1 — Электродвигатель для массажа поясницы, левый",
+    },
+    null,
+    cache,
+  );
+  assert.ok(e);
+  assert.match(e!.from_to_plain_ru || "", /^От Переключатель/);
+  assert.match(e!.from_to_plain_ru || "", /6\/210:1/);
+  assert.doesNotMatch(e!.from_to_plain_ru || "", /^От Электродвигатель/);
+  assert.match(e!.purpose_ru || "", /^Соединяет переключатель/i);
 });

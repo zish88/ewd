@@ -34,6 +34,7 @@ import { AdminPage } from "./AdminPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
+import { realignCardEnrichment } from "./wireEnrichmentAlign.js";
 import { applySiteAppearance, siteDefaultTheme } from "./appearance.js";
 import {
   disablePushNotifications,
@@ -529,7 +530,7 @@ function mergeEwdEndpoints(wires: Result[], endpoints: EwdEndpoint[], code: stri
     };
     const match = candidates.sort((a, b) => scoreEndpoint(b) - scoreEndpoint(a))[0];
     if (!match) return w;
-    return { ...w, from_detail: match.from, to_detail: match.to };
+    return realignCardEnrichment({ ...w, from_detail: match.from, to_detail: match.to });
   });
 }
 
