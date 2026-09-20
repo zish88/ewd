@@ -18,6 +18,7 @@ import {
 } from "../harnessZones.js";
 import { componentTypeRu, wireColorRu } from "../volvoStandards.js";
 import { enrichDetailWithName } from "../detailEnrich.js";
+import { cardEnrichmentFromFacts } from "../wireEnrichment.js";
 import { lookupFacePins } from "./ewdCapital.js";
 import { ZONE_SEARCH_ALIASES } from "../../shared/searchLexicon.js";
 import {
@@ -538,6 +539,22 @@ function rowToNavCard(
     wire_gauge: String(row.wire_gauge || "").trim(),
     score: 0,
   };
+  const enrichment = cardEnrichmentFromFacts(
+    {
+      component_code: String(out.component_code || ""),
+      subject_code: subject,
+      from_node,
+      to_node,
+      from_detail,
+      to_detail,
+      wire_uid: out.wire_uid,
+      pin_number: pin !== "—" ? pin : "",
+      wire_color: color !== "—" ? color : "",
+      function_text,
+    },
+    nameByCode,
+  );
+  if (enrichment) (out as any).enrichment = enrichment;
   out.score = calculateDataScore(out);
   return out;
 }

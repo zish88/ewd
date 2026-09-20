@@ -2239,6 +2239,16 @@ html[data-telegram="true"] {
   list-style: none;
   user-select: none;
 }
+.wire-enrichment-plain {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--input-bg) 85%, var(--bg-card));
+  border: 1px solid var(--border-color);
+  border-radius: 0.45rem;
+}
 
 .wire-card-details__summary::-webkit-details-marker {
   display: none;

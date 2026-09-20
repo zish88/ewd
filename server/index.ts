@@ -62,12 +62,34 @@ app.get("/api/site-status", (_req, res) => {
 
 /** Public visit beacon (once per session; allowlisted when site is closed). */
 app.post("/api/visit", (req, res) => {
-  const body = (req.body || {}) as { sessionId?: string; path?: string };
+  const body = (req.body || {}) as {
+    sessionId?: string;
+    path?: string;
+    timezone?: string;
+    lang?: string;
+    screenW?: number;
+    screenH?: number;
+    referrer?: string;
+  };
+  const headers = req.headers as Record<string, unknown>;
+  const countryHint =
+    (typeof headers["cf-ipcountry"] === "string" && headers["cf-ipcountry"]) ||
+    (typeof headers["x-vercel-ip-country"] === "string" && headers["x-vercel-ip-country"]) ||
+    (typeof headers["x-country-code"] === "string" && headers["x-country-code"]) ||
+    "";
   const result = recordVisit({
     sessionId: body.sessionId,
     path: body.path,
     ip: clientIp(req),
     userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "",
+    acceptLanguage:
+      typeof req.headers["accept-language"] === "string" ? req.headers["accept-language"] : "",
+    referrer: body.referrer || (typeof req.headers.referer === "string" ? req.headers.referer : ""),
+    countryHint,
+    timezone: body.timezone,
+    screenW: body.screenW,
+    screenH: body.screenH,
+    langClient: body.lang,
   });
   if (!result.ok) {
     res.status(400).json({ ok: false, error: result.error });

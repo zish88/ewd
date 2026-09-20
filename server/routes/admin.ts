@@ -128,8 +128,10 @@ function patchFromBody(b: Record<string, unknown>): WirePatch {
 export function createAdminRouter(db: Database.Database) {
   const router = Router();
 
-  router.get("/visits", requireAdmin, (_req, res) => {
-    res.json(getVisitStats(50));
+  router.get("/visits", requireAdmin, (req, res) => {
+    const from = typeof req.query.from === "string" ? req.query.from : null;
+    const to = typeof req.query.to === "string" ? req.query.to : null;
+    res.json(getVisitStats(80, { from, to }));
   });
 
   router.get("/me", (req, res) => {

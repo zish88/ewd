@@ -1,4 +1,4 @@
-/** One public visit per browser tab session. */
+/** One public visit per browser tab session — richer context, still privacy-light. */
 
 const SESSION_KEY = "ewd_visit_sid";
 
@@ -22,10 +22,28 @@ export function trackVisitOnce(): void {
   if (typeof window === "undefined") return;
   const path = `${window.location.pathname}${window.location.search}`.slice(0, 200);
   if (path.startsWith("/admin")) return;
+
+  let timezone = "";
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    /* ignore */
+  }
+
+  const body = {
+    sessionId: sessionId(),
+    path,
+    timezone,
+    lang: typeof navigator !== "undefined" ? String(navigator.language || "").slice(0, 16) : "",
+    screenW: typeof screen !== "undefined" ? screen.width : undefined,
+    screenH: typeof screen !== "undefined" ? screen.height : undefined,
+    referrer: typeof document !== "undefined" ? String(document.referrer || "").slice(0, 300) : "",
+  };
+
   void fetch("/api/visit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId: sessionId(), path }),
+    body: JSON.stringify(body),
     keepalive: true,
   }).catch(() => {});
 }

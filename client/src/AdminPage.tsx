@@ -59,7 +59,21 @@ type VisitStats = {
   month: number;
   total: number;
   online30m: number;
-  recent: Array<{ id: number; visitedAt: string; path: string; uaLabel?: string }>;
+  filtered?: number | null;
+  filterFrom?: string | null;
+  filterTo?: string | null;
+  recent: Array<{
+    id: number;
+    visitedAt: string;
+    path: string;
+    uaLabel?: string;
+    lang?: string;
+    referrer?: string;
+    device?: string;
+    country?: string;
+    timezone?: string;
+    screen?: string;
+  }>;
 };
 
 type Ticket = {
@@ -195,6 +209,8 @@ export function AdminPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [draftSettings, setDraftSettings] = useState<Settings | null>(null);
   const [visits, setVisits] = useState<VisitStats | null>(null);
+  const [visitFrom, setVisitFrom] = useState("");
+  const [visitTo, setVisitTo] = useState("");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketCounts, setTicketCounts] = useState<Record<string, number>>({});
   const [ticketFilter, setTicketFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
@@ -244,8 +260,12 @@ export function AdminPage() {
     applySiteAppearance(d.appearance);
   }
 
-  async function loadVisits() {
-    const r = await fetch("/api/admin/visits", { credentials: "include" });
+  async function loadVisits(from = visitFrom, to = visitTo) {
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    const qs = q.toString();
+    const r = await fetch(`/api/admin/visits${qs ? `?${qs}` : ""}`, { credentials: "include" });
     if (!r.ok) return;
     setVisits((await r.json()) as VisitStats);
   }
@@ -915,23 +935,81 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                       </div>
                     ))}
                   </div>
+                  <div className="flex flex-wrap items-end gap-2 pt-1">
+                    <label className="text-xs text-[var(--text-muted)] space-y-1">
+                      <span className="block uppercase tracking-wide text-[10px] text-[var(--muted)]">С</span>
+                      <input
+                        type="date"
+                        value={visitFrom}
+                        onChange={(e) => setVisitFrom(e.target.value)}
+                        className="rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-2 py-1.5 text-sm text-[var(--text-main)]"
+                      />
+                    </label>
+                    <label className="text-xs text-[var(--text-muted)] space-y-1">
+                      <span className="block uppercase tracking-wide text-[10px] text-[var(--muted)]">По</span>
+                      <input
+                        type="date"
+                        value={visitTo}
+                        onChange={(e) => setVisitTo(e.target.value)}
+                        className="rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-2 py-1.5 text-sm text-[var(--text-main)]"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded-md border border-[var(--border-color)] px-3 py-1.5 text-xs text-[var(--text-main)] hover:border-emerald-500"
+                      onClick={() => void loadVisits(visitFrom, visitTo)}
+                    >
+                      Применить
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md px-2 py-1.5 text-xs text-[var(--text-muted)] hover:underline"
+                      onClick={() => {
+                        setVisitFrom("");
+                        setVisitTo("");
+                        void loadVisits("", "");
+                      }}
+                    >
+                      Сбросить
+                    </button>
+                    {visits.filtered != null ? (
+                      <span className="text-xs text-[var(--text-muted)] ml-auto tabular-nums">
+                        В периоде: <strong className="text-[var(--accent)]">{visits.filtered}</strong>
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    Онлайн — уникальные сессии за последние 30 мин. Сегодня/вчера — календарные сутки UTC.
+                    Онлайн — уникальные сессии за 30 мин. Сегодня/вчера и фильтр — календарные сутки UTC. Сырой IP не
+                    хранится; страна — только если прокси отдаёт CF/Vercel country.
                   </p>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-1">Когда заходили</h3>
                   {visits.recent.length === 0 ? (
                     <p className="text-sm text-[var(--text-muted)]">Пока нет записей.</p>
                   ) : (
-                    <ul className="max-h-40 md:max-h-64 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
-                      {visits.recent.map((v) => (
-                        <li key={v.id} className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-                          <span className="tabular-nums text-[var(--text-main)] shrink-0">{formatVisitAt(v.visitedAt)}</span>
-                          <span className="truncate text-[var(--text-muted)] text-xs min-w-0" title={v.uaLabel || undefined}>
-                            {v.uaLabel || "—"}
-                          </span>
-                          <span className="truncate text-[var(--text-muted)] font-mono text-xs shrink-0 sm:max-w-[8rem]">{v.path || "/"}</span>
-                        </li>
-                      ))}
+                    <ul className="max-h-56 md:max-h-80 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                      {visits.recent.map((v) => {
+                        const meta = [
+                          v.uaLabel,
+                          v.lang,
+                          v.country,
+                          v.timezone,
+                          v.screen,
+                          v.referrer ? `← ${v.referrer}` : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ");
+                        return (
+                          <li key={v.id} className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                            <span className="tabular-nums text-[var(--text-main)] shrink-0">{formatVisitAt(v.visitedAt)}</span>
+                            <span className="truncate text-[var(--text-muted)] text-xs min-w-0" title={meta || undefined}>
+                              {meta || "—"}
+                            </span>
+                            <span className="truncate text-[var(--text-muted)] font-mono text-xs shrink-0 sm:max-w-[8rem]">
+                              {v.path || "/"}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </>

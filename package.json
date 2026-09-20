@@ -22,6 +22,8 @@
     "build:part-images:all": "node scripts/build-all-part-images.mjs",
     "audit:repair-images": "tsx scripts/audit-repair-image-coverage.ts",
     "audit:wire-context": "tsx scripts/audit-wire-context.ts",
+    "enrich:wires": "tsx scripts/enrich-wire-cache.ts",
+    "enrich:wires:llm": "tsx scripts/enrich-wire-cache-llm.ts",
     "git:save": "node scripts/commit-push.mjs",
     "typecheck": "tsc --noEmit",
     "stamp:updating": "node scripts/stamp-updating.mjs"

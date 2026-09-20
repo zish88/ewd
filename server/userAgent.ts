@@ -1,10 +1,12 @@
-/** Lightweight OS / browser label from User-Agent (no deps). */
+/** Lightweight OS / browser / device label from User-Agent (no deps). */
 
 export type UserAgentInfo = {
   os: string;
   browser: string;
   browserVersion: string;
-  /** Short admin text, e.g. "Chrome 126 · Windows" */
+  /** mobile | tablet | desktop | "" */
+  device: string;
+  /** Short admin text, e.g. "Chrome 126 · Windows · mobile" */
   label: string;
 };
 
@@ -16,7 +18,7 @@ function pickVersion(ua: string, re: RegExp): string {
 export function parseUserAgent(uaRaw?: string | null): UserAgentInfo {
   const ua = String(uaRaw ?? "").trim();
   if (!ua) {
-    return { os: "", browser: "", browserVersion: "", label: "" };
+    return { os: "", browser: "", browserVersion: "", device: "", label: "" };
   }
 
   let os = "OS";
@@ -46,11 +48,25 @@ export function parseUserAgent(uaRaw?: string | null): UserAgentInfo {
     browserVersion = pickVersion(ua, /Version\/(\d+)/i);
   }
 
+  let device = "desktop";
+  if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua)) device = "tablet";
+  else if (/Mobi|iPhone|iPod|Android.*Mobile/i.test(ua)) device = "mobile";
+
   const browserLabel = browserVersion ? `${browser} ${browserVersion}` : browser;
   return {
     os,
     browser,
     browserVersion,
-    label: `${browserLabel} · ${os}`,
+    device,
+    label: `${browserLabel} · ${os} · ${device}`,
   };
+}
+
+/** Primary language tag from Accept-Language, e.g. "ru" / "en-US". */
+export function parseAcceptLanguage(header?: string | null): string {
+  const raw = String(header || "").trim();
+  if (!raw) return "";
+  const first = raw.split(",")[0]?.trim() || "";
+  const tag = first.split(";")[0]?.trim() || "";
+  return tag.slice(0, 16);
 }

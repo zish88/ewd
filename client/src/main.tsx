@@ -112,6 +112,13 @@ type Result = {
   match_role?: "owner" | "transit"; card_title?: string; part_number?: string;
   wire_gauge?: string;
   parts?: CardParts;
+  enrichment?: {
+    role_ru?: string;
+    from_to_plain_ru?: string;
+    purpose_ru?: string;
+    confidence?: string;
+    sources?: string[];
+  };
 };
 
 type CapitalPanel =
@@ -1370,12 +1377,14 @@ function renderWireCard(
   const schemeExact = schemeInfo.status === "exact-one" || schemeInfo.status === "exact-many";
   const schemeWarning =
     schemeInfo.status === "no-sheet" || schemeInfo.status === "missing-identity";
+  const enrich = item.enrichment;
   const hasDetails =
     schemeExact ||
     Boolean(String(item.option_expression || "").trim()) ||
     Boolean(item.function_text) ||
     hasLegacyCardParts(item.parts) ||
-    Boolean(item.card_title && item.card_title !== connectorTitle);
+    Boolean(item.card_title && item.card_title !== connectorTitle) ||
+    Boolean(enrich?.from_to_plain_ru || enrich?.role_ru || enrich?.purpose_ru);
   return (
     <div
       key={itemId}
@@ -1437,6 +1446,11 @@ function renderWireCard(
           ) : null}
         </div>
       </div>
+      {enrich?.from_to_plain_ru ? (
+        <p className="wire-enrichment-plain" data-testid="wire-enrichment-plain">
+          {enrich.from_to_plain_ru}
+        </p>
+      ) : null}
       {schemeWarning ? (
         <div
           className="wire-context-notice wire-context-notice--warning"
@@ -1465,6 +1479,18 @@ function renderWireCard(
         <details className="wire-card-details">
           <summary className="wire-card-details__summary">Подробнее</summary>
           <div className="wire-card-details__body">
+            {enrich?.role_ru ? (
+              <div className="wire-card-details__row" data-testid="wire-enrichment-role">
+                <span>Узел</span>
+                <strong>{enrich.role_ru}</strong>
+              </div>
+            ) : null}
+            {enrich?.purpose_ru ? (
+              <div className="wire-card-details__row" data-testid="wire-enrichment-purpose">
+                <span>Зачем</span>
+                <strong>{enrich.purpose_ru}</strong>
+              </div>
+            ) : null}
             {item.card_title && item.card_title !== connectorTitle ? (
               <p className="wire-card-details__title">{item.card_title}</p>
             ) : null}
