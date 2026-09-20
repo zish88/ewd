@@ -19,6 +19,7 @@ export type DeployNotes = {
   version?: string;
   git?: string;
   items?: string[];
+  drive2_url?: string;
 };
 
 export type PushPayload = {
@@ -291,17 +292,22 @@ function isPublicPushItem(line: string): boolean {
   return true;
 }
 
+const DEFAULT_DRIVE2_CHANGELOG =
+  "https://www.drive2.ru/r/volvo/xc70/645101615031802914/";
+
 export function buildDeployPushPayload(notes: DeployNotes | null): PushPayload {
+  const drive2 = String(notes?.drive2_url || DEFAULT_DRIVE2_CHANGELOG).trim() || DEFAULT_DRIVE2_CHANGELOG;
   const items = (Array.isArray(notes?.items) ? notes!.items! : [])
     .map((x) => String(x || "").trim())
     .filter(isPublicPushItem)
     .slice(0, 3);
+  // Предпочитаем ссылку на бортжурнал; старые items — только запасной текст.
   const body = items.length
     ? items.map((it) => `• ${it}`).join("\n").slice(0, 400)
-    : "Доступна новая версия справочника.";
+    : "Что нового — в бортжурнале на Drive2.";
   const ver = String(notes?.version || "").trim();
   const title = ver ? `Сайт обновлён · ${ver}` : "Сайт обновлён";
-  return { title, body, url: "/" };
+  return { title, body, url: items.length ? "/" : drive2 };
 }
 
 type LastNotified = { git: string; notifiedAt?: string; version?: string };

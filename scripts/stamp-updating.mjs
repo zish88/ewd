@@ -1,23 +1,17 @@
 /**
- * Собирает заметки деплоя из git и вшивает их в updating.html + deploy-notes.json.
+ * Вшивает версию/git в updating.html + deploy-notes.json.
+ * Список «что нового» больше не генерируем — детали на Drive2.
  * Запуск: node scripts/stamp-updating.mjs  (или npm run stamp:updating)
- *
- * - version: YYYY.MM.DD (дата на машине, где крутится stamp)
- * - git: short HEAD ровно 8 hex (без скачков 7↔8)
- * - items: до 4 пользовательских буллетов из окна prevStamp..HEAD
- *   (старый lookback не «досыпаем» — иначе снова чужие заметки)
  */
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  GIT_SHORT_LEN,
-  MAX_ITEMS,
-  deployInputsFromGitLog,
-  formatGitShort,
-  pickUserFacingDeployNotes,
-} from "./stamp-updating-lib.mjs";
+import { GIT_SHORT_LEN, formatGitShort } from "./stamp-updating-lib.mjs";
+
+/** Бортжурнал: что нового пишете вы вручную. */
+export const DRIVE2_CHANGELOG_URL =
+  "https://www.drive2.ru/r/volvo/xc70/645101615031802914/";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const notesPath = join(root, "client/public/deploy-notes.json");
@@ -25,7 +19,6 @@ const htmlPath = join(root, "client/public/updating.html");
 
 const START = "<!-- DEPLOY_META_START -->";
 const END = "<!-- DEPLOY_META_END -->";
-const LOOKBACK = 40;
 
 function esc(s) {
   return String(s)
@@ -35,7 +28,6 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
-/** git с UTF-8 логом — иначе subject'ы на Windows/VPS приедут кракозябрами. */
 function git(cmd) {
   return execSync(cmd, {
     cwd: root,
@@ -57,52 +49,14 @@ function todayVersion() {
   return `${y}.${m}.${day}`;
 }
 
-function readPreviousNotes() {
-  if (!existsSync(notesPath)) return { git: "", items: [] };
+function readPreviousGit() {
+  if (!existsSync(notesPath)) return "";
   try {
     const raw = JSON.parse(readFileSync(notesPath, "utf8"));
-    return {
-      git: String(raw.git || "").trim(),
-      items: Array.isArray(raw.items) ? raw.items.map((x) => String(x || "").trim()).filter(Boolean) : [],
-    };
+    return String(raw.git || "").trim();
   } catch {
-    return { git: "", items: [] };
+    return "";
   }
-}
-
-/**
- * lookback — запас на первый stamp / тесты;
- * fresh — коммиты с прошлого stamp (только их показываем на деплое);
- * hasFreshWindow — true, если prevGit нашёлся в репо (даже если fresh пуст).
- *
- * @returns {{ lookback: string[], fresh: string[], window: string, hasFreshWindow: boolean }}
- */
-function commitSubjects(prevGit) {
-  const lookbackOut = git(
-    `git -c i18n.logOutputEncoding=utf-8 log -${LOOKBACK} --pretty=format:%s%x1f%b%x1e`,
-  );
-  const lookback = deployInputsFromGitLog(lookbackOut);
-
-  let fresh = [];
-  let window = `HEAD~${LOOKBACK}..HEAD`;
-  let hasFreshWindow = false;
-
-  if (prevGit) {
-    try {
-      // Кавычки обязательны: на Windows голый sha^{commit} ломается на `^`.
-      git(`git rev-parse --verify "${prevGit}"`);
-      const ranged = git(
-        `git -c i18n.logOutputEncoding=utf-8 log "${prevGit}..HEAD" --pretty=format:%s%x1f%b%x1e`,
-      );
-      fresh = deployInputsFromGitLog(ranged);
-      window = `${prevGit}..HEAD`;
-      hasFreshWindow = true;
-    } catch {
-      // prevGit битый/не в репо → откат на lookback, без «пустого» fresh-окна
-    }
-  }
-
-  return { lookback, fresh, window, hasFreshWindow };
 }
 
 let gitShort = "local";
@@ -112,24 +66,16 @@ try {
   gitShort = "local";
 }
 
-const previous = readPreviousNotes();
-const { lookback, fresh, window, hasFreshWindow } = commitSubjects(previous.git);
+const previousGit = readPreviousGit();
 const version = todayVersion();
-const items = pickUserFacingDeployNotes(lookback, MAX_ITEMS, {
-  previousItems: previous.items,
-  // Только когда есть baseline прошлого stamp — иначе lookback (первый stamp).
-  freshSubjects: hasFreshWindow ? fresh : null,
-  seed: `${gitShort}:${version}:${fresh.length}:${lookback.length}`,
-});
-
-const listHtml = items.length
-  ? `<ul class="deploy-meta__list">${items.map((it) => `<li>${esc(it)}</li>`).join("")}</ul>`
-  : "";
+const drive2 = DRIVE2_CHANGELOG_URL;
 
 const block = `${START}
       <div class="deploy-meta" id="deploy-meta" data-version="${esc(version)}" data-git="${esc(gitShort)}">
         <p class="deploy-meta__ver">версия ${esc(version)} · ${esc(gitShort)}</p>
-        ${listHtml}
+        <p class="deploy-meta__drive2">
+          <a class="deploy-meta__link" href="${esc(drive2)}" target="_blank" rel="noopener noreferrer">Что нового — на Drive2</a>
+        </p>
       </div>
 ${END}`;
 
@@ -149,13 +95,11 @@ writeFileSync(htmlPath, html, { encoding: "utf8" });
 const notes = {
   version,
   git: gitShort,
-  items,
+  items: [],
+  drive2_url: drive2,
   stamped_at: new Date().toISOString(),
-  window,
+  window: previousGit ? `${previousGit}..HEAD` : "HEAD",
 };
 writeFileSync(notesPath, `${JSON.stringify(notes, null, 2)}\n`, { encoding: "utf8" });
 
-console.log(
-  `stamped updating.html → version ${version} · ${gitShort} (${items.length}/${MAX_ITEMS} items, window ${notes.window})`,
-);
-for (const it of items) console.log(`  • ${it}`);
+console.log(`stamped updating.html → version ${version} · ${gitShort} (Drive2 changelog link)`);

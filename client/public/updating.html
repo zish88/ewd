@@ -96,26 +96,19 @@
       letter-spacing: 0.04em;
       color: color-mix(in srgb, #f8fafc 55%, var(--accent));
     }
-    .deploy-meta__list {
-      margin: 0.55rem 0 0;
-      padding: 0;
-      list-style: none;
-      text-align: left;
-      font-size: 0.78rem;
-      line-height: 1.4;
-      color: color-mix(in srgb, #f8fafc 72%, transparent);
+    .deploy-meta__drive2 {
+      margin: 0.65rem 0 0;
     }
-    .deploy-meta__list li {
-      position: relative;
-      padding-left: 0.85rem;
-      margin: 0.28rem 0;
-    }
-    .deploy-meta__list li::before {
-      content: "•";
-      position: absolute;
-      left: 0;
+    .deploy-meta__link {
+      font-size: 0.85rem;
+      font-weight: 600;
       color: var(--accent);
-      opacity: 0.85;
+      text-decoration: underline;
+      text-underline-offset: 0.18em;
+    }
+    .deploy-meta__link:hover,
+    .deploy-meta__link:focus-visible {
+      color: #6ee7b7;
     }
     @keyframes scene-fade-in {
       from { opacity: 0; transform: translateY(8px); }
@@ -408,9 +401,11 @@
       </div>
       <p class="maintenance-msg">Сайт на обновлении</p>
 <!-- DEPLOY_META_START -->
-      <div class="deploy-meta" id="deploy-meta" data-version="2026.07.28" data-git="a561a00d">
-        <p class="deploy-meta__ver">версия 2026.07.28 · a561a00d</p>
-        <ul class="deploy-meta__list"><li>Узлы точнее разложены по зонам кузова.</li><li>Поиск понимает обычные фразы вроде «проводка двери».</li><li>Новые удобные списки выбора зоны и узла.</li><li>Иллюстрации EPC для ремонтных разъёмов и деталей.</li></ul>
+      <div class="deploy-meta" id="deploy-meta" data-version="2026.09.20" data-git="b4ff78a8">
+        <p class="deploy-meta__ver">версия 2026.09.20 · b4ff78a8</p>
+        <p class="deploy-meta__drive2">
+          <a class="deploy-meta__link" href="https://www.drive2.ru/r/volvo/xc70/645101615031802914/" target="_blank" rel="noopener noreferrer">Что нового — на Drive2</a>
+        </p>
       </div>
 <!-- DEPLOY_META_END -->
     </div>
