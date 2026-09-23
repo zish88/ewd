@@ -1,0 +1,1437 @@
+{
+  "topics": [
+    {
+      "id": "parts",
+      "label": "Запчасти"
+    },
+    {
+      "id": "electrical",
+      "label": "Электрика / отказы"
+    },
+    {
+      "id": "links",
+      "label": "Полезные ссылки"
+    }
+  ],
+  "articles": [
+    {
+      "slug": "cma-battery-bms-xc40",
+      "title": "CMA XC40: замена основной АКБ и сброс BMS",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC40 после смены основной батареи (пример: Exide ET720 под параметры ET700) владельцы делают сброс BMS — иначе счётчик «врёт» и возможны ложные ошибки.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-brake-pads-xc40",
+      "title": "CMA XC40: тормозные колодки — перед/зад PN",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Передние OEM часто 31471407; задние по VIN встречается 32276934. На задних с электроручником нужна процедура разведения суппорта — не сжимайте поршень «наугад».",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-cabin-filter-xc40",
+      "title": "CMA XC40: салонный и воздушный фильтры — PN",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC40 салонный под бардачком; в БЖ встречаются MANN CUK29010, BIG FILTER GB98106C, Filtron. Воздушный — например Filtron AP180/2. Сверяйте по VIN.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-filters-compare",
+      "title": "CMA XC40: оригинал vs Filtron — что смотреть",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сравнение салонных/воздушных фильтров XC40: у Filtron воздушный близок к OEM, угольный салонный — реже по плотности. Решайте по VIN и запаху в салоне.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-oil-filter-brakes-zimmermann",
+      "title": "CMA XC40: ТО + тормоза Zimmermann",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Масляный 32140029, воздух C24051/1, салон CUK29010; диски 610.3725.20 / 610.3732.20, колодки 26126.185.2 / 20510.175.2.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-to1-oem-bundle",
+      "title": "CMA XC40: ТО-1 — OEM фильтры 32140029",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Первое ТО: Ravenol 0W-20, масляный 32140029, воздух 32146443, салон 31497285, кольцо 977751. На XC40 бывают два размера масляного фильтра.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-to2-oem-filters",
+      "title": "CMA XC40: ТО-2 — OEM 32257032 / 32146443",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ТО-2: масляный 32257032 + 977751, топливный 31465948, салонный 31497285, воздушный 32146443, масло 0W-20.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-to60k-oil-filter",
+      "title": "CMA XC40: ТО ~60 ткм — 32140029 / HU8014Z",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На пробеге ~60 ткм меняют масло и масляный: OEM 32140029 или аналог MANN HU8014Z; иногда совмещают с передними колодками.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-to8-spark-turbo-valve",
+      "title": "CMA XC40: ТО-8 — свечи и клапан турбо",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "К стандартным фильтрам добавляют свечи и электромагнитный клапан управления турбо; воздух меняют сами.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-wiper-rubbers-alca",
+      "title": "CMA XC40: замена резинок дворников ALCA 120280",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Вместо полных щёток меняют резинки ALCA 120280 (2×70 см). Крепление как у XC90; профиль паза должен совпасть.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-wipers-xc40",
+      "title": "CMA XC40: замена щёток дворников",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC40 щётки снимаются кнопкой на поводке; передние часто переводят в сервисный режим с экрана. Можно менять целиком или только резинки.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-ball-joints-tie-rods",
+      "title": "P1: шаровые и рулевые наконечники",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850 при диагностике ходовой часто убиты шаровые и наконечники. Ставят оригинал/TRW/Lemförder; после — сход-развал.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-cabin-filter",
+      "title": "P1: салонный фильтр 850/S70 — где и какие PN",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850/S70 фильтр обычно под капотом: несколько саморезов и грязеотводящий шланг. OEM и аналоги — MANN CU2650, SCT SA1124 и др.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-cabin-filter-tsn",
+      "title": "P1: угольный салонный фильтр — ориентация по стрелке",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S70/850 доступ под капотом: саморезы + грязеотводящий шланг. Бюджетный TSN 9.7.181 и MANN CU2650 — ставьте по стрелке потока.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-first-service-parts-list",
+      "title": "P1 S70: первичный список расходников",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После покупки S70: Filtron K1117/PP866, Denso IK20TT, лампы OSRAM H7/P21W, щётки Bosch 3397118400.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-o2-sensor-faq",
+      "title": "P1: чек и лямбда — что проверить до замены",
+      "platform": "p1",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "На S70 ошибка 2-1-2 по нагретому O2: сначала подсосы/проводка, потом датчик. В БЖ встречается FAE 77188 — не единственный кросс.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-oem-pads-blue-box",
+      "title": "P1 850: OEM колодки 31341243 / 30793802",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Перед 31341243, зад 30793802, пластины 272272 и 1359772 — «синие коробки»; скрип после дешёвых GP уходит.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-parts-catalog-850",
+      "title": "P1 850: шпаргалка PN подвески и ламп",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сводная: шаровая FEBI 1475, наконечники Lemförder 2013602/2013701, колодки зад TRW GDB1160, лампы H1/H7/P21W.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-rear-pads-v70-fwd",
+      "title": "P1: задние колодки V70-I FWD — нюансы формы",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На переднеприводных 850/S70/V70 задние двухпоршневые ATE: важна выемка/форма колодки; 850 и 70-I в каталогах путают.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-s70-first-to-filters",
+      "title": "P1 S70: первое ТО — Patron / Knecht / Mann",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После покупки S70: воздух PF1018, салон PF2047, масло Knecht OC204, топливный Mann WK849, ГРМ Metelli 30-1019-1.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-thermostat-wahler",
+      "title": "P1: термостат бензин — Wahler 4272.90D",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Если двигатель долго греется / рано уходит в большой круг — часто меняют термостат. На бензиновых P1 часто ставят Wahler 4272.90D (~90 °C).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-timing-pump-brands",
+      "title": "P1: ГРМ + помпа — какие бренды ставят",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850/S70 при замене ремня ГРМ часто меняют помпу пакетом: ремень OEM, помпа Aisin, ролики INA. Это уже не «5 минут», но PN полезны заранее.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-trw-pads-gdb1406",
+      "title": "P1 V70: передние колодки TRW GDB1406 vs GDB1159",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На V70 I с 15″: GDB1406 без выреза под датчик (как OEM) vs GDB1159 с местом под датчик — на V70 датчика не было.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-v70-timing-filters",
+      "title": "P1 V70: ГРМ Dayco + фильтры Patron",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На V70 I: комплект Dayco KTMBWP3160 (помпа/ролики/ремень), фильтры Patron PF2047/PF1018/PF4113, свечи NGK BKR6E.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-abs-lamp-checklist",
+      "title": "P2: горит ABS — с чего начать",
+      "platform": "p2",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "Лампа ABS на P2 часто из-за датчика/проводки колеса или кольца. Считайте код (напр. BCM), проверьте разъём и жгут до замены дорогого блока.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-alternator-bearings-ps-seal",
+      "title": "P2 S60: подшипники генератора + сальник ГУР",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Генератор снимают вверх после вентилятора; попутно меняют сальник насоса ГУР (течь «рекой»).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-alternator-pn",
+      "title": "P2: как отличить генератор по партномеру",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Кратко: смотрите PN на корпусе и сверяйте с EPC/послерынком — у P2 часто путают Bosch и Valeo.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-alternator-replace-gates",
+      "title": "P2 S60: замена генератора сверху + ремень Gates",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Гул подшипников/обгонной: генератор снимают сверху после вентилятора; попутно ремень Gates 6DPK1838 и ролик INA 531076010.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-battery-30659798",
+      "title": "P2: АКБ Volvo 30659798 70 А·ч",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Типовой размер для многих P2: Volvo 30659798 — 70 А·ч, 600 А, обратная полярность.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-brake-substitutes-ate",
+      "title": "P2: подбор заменителей тормозов — ATE/Brembo/TRW",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сравнительный подбор дисков/колодок и ТЖ ATE SL.6; отдельно тросы ручника и колодки стояночного тормоза.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-brakes-round-s60",
+      "title": "P2 S60: тормоза по кругу и диски 305 мм",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S60 1G меняют тормоза вкруг; для 305 мм спереди нужны другие скобы. Часто OEM спереди + ATE сзади.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-coolant-tank-hose",
+      "title": "P2 XC70 II: бачок ОЖ 30741973 и патрубки",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Течи бачка: OEM 30741973, шланг 30680923, термостат Wahler 4272.90D, верхний патрубок Gates 02-2251.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-filters-purflux-set",
+      "title": "P2: фильтры Purflux на плановое ТО",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S60 1G: масляный Purflux L316, воздушный A1144, салонный AHC173.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-fog-lamp-socket",
+      "title": "P2: туманки — патрон, изолятор, лампы",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Возврат штатного галогена в ПТФ на P2: патрон 30795072, изолятор 979041, пины 30656688, лампы вроде OSRAM 64150.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-lambda-denso-dox",
+      "title": "P2 S60: лямбда Denso — DOX-0410/0412/1419",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На B5244S три варианта регулирующего зонда по VIN/шасси: DOX-0410, DOX-0412, DOX-1419. Путаница OEM частая.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-o2-sensor-denso-0402",
+      "title": "P2 S60: задняя лямбда OEM 30622252 → Denso DOX-0402",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Check Engine по заднему подогреваемому зонду: OEM 30622252, популярный аналог Denso DOX-0402.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-oem-filters-9454647",
+      "title": "P2: OEM фильтры 9454647 / 30630754 / 1275810",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "В полном ТО S60 1G: масляный 1275810, воздушный 9454647, салонный 30630754, топливный 32242189, свечи 8642660.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-spark-plugs-8642660",
+      "title": "P2 S60: свечи OEM 8642660 + тормоза Zimmermann",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На бензиновом S60 1G в большом ТО: свечи 8642660 (Beru Z204) и часто Zimmermann диски/колодки перед/зад.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-stop-lamp-relay",
+      "title": "P2: ошибка стоп-сигнала — реле, не лампа",
+      "platform": "p2",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "На V70 II лампа стопов цела, а ошибка горит — часто виновато общее реле стоп/ПТФ (OEM 9441161/9441181). Меняют на одиночные Bosch.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-thermostat-facet-coolant",
+      "title": "P2 S60: термостат Facet 78606 + ОЖ 31439724",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Зимой салон не греется / стрелка еле ползёт: Facet 78606, оригинал ОЖ 31439724, болты крепления 986228.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-thermostat-gates-insert",
+      "title": "P2: вставка термостата Gates TH35991",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "При скачущей температуре на трассе меняют вставку Gates TH35991 и прокладку VO31293699GA.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-thermostat-insert-v70",
+      "title": "P2 V70: «хитрый» термостат — только вставка",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На рестайловых моторах V70 II продают термостат в сборе дорого; владельцы ищут правильную вставку и меняют со сливом ОЖ.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-vkg-thermostat-ac-rad",
+      "title": "P2 V70: ВКГ, термостат Wahler, радиатор кондиционера",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Пакет работ: ВКГ, термостат Wahler 481890D, радиатор кондиционера, обгонная муфта генератора.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-washer-pump",
+      "title": "P2: насос омывателя стекла — типовые PN",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Зимой «не льёт на стекло, а на фары льёт» — часто умирает насос или форсунки. На S60/V70 P2 смотрите OEM-номера насоса и форсунок.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-washer-pumps-mapco",
+      "title": "P2 S60: насосы омывателя стекла и фар",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Зимой умирают оба насоса: стекло и фары. Аналоги вроде MAPCO 90604 / MEYLE 3130670001; насос фар — со снятием бампера.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-brakes-ate-service",
+      "title": "P2 XC70: обслуживание передних тормозов ATE",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Направляющие ATE 11.8171-0008.1, ремкомплект 11.0441-6008.2, колодки 13.0470-7145.2, диск 24.0128-0123.1; штуцер берите длинный 03.3518-1900.2.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-filters-denso-spark",
+      "title": "P2 XC70: фильтры + свечи Denso IK20",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После покупки: Denso IK20, Hengst E15HD58, Filtron AP1652, ALCO SP2145, салон TSN 97252; клипсы топливных быстросъёмов часто мёртвые.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-oil-thermostat-gparts",
+      "title": "P2 XC70: масло + вставка термостата GParts",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На большом пробеге XC70 II: масляный 1275810, вставка VO31293699TH; для установки вставки удобнее снять насос ГУР.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-accessory-belts-xc60",
+      "title": "P3 XC60: приводные ремни и натяжитель — PN",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На бензиновом XC60 I при ТО-5 часто меняют внешний ремень 30777431, внутренний 31325042, натяжитель 31258153 и винт 30624274. Комплект ГРМ — отдельно по VIN.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-atf-seal-battery-to",
+      "title": "P3 XC70: сальник АКПП + АКБ на ТО",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ТО XC70 III часто совмещают замену сальника привода АКПП и АКБ (Webasto зимой убивает батарею).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-atf-seal-trip-note",
+      "title": "P3 XC60: сальник привода АКПП после замены ATF",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После замены масла АКПП часто всплывает течь сальника левого привода — меняют отдельно; температура АКПП на трассе с прицепом ~90 °C.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-battery-bms-note",
+      "title": "P3: АКБ и «врёт» BMS на приборке",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC70 III после старой батареи BMS может показывать низкий заряд при живом АКБ. Меняют батарею; иногда помогает сброс.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-battery-cover-acom",
+      "title": "P3 XC60: АКБ высокий + крышка и сброс счётчика",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Ставят высокий Аком 100 А·ч и крышку; после замены обучают стеклоподъёмники и сбрасывают счётчик АКБ кнопками (ближний + ПТФ + аварійка).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-belts-dayco-service",
+      "title": "P3 XC70: ремни 31330870 / 31325042 + ролики",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На обслуживании: топливный PU9003Z, воздух C35177, масло HU7198Y, ремень генератора 31330870, кондёра 31325042, ролики Dayco APV2740 / OEM 31258133.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-cabin-filter-note",
+      "title": "P3: салонный фильтр под бардачком",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60/S60/V60 P3 фильтр под бардачком: Torx на накладке, крышка канала, элемент гнётся «гармошкой». Ставьте по стрелке потока.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-cem-battery-faq",
+      "title": "P3 FAQ: после замены АКБ «глючит» CEM / ключи",
+      "platform": "p3",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "Типовой сценарий после разряда/замены батареи — не дубль схемы, а чеклист действий. Схемы CEM смотрите в навигаторе EWD.",
+      "updated": "2026-09-23",
+      "component_code": "4/56"
+    },
+    {
+      "slug": "p3-coolant-hose-drain",
+      "title": "P3 XC70: патрубок ОЖ и дренажная трубка 31274900",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ТО XC70 III меняют верхний патрубок ОЖ и ставят дренажную трубку 31274900; фильтры MANN/Hengst, масло 0W-30 A5/B5.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-filters-fuel-air-cabin-pn",
+      "title": "P3 D5: топливный / воздушный / салонный — таблица PN",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Справочник с бортжурнала XC70 III: топливный 32242188 (MANN PU9003Z), воздушный 31370161 (C35177), салонный угольный 31390880 (CUK2733). Сверяйте по VIN.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-glow-plugs-bosch-008",
+      "title": "P3 D5: свечи накала Bosch 0 250 603 008",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60/XC70 D5 при ошибке по свече часто меняют комплект. Популярный кросс OEM 30777311 — Bosch 0250603008.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-glow-plugs-bosch-403",
+      "title": "P3: быстрая замена свечей Bosch 0 250 403 001",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Короткий опыт замены свечей накала на XC70 D5 комплектом Bosch 0250403001 (~30 мин).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-glow-plugs-dg620",
+      "title": "P3 XC70: свечи накала DG620 / Bosch 0250403001",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Альтернативные комплекты на XC70 III: DG620 и Bosch 0 250 403 001. Неустойчивый холодный пуск — типичный повод.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-glow-plugs-xc60-bosch",
+      "title": "P3 XC60: свечи накала — комплект Bosch перед зимой",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60 I D5 при ~170 ткм меняют свечи накала комплектом Bosch (тот же, что в оригинале), даже если сопротивление «норм».",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-oil-filter-d5",
+      "title": "P3 D5: масляный фильтр 30788490 и крышка",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC70 III D5 часто берут OEM 30788490 (MANN HU 719/8). Если подтекает — смотрите крышку корпуса 30788489.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-oil-filters-diy",
+      "title": "P3 XC70: масло + все фильтры своими руками",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "DIY на XC70 III: Castrol 0W-30, MANN HU7198X, воздух 31370161, топливный PU9003Z; сброс сервиса через VIDA/DIM.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-radiator-ac-pack",
+      "title": "P3: пакет радиаторов ДВС + кондиционер",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC70 III при гуле компрессора/рассыпанных сотах меняют радиатор ДВС, кондёра и уплотнения (пример 988847).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-s60ii-consumables-sheet",
+      "title": "P3 S60 II: шпаргалка расходников на ТО",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сводная: масло 31330050 / Mann W7015, воздух 31370161 / C35177, салон 31390880 / CUK2733; колодки по размеру диска 16″/16.5″.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-service-log-xc60",
+      "title": "P3 XC60: лог ТО — топливный фильтр и радиаторы",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Типовой сервисный лог XC60 I D5: топливный фильтр, мойка/замена радиатора, масло редукторов — как чеклист интервалов.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-thermostat-d5-pn",
+      "title": "P3 D5: термостат 31368373 и сопутствующие кольца",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC70/XC60/S80 P3 с D5 холодный салон на трассе часто лечится заменой термостата OEM 31368373; попутно — уплотнительные кольца патрубков.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-thermostat-gasket-gates",
+      "title": "P3 D5: прокладка корпуса + термостат Gates",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Подтекание по разъёму корпуса термостата: меняют прокладку (напр. GParts VO31293699GA) и элемент Gates TH35991 — сверяйте комплект под ваш корпус.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-timing-pump-diy-xc60",
+      "title": "P3 XC60: ГРМ + помпа AISIN своими руками",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "DIY: помпа AISIN WV-009 + болты 985151, сальник КВ 31293007, антифриз 31439724, шкив 31258133, ремни Dayco.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-timing-xc60-big",
+      "title": "P3 XC60: ГРМ 31359568 + кожухи + жидкости",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ~190 ткм XC60 I D5: ГРМ 31359568, ремень кондёра 31325042, кожухи 30757900/30757901, масла ДВС/АКПП/редукторов/Haldex.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-to-webasto-pump",
+      "title": "P3 XC70: ТО + помпа Webasto Pierburg",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ТО XC70 III D5: масло 5W-30, фильтр 30788490, воздух 31370161, ТЖ + помпа Webasto 702671500 Pierburg при вое моторчика.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-to130-mann-set",
+      "title": "P3 XC70: ТО-130 — набор MANN + Castrol C3",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Классический набор: C35177, PU9003Z, HU7198Y, CUK2733 и Castrol 0W-30 C3. Часто совмещают с чисткой EGR.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-to150-belt-brakes",
+      "title": "P3 XC70: ТО-150 — ремни и задние тормоза",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "ТО-150: масло C3 5W-30, HU719/8Y, C35177, комплект навесного 31401425, ремень кондёра 31325042, зад Brembo 09.9587.11 / P86021.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-transfer-case-seals",
+      "title": "P3 XC70: сальники угловой + патрубки турбо",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сервис угловой: сальники Corteco, сапун 30681138, втулка LR002746, сальник КВ 31293007; часто вместе с силиконовыми патрубками интеркулера.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-water-pump-aisin",
+      "title": "P3 D5: помпа AISIN WV-009 и комплект ГРМ",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "При замене ГРМ на D5 часто ставят помпу AISIN WV-009 (30751022) + комплект 31359568. Проверьте комплект болтов.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-wipers-bundle",
+      "title": "P3: щётки дворников — сервисный режим и PN",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Передние щётки: сервисное положение поводков после выключения зажигания. Пример комплекта VO31333385 / Valeo 574377 — сверяйте длины.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc60-brakes-ate-trw",
+      "title": "P3 XC60: колодки ATE перед / TRW зад",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "ТО-180: HU7198Y, C35177, PU9003Z, CUK2733; перед ATE 13.0460-7272.2, зад TRW GDB1685, ТЖ DOT4 ESP.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc60-brakes-battery-cover",
+      "title": "P3 XC60: тормоза по кругу + крышка АКБ",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На сервисе XC60 I: ГРМ 31359568, тормоза по кругу, ТЖ; высокая крышка АКБ 31335286 при сломанной штатной.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-aux-battery-error-order",
+      "title": "SPA: ошибка зарядки 12В — порядок AUX и основной АКБ",
+      "platform": "spa",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "DTC B10A613 / «АКБ 12В крит.»: малый АКБ мёртв. После замены: сначала отключить малый, потом основной в багажнике; подключать в том же порядке малый → большой.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-battery-main-xc90",
+      "title": "SPA XC90: основная АКБ — OEM 31652065",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II основная батарея часто OEM 31652065 (≈80 А·ч AGM). После замены владельцы обсуждают регистрацию/BMS — не ограничивайтесь «просто клеммы».",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-cabin-filter-test-note",
+      "title": "SPA: угольный салонный — OEM 31407748 и подделки",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На SPA распространён OEM 31407748. Встречаются подделки без фирменной упаковки Netbox — смотрите коробку и ушки фильтра, не только цену.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-cabin-filter-xc60ii",
+      "title": "SPA: салонный фильтр XC60 II — OEM и аналоги",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На SPA XC60 II фильтр под бардачком без полного снятия ящика: Torx T20, крышка на фиксаторах. OEM 31407748 / 31404469, MANN CUK34003.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-ewd-status",
+      "title": "SPA: что есть по электросхемам в открытом доступе",
+      "platform": "spa",
+      "topics": [
+        "links"
+      ],
+      "summary": "Полного публичного EWD SPA нет. Есть VIDA по подписке и отдельные публичные PDF (NHTSA). На этом сайте схем SPA нет.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-filters-xc90ii",
+      "title": "SPA XC90 II: фильтр салона и воздуха двигателя",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II салонный под бардачком (~15 мин); OEM угольный 31407748, воздушный двигателя 31370089. После замены часто заметнее поток климата.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-fluids-xc60ii-full",
+      "title": "SPA XC60 II: масла и фильтры на 120 ткм",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Liqui Moly 0W-20, HU8014Z, C29021, CUK34003, топливный 32312226, ATF 31492173, Haldex 32240904, редуктор 32240903.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-fuel-filter-s90-kl1055",
+      "title": "SPA S90 T5: топливный Mahle KL1055",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Топливный под днищем: Mahle KL1055; рядом Filtron AP180/4 и K1384A. Фишки под давлением.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-haldex-angle-brake-fluid",
+      "title": "SPA: Haldex 31367940 + угловая/редуктор + ТЖ",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Профилактика AWD: масло угловой и редуктора, Haldex 31367940 с чисткой сетки насоса и прокачкой Launch; пробка поддона 31325479; ремкомплект насоса 31325413.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s60iii-brakes-brembo",
+      "title": "SPA S60 III: тормоза 345/320 Brembo + ТО",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Диски Brembo 09C93611 / 09C93811, колодки P86029 / P86027; масло Wolf 0W-20, Filtron OE6624, ТЖ TRW PFB401SE.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s90-aux-battery-ytx12",
+      "title": "SPA S90: вспомогательный АКБ Start/Stop YTX12-BS",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Малый АКБ у стакана стойки: стандарт YTX12-BS (152×88×131). Аналоги Bosch M6 014, Varta 510012009, Yuasa YTX12-BS. Ошибка Start/Stop часто = мёртвая «мото»-батарея.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s90-brakes-plugs",
+      "title": "SPA S90: колодки ATE и свечи 32290011",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Перед/зад ATE 13.0460-7377.2 / 7326.2, свечи Volvo 32290011, ТЖ 32214958.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s90-to-oem-filters",
+      "title": "SPA S90: ТО — OEM 32140029 / 31370089 / 31673604",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ~110 ткм: масляный 32140029, топливный 32242191, салон 31407748, воздух 31370089, свечи 31673604.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s90-wipers-oem-32341610",
+      "title": "SPA S90: дворники OEM 32341610 (ex 32282838)",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Оригинал для S90: 32341610 (старый 32282838). Те же щётки на V90 с 2016 и XC90 с 2015. Сервисный режим — отдельный пункт в меню SPA.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-spark-plugs-air-filter",
+      "title": "SPA XC90: свечи и воздушный фильтр — PN",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Около 60 ткм на бензиновом SPA часто меняют свечи (OEM 32290011 или комплект 31673604) и воздушный MANN C29021 / C29021M. Нужна головка на 14 мм.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-v90-first-to-hengst",
+      "title": "SPA V90 CC: первое ТО — Hengst + 0W-20",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После покупки V90 CC: фильтры Hengst, салон Mann, Liqui Moly Special Tec V 0W-20; задние тормоза изнашиваются быстрее из‑за EPB.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-v90-main-battery-delta",
+      "title": "SPA V90 CC: основная АКБ и отказ Webasto",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Мотор крутит, Webasto при −4 °C пишет низкий заряд. Меняют основную АКБ (ориентир OEM 31419211 / аналоги того же форм-фактора); не забыть заглушку вентиляции.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-wipers-xc90-df076",
+      "title": "SPA XC90: дворники DENSO DF-076",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Сервисный режим щёток с экрана, перед DENSO DF-076, зад OEM 31349857.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60-angle-gear-oil",
+      "title": "SPA XC60 II: масло угловой и заднего редуктора 31259380",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На ТО-7 вместе с моторным меняют угловую и задний редуктор — OEM 31259380. Литра часто мало (~100 мл не хватает) из‑за глубокой откачки воздухом; для доступа снимают патрубок.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60-aux-battery-reset",
+      "title": "SPA XC60: сброс ошибки после замены AUX АКБ",
+      "platform": "spa",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "CEM-B10A613 / «Пуск/Стоп требуется сервис»: мало заменить батарею. Отключить AUX → минус основной → фишку S на BCSM → ждать ≥15 мин → собрать в обратном порядке → стереть DTC CEM.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60-brake-fluid-interval",
+      "title": "SPA XC60 II: тормозная жидкость 32214958 по сроку",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Регламент Volvo — ТЖ примерно раз в 3 года (арт. 32214958), независимо от малого пробега. На ТО-6 часто совмещают с топливным 32242191 и моторным маслом.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60-fluids-brakes-52k",
+      "title": "SPA XC60 II: жидкости AWD + тормоза на 52 ткм",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Пакет: ATF ZIC 162665, Haldex Ravenol, угловая/редуктор Mannol + кольцо 11998, ТЖ; перед Gparts VO31665446 / Brembo P86028, зад Zekkert / P86030.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60ii-service-brakes-plugs",
+      "title": "SPA XC60 II: свечи ZXE24HLR7 и колодки 32373124",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Большое ТО: фильтр 32140029, воздух 31370089, салон CUK34003, свечи ZXE24HLR7, перед 32373124 / диск 31471752.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-agm-banner-92",
+      "title": "SPA XC90: AGM Banner 92 А·ч под Webasto",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Штатные 80 А·ч AGM заводят мотор в −25, но Webasto падает по заряду. Ставят более ёмкий AGM (пример Banner 92 А·ч) + зарядное; после — наблюдение за работой предпускового.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-aux-battery-bosch",
+      "title": "SPA XC90: вспомогательный АКБ — Bosch M6 019",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Ошибка по АКБ Start/Stop на XC90 II: меняют малый аккумулятор; мото-аналог в разы дешевле. Пример: Bosch M6 019 сухозаряженный.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-aux-battery-diy",
+      "title": "SPA XC90: замена вспомогательного АКБ своими руками",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Крышка у стакана → минус, затем плюс → вынуть. Сборка наоборот. Неоригинал тоньше/легче при той же Ah — клеммные болты часто короткие.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-battery-exide-95",
+      "title": "SPA XC90: подбор основной АКБ — размер vs VIN",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Webasto «садит» основную батарею. По VIN иногда стоит батарея «как у XC60»; площадка 95 А·ч может подойти, а фиксатор — нет (крепят ремнём).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-brake-fluid-atf-partial",
+      "title": "SPA XC90: ТЖ Bosch ENV6 + частичная ATF",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Промежуточное ТО: тормозная Bosch ENV6 (1 987 479 207), частичный слив ATF (~2,5 л оказалось чистым). Масляный Hengst E217H D310.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-diesel-fuel-filter-febi",
+      "title": "SPA XC90 D5: топливный фильтр 32312226 / Febi 174039",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На дизельном XC90 II топливный OEM 32312226; кроссы Febi 174039, Blue Print ADBP230026, Vaico V95-0583. Воздух/масло — Filtron или MANN по наличию.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-front-lca",
+      "title": "SPA XC90: нижние передние рычаги",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II меняют нижние передние рычаги в сборе (оригинал дорого; встречаются корейские/китайские). После — сход-развал. Шаровые дефектуют до установки.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-t8-brakes-atf-haldex",
+      "title": "SPA XC90: тормоза размера T8 + ATF и Haldex",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II ставят увеличенные диски как у T8 (19″/18″ вместо 18″/17″). Вместе часто меняют ATF (~8 л замещением) и разбирают Haldex — сетка насоса.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-to60-filters",
+      "title": "SPA XC90 II: ТО ~60 ткм — 32140029 / KL1055",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Масляный Volvo 32140029, топливный Mahle KL1055, сброс сервиса через V-tool; свечи проверяют на каждом ТО.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-xc40-main-battery-exide-ek720",
+      "title": "CMA XC40: основной АКБ Exide EK720",
+      "platform": "cma",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "На бензиновом XC40 ~4 года службы — типичный повод менять основной АКБ; в БЖ брали Exide EK720, подбор строго по размеру/ёмкости.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-xc40-vtool-pin-key",
+      "title": "CMA XC40: VTool — пин ключа и сервисные функции",
+      "platform": "cma",
+      "topics": [
+        "electrical",
+        "links"
+      ],
+      "summary": "Владельцы XC40 используют VTool для чтения PIN ключа, сервисных сбросов и калибровок (AWD/климат), когда Orbit не справляется.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-850-engine-mounts-lemforder",
+      "title": "P1 850: опоры ДВС Lemförder + сайлент 2609201",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850/S70/V70 I верхняя опора и сайлент (Lemförder 2969701 / 2609201) — частая замена при вибрациях и люфтах мотора.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-850-front-suspension-moog-trw",
+      "title": "P1 850: передняя подвеска Moog/TRW",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Комплекс передней подвески 850: шаровые Moog VVBJ5554, стойки стаба TRW JTS121, наконечники и сайленты подрамника.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-850-psf-flush-return-filter",
+      "title": "P1 850: замена жидкости ГУР + фильтр в обратку",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850 жидкость ГУР меняют прокачкой на вывешенных колёсах; некоторые ставят фильтр АКПП в обратную магистраль.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-850-subframe-bushings-steering",
+      "title": "P1 850: сайленты подрамника + рейка",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Стук рейки и люфт подрамника на 850 — меняют втулки подрамника Volvo 3507924, опору ДВС и пыльники рейки.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-s70-tie-rods-sway-bar-moog",
+      "title": "P1 S70: наконечники и стойки стабилизатора Moog/FAG",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S70 меняют рулевые наконечники и стойки стаба; Moog VV-DS-0019 держат ~45 ткм, наконечники — чаще.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-alternator-overrun-pulley-ina",
+      "title": "P2 XC70: обгонная муфта генератора INA 535007210",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Шелест/свист с холодной часто даёт заклинившая обгонная муфта генератора; популярный кросс — INA 535007210.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-alternator-rebuild-bearings",
+      "title": "P2 XC70: переборка генератора — муфта, подшипники, щётки",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "При свисте ремня на холодную владельцы перебирают генератор: обгонная муфта, подшипники, кольца, реле-регулятор.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-s60-p2-timing-thermostat-gates",
+      "title": "P2 S60: ГРМ + термостат Gates TH35991",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S60 I при замене ГРМ часто вскрывают течи: сальник распредвала и термостат; в БЖ ставили Gates TH35991.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-s60ii-thermostat-heater-circuit",
+      "title": "P3 S60 II: ошибка нагревателя термостата ECM-P0597",
+      "platform": "p3",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "На S60 II бензин встречается код обрыва цепи нагревателя термостата; ставят OEM 31686560 или б/у 31474989 + адаптация.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-s80-battery-topla-bms",
+      "title": "P3 S80 II: АКБ Topla 100 Ач и обнуление BMS",
+      "platform": "p3",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "На S80 II после установки нового АКБ (пример Topla 100 Ач) стирают ошибки и обнуляют счётчик BMS, затем дают машине «отлежаться».",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc70-battery-bms-reset-vida",
+      "title": "P3 XC70 III: замена АКБ и сброс BMS в CEM",
+      "platform": "p3",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "После замены АКБ на XC70 III сбрасывают BMS через VIDA (CEM → Advanced); машину оставляют закрытой 5–6 часов без запуска.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-s90-aux-battery-haldex-wipers",
+      "title": "SPA S90: доп. АКБ 32238082 + Haldex + щётки",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S90 II по рекомендации дилера меняют малый АКБ старт-стоп 32238082, жидкость Haldex 31367940 и щётки 32282838.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-v90-bms-reset-vtool",
+      "title": "SPA V90: сброс BMS после замены основного АКБ",
+      "platform": "spa",
+      "topics": [
+        "electrical"
+      ],
+      "summary": "На V90/CC после нового АКБ сбрасывают BMS (VTool / Launch); параметры АКБ должны совпадать с прошитыми в CEM.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc60ii-timing-atf-haldex",
+      "title": "SPA XC60 II: ГРМ + ATF + жидкость Haldex",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60 II дизель 2018 в одном визите меняют комплект ГРМ/приводной ремень, полную ATF и жидкость Haldex (OEM ориентиры в посте).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-to4-atf-coolant-haldex",
+      "title": "SPA XC90 II: ТО-4 — ATF, ОЖ, Haldex, фильтры",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II бензин на ТО-4 меняют ATF, антифриз, Haldex и фильтры (Mann + топливный Mahle KL1055) плюс колодки.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-xc40-atf-31492173-diy",
+      "title": "CMA XC40 T3: частичная замена ATF 31492173",
+      "platform": "cma",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC40 1.5 T3 сливают ATF через пробку/переливную трубку и заливают ~4 л OEM 31492173, уровень по температуре ~50°C.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "cma-xc40-atf-machine-flush",
+      "title": "CMA XC40: аппаратная замена ATF — опыт владельца",
+      "platform": "cma",
+      "topics": [
+        "parts",
+        "links"
+      ],
+      "summary": "Владельцы XC40 спорят частичная vs аппаратная замена ATF; в БЖ на ~30–60 ткм делают аппаратную на Motul ATF VI у дилера.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-850-timing-pump-gmb-ina",
+      "title": "P1 850: ГРМ INA + помпа GMB + сальник КВ",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На 850 комплект ГРМ INA 530004410, помпа GMB GWVO07A и сальник Corteco; помпу меняют по пробегу — люфт по оси не всегда заметен рукой.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p1-s70-heater-core-replace",
+      "title": "P1 S70: замена радиатора печки",
+      "platform": "p1",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На S70 течь радиатора печки заливает салон; б/у живёт недолго — лучше новый, временно можно закольцевать контур ОЖ.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-v70-abs-ring-springs",
+      "title": "P2 V70: кольцо ABS Metzger + пружины Lesjöfors",
+      "platform": "p2",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "Отключение ABS >50 км/ч на V70 II часто из‑за лопнувшего зубчатого кольца (Metzger 0900164); попутно ставят пружины Lesjöfors 4095837.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-abs-rings-febi-hubs",
+      "title": "P2 XC70: кольца ABS FEBI при замене ступиц",
+      "platform": "p2",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "При замене передних ступиц на XC70 II меняют зубчатые кольца ABS (FEBI 100751): нагрев при посадке, не бить по зубьям.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-psf-pump-replace",
+      "title": "P2 XC70: замена насоса ГУР и жидкости",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC70 II при рекомендации «менять насос» часто ограничиваются жидкостью; при замене насоса проверяют клапан регулировки на корпусе.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p2-xc70-steering-rack-bushings",
+      "title": "P2 XC70: капремонт рейки + сайленты рычагов SKF",
+      "platform": "p2",
+      "topics": [
+        "parts"
+      ],
+      "summary": "Люфт/щелчки руля на XC70 II — капремонт рейки (вал), тяги Lemförder; сайленты передних рычагов SKF VKDS 336022/336023.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc60-brakes-to150-disks",
+      "title": "P3 XC60 I: ТО-150 и тормозные диски",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60 I к 150 ткм ТО (фильтры, PU9003Z) и замена дисков/колодок; на новые диски ставят новые колодки (OEM из Индии в посте).",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc60-turbo-hoses-radiator",
+      "title": "P3 XC60 I: патрубки турбины и радиатор ДВС",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC60 D5 течи антифриза/масла часто лечат комплектом патрубков турбины/интеркулера и заменой радиатора со снятием морды.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc60-turbo-rebuild-big-to",
+      "title": "P3 XC60 D5: ремонт турбины + промывка и ТО",
+      "platform": "p3",
+      "topics": [
+        "parts"
+      ],
+      "summary": "После ремонта турбины на XC60 D5 делают промывку радиаторов/EGR/патрубков, меняют уплотнения турбины и расходники ТО.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "p3-xc70-egr-full-replace",
+      "title": "P3 XC70 III: полная замена узла EGR",
+      "platform": "p3",
+      "topics": [
+        "parts",
+        "electrical"
+      ],
+      "summary": "На XC70 III D5 при ошибках EGR меняют клапан, радиатор и кожух распределения потока; критично кольцо 30670569.",
+      "updated": "2026-09-23"
+    },
+    {
+      "slug": "spa-xc90-rear-pads-skf-fuel-32312226",
+      "title": "SPA XC90 II: задние колодки SKF + топливный 32312226",
+      "platform": "spa",
+      "topics": [
+        "parts"
+      ],
+      "summary": "На XC90 II дизель при скрежете сзади меняют задние колодки (пример SKF VKBP90142) и попутно топливный фильтр OEM 32312226.",
+      "updated": "2026-09-23"
+    }
+  ]
+}

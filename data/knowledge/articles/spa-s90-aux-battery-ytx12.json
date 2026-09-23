@@ -1,0 +1,21 @@
+{
+  "slug": "spa-s90-aux-battery-ytx12",
+  "title": "SPA S90: вспомогательный АКБ Start/Stop YTX12-BS",
+  "platform": "spa",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Малый АКБ у стакана стойки: стандарт YTX12-BS (152×88×131). Аналоги Bosch M6 014, Varta 510012009, Yuasa YTX12-BS. Ошибка Start/Stop часто = мёртвая «мото»-батарея.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nВспомогательный АКБ Start/Stop на **S90**.\n\n## PN / размер\n\n- Форм-фактор **YTX12-BS**\n- Bosch **M6 014**, Varta **510012009**, Yuasa **YTX12-BS**\n\n## Важно\n\nСообщение на приборке после замены может не уйти сразу — см. процедуру обесточивания.",
+  "links": [
+    {
+      "title": "SPA S90: вспомогательный АКБ Start/Stop YTX12-BS — Drive2",
+      "url": "https://www.drive2.ru/l/631315663364840297/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/631315663364840297/"
+  }
+}

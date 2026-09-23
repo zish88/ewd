@@ -1,0 +1,22 @@
+{
+  "slug": "p2-v70-abs-ring-springs",
+  "title": "P2 V70: кольцо ABS Metzger + пружины Lesjöfors",
+  "platform": "p2",
+  "topics": [
+    "parts",
+    "electrical"
+  ],
+  "summary": "Отключение ABS >50 км/ч на V70 II часто из‑за лопнувшего зубчатого кольца (Metzger 0900164); попутно ставят пружины Lesjöfors 4095837.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nОшибка датчика ABS + просевшие пружины на **V70 II**.\n\n## Партномера\n\n- Кольцо ABS: Metzger **0900164**\n- Пружины: Lesjöfors **4095837** (пример от XC70 D5)\n\n## Важно\n\nРжавая ступица раздавливает кольцо. Выжимка Drive2.",
+  "links": [
+    {
+      "title": "Пост на Drive2",
+      "url": "https://www.drive2.ru/l/600417462478971534/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/600417462478971534/"
+  }
+}

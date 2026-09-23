@@ -1,0 +1,21 @@
+{
+  "slug": "p3-xc70-battery-bms-reset-vida",
+  "title": "P3 XC70 III: замена АКБ и сброс BMS в CEM",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "После замены АКБ на XC70 III сбрасывают BMS через VIDA (CEM → Advanced); машину оставляют закрытой 5–6 часов без запуска.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nНа **P3** с BMS генератор учится под конкретную батарею. Без сброса — недозаряд/ошибки.\n\n## Практика\n\n- Зарядка: минус ЗУ на **шасси**, не на клемму АКБ\n- VIDA: **CEM → Advanced → Battery Monitoring Sensor → reset**\n- После сброса не заводить ~5–6 часов\n\n## Важно\n\nВыжимка Drive2, не замена дилерской инструкции.",
+  "links": [
+    {
+      "title": "Пост на Drive2",
+      "url": "https://www.drive2.ru/l/520224032151306392/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/520224032151306392/"
+  }
+}

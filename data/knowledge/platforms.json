@@ -1,0 +1,50 @@
+{
+  "default_id": "p3",
+  "platforms": [
+    {
+      "id": "p1",
+      "label": "P1",
+      "subtitle": "850 · S70 · V70 · XC70 (ранние)",
+      "order": 1,
+      "status": "partial",
+      "silhouette": "wagon",
+      "models_short": ["850", "S70", "V70"]
+    },
+    {
+      "id": "p2",
+      "label": "P2",
+      "subtitle": "S60 · V70 · XC70 · S80 (2000–2007)",
+      "order": 2,
+      "status": "partial",
+      "silhouette": "sedan",
+      "models_short": ["S60", "V70", "S80"]
+    },
+    {
+      "id": "p3",
+      "label": "P3",
+      "subtitle": "XC70 · V70 · S80 · XC60 · S60 · V60",
+      "order": 3,
+      "status": "ewd_on_site",
+      "silhouette": "crossover",
+      "models_short": ["XC70", "XC60", "S60"]
+    },
+    {
+      "id": "cma",
+      "label": "CMA",
+      "subtitle": "XC40 · C40",
+      "order": 4,
+      "status": "partial",
+      "silhouette": "compact_suv",
+      "models_short": ["XC40", "C40"]
+    },
+    {
+      "id": "spa",
+      "label": "SPA",
+      "subtitle": "XC90 · XC60 II · S90 · V90",
+      "order": 5,
+      "status": "partial",
+      "silhouette": "large_suv",
+      "models_short": ["XC90", "XC60", "S90"]
+    }
+  ]
+}

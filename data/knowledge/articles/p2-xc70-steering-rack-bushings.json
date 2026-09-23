@@ -1,0 +1,21 @@
+{
+  "slug": "p2-xc70-steering-rack-bushings",
+  "title": "P2 XC70: капремонт рейки + сайленты рычагов SKF",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Люфт/щелчки руля на XC70 II — капремонт рейки (вал), тяги Lemförder; сайленты передних рычагов SKF VKDS 336022/336023.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nРулевое + передние рычаги на **XC70 II**.\n\n## Партномера\n\n- Сайленты: SKF **VKDS 336022**, **VKDS 336023**\n\n## Важно\n\nРейка XC90 vs XC70 — проверять совместимость тяг. Выжимка Drive2.",
+  "links": [
+    {
+      "title": "Пост на Drive2",
+      "url": "https://www.drive2.ru/l/583170248207801618/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/583170248207801618/"
+  }
+}

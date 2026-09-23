@@ -30,6 +30,12 @@ import {
   readDeployNotes,
   subscriptionCount,
 } from "../pushNotify.js";
+import {
+  approveKbSubmission,
+  listKbSubmissions,
+  rejectKbSubmission,
+} from "../knowledgeSubmissions.js";
+import { deleteKbComment, listKbCommentsAdmin } from "../knowledgeComments.js";
 
 type TicketRow = {
   id: number;
@@ -478,6 +484,65 @@ export function createAdminRouter(db: Database.Database) {
     const hint =
       result.failed > 0 && result.sent === 0 ? pushFailureHint(result.errors) : undefined;
     res.json({ ok: result.sent > 0, ...result, payload, hint });
+  });
+
+  router.get("/knowledge/submissions", requireAdmin, (req, res) => {
+    const status = String(req.query.status || "pending").trim();
+    const rows = listKbSubmissions(status === "all" ? null : status, 100);
+    const all = listKbSubmissions(null, 500);
+    const counts: Record<string, number> = {};
+    for (const r of all) counts[r.status] = (counts[r.status] || 0) + 1;
+    res.json({ ok: true, submissions: rows, counts });
+  });
+
+  router.post("/knowledge/submissions/:id/approve", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ ok: false, error: "bad id" });
+      return;
+    }
+    const note = String((req.body as { note?: string })?.note || "");
+    const row = approveKbSubmission(id, note);
+    if (!row) {
+      res.status(404).json({ ok: false, error: "Не найдено" });
+      return;
+    }
+    res.json({ ok: true, submission: row });
+  });
+
+  router.post("/knowledge/submissions/:id/reject", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ ok: false, error: "bad id" });
+      return;
+    }
+    const note = String((req.body as { note?: string })?.note || "");
+    const row = rejectKbSubmission(id, note);
+    if (!row) {
+      res.status(404).json({ ok: false, error: "Не найдено" });
+      return;
+    }
+    res.json({ ok: true, submission: row });
+  });
+
+  router.get("/knowledge/comments", requireAdmin, (req, res) => {
+    const slug = String(req.query.slug || "").trim() || null;
+    const comments = listKbCommentsAdmin({ slug, limit: 100 });
+    res.json({ ok: true, comments });
+  });
+
+  router.delete("/knowledge/comments/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ ok: false, error: "bad id" });
+      return;
+    }
+    const ok = deleteKbComment(id);
+    if (!ok) {
+      res.status(404).json({ ok: false, error: "Не найдено" });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   return router;

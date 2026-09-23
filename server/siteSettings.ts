@@ -16,6 +16,8 @@ export type SiteFeatures = {
   dtcSearch: boolean;
   /** Live ESP32 OBD gateway scan panel (enrich + UI). */
   obdAdapter: boolean;
+  /** Anonymous comments under KB articles. */
+  kbComments: boolean;
 };
 
 export type ThemeId = "charcoal" | "caspian" | "amber";
@@ -83,6 +85,7 @@ const DEFAULTS: SiteSettings = {
     navBrowse: true,
     dtcSearch: true,
     obdAdapter: true,
+    kbComments: true,
   },
   appearance: structuredClone(DEFAULT_APPEARANCE),
 };

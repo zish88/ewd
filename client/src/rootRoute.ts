@@ -1,6 +1,8 @@
-export type RootSurface = "admin" | "app";
+export type RootSurface = "admin" | "knowledge" | "app";
 
 export function rootSurfaceForPath(pathname: string): RootSurface {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return path === "/admin" ? "admin" : "app";
+  if (path === "/admin") return "admin";
+  if (path === "/knowledge") return "knowledge";
+  return "app";
 }

@@ -1,0 +1,21 @@
+{
+  "slug": "p2-filters-purflux-set",
+  "title": "P2: фильтры Purflux на плановое ТО",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На S60 1G: масляный Purflux L316, воздушный A1144, салонный AHC173.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nБазовое ТО **P2**: масло + три фильтра.\n\n## PN\n\n- **Purflux L316** / **A1144** / **AHC173**\n\n## Важно\n\nКроссы к OEM — сверяйте.",
+  "links": [
+    {
+      "title": "P2: фильтры Purflux на плановое ТО — Drive2",
+      "url": "https://www.drive2.ru/l/675579802475823924/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/675579802475823924/"
+  }
+}

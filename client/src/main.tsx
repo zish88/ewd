@@ -31,7 +31,9 @@ import { filterNavGroupsByQuery } from "./navComponentSearch.js";
 import { ModernSelect } from "./ModernSelect.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
+import { KnowledgePage } from "./KnowledgePage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
+import { rootSurfaceForPath } from "./rootRoute.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
 import { realignCardEnrichment } from "./wireEnrichmentAlign.js";
@@ -54,8 +56,6 @@ import {
   loadTelegramWebAppSdk,
   setTelegramBackButton,
 } from "./telegram.js";
-import { rootSurfaceForPath } from "./rootRoute.js";
-
 
 type RepairConfidence = "exact" | "compatible" | "unknown" | "reference";
 
@@ -3638,30 +3638,41 @@ function App() {
   );
 
   const socialLinksControl = (
-    <nav className="app-bar__social-links" aria-label="Ссылки Volvo EWD">
+    <div className="app-bar__ext-cluster" aria-label="Навигация и внешние ссылки">
       <a
-        className="app-bar__social-link"
-        href="https://t.me/ewd_volvo_bot/ewd"
-        target="_blank"
-        rel="noopener noreferrer external"
-        title="Открыть Telegram-бот Volvo EWD"
-        aria-label="Telegram-бот Volvo EWD"
+        className="app-bar__kb-link"
+        href="/knowledge"
+        title="База знаний по платформам Volvo"
+        aria-label="База знаний"
+        data-testid="nav-knowledge"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M21.4 3.4 18.2 19c-.24 1.1-.88 1.37-1.78.85l-4.88-3.6-2.35 2.27c-.26.26-.48.48-.98.48l.35-4.97 9.05-8.18c.39-.35-.09-.55-.61-.2L5.82 12.7 1 11.2c-1.05-.33-1.07-1.05.22-1.56L20.05 2.4c.87-.32 1.63.2 1.35 1Z" />
-        </svg>
+        База
       </a>
-      <a
-        className="app-bar__social-link app-bar__social-link--drive2"
-        href="https://www.drive2.ru/users/zish/"
-        target="_blank"
-        rel="noopener noreferrer external"
-        title="Профиль zish на Drive2"
-        aria-label="Профиль zish на Drive2"
-      >
-        <span aria-hidden="true">D2</span>
-      </a>
-    </nav>
+      <nav className="app-bar__social-links" aria-label="Внешние ссылки">
+        <a
+          className="app-bar__social-link"
+          href="https://t.me/ewd_volvo_bot/ewd"
+          target="_blank"
+          rel="noopener noreferrer external"
+          title="Открыть Telegram-бот Volvo EWD"
+          aria-label="Telegram-бот Volvo EWD"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M21.4 3.4 18.2 19c-.24 1.1-.88 1.37-1.78.85l-4.88-3.6-2.35 2.27c-.26.26-.48.48-.98.48l.35-4.97 9.05-8.18c.39-.35-.09-.55-.61-.2L5.82 12.7 1 11.2c-1.05-.33-1.07-1.05.22-1.56L20.05 2.4c.87-.32 1.63.2 1.35 1Z" />
+          </svg>
+        </a>
+        <a
+          className="app-bar__social-link app-bar__social-link--drive2"
+          href="https://www.drive2.ru/users/zish/"
+          target="_blank"
+          rel="noopener noreferrer external"
+          title="Профиль zish на Drive2"
+          aria-label="Профиль zish на Drive2"
+        >
+          <span aria-hidden="true">D2</span>
+        </a>
+      </nav>
+    </div>
   );
 
   const pushControls = (
@@ -5092,12 +5103,13 @@ function SuggestEditModal({
 function Root() {
   const surface = rootSurfaceForPath(typeof window !== "undefined" ? window.location.pathname : "/");
   if (surface === "admin") return <AdminPage />;
+  if (surface === "knowledge") return <KnowledgePage />;
   return <App />;
 }
 
 async function startClient() {
   const surface = rootSurfaceForPath(window.location.pathname);
-  if (surface !== "admin") {
+  if (surface !== "admin" && surface !== "knowledge") {
     await loadTelegramWebAppSdk();
     initializeTelegramWebApp();
     void bootstrapTelegramIdentity();

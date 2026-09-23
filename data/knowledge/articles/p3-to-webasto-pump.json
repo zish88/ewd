@@ -1,0 +1,21 @@
+{
+  "slug": "p3-to-webasto-pump",
+  "title": "P3 XC70: ТО + помпа Webasto Pierburg",
+  "platform": "p3",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На ТО XC70 III D5: масло 5W-30, фильтр 30788490, воздух 31370161, ТЖ + помпа Webasto 702671500 Pierburg при вое моторчика.",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nПлановое ТО **XC70 D5** + замена помпы отопителя Webasto.\n\n## PN\n\n- Масляный OEM **30788490**\n- Воздух **31370161**\n- Помпа Webasto **702671500** (Pierburg)\n\n## Важно\n\nВой «печки» при выключенном климате — смотрите помпу предпускового.",
+  "links": [
+    {
+      "title": "P3 XC70: ТО + помпа Webasto Pierburg — Drive2",
+      "url": "https://www.drive2.ru/l/692907555973778006/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/692907555973778006/"
+  }
+}

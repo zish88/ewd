@@ -1,0 +1,21 @@
+{
+  "slug": "spa-xc60ii-timing-atf-haldex",
+  "title": "SPA XC60 II: ГРМ + ATF + жидкость Haldex",
+  "platform": "spa",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На XC60 II дизель 2018 в одном визите меняют комплект ГРМ/приводной ремень, полную ATF и жидкость Haldex (OEM ориентиры в посте).",
+  "updated": "2026-09-23",
+  "body_md": "## Суть\n\nБольшое ТО на **XC60 II (SPA)**: ГРМ + коробка + Haldex.\n\n## Партномера (примеры из БЖ)\n\n- Комплект ремня ГРМ: **32298420**\n- Жидкость Haldex: **31209623** / **31367940**\n\n## Важно\n\nСверяйте по VIN/EPC. После Haldex часто нужна программная прокачка. Выжимка Drive2.",
+  "links": [
+    {
+      "title": "Пост на Drive2",
+      "url": "https://www.drive2.ru/l/699371309955551715/",
+      "site": "Drive2"
+    }
+  ],
+  "author": {
+    "post_url": "https://www.drive2.ru/l/699371309955551715/"
+  }
+}

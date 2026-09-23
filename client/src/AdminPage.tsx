@@ -8,7 +8,7 @@ import {
 import { ObdAdapterPanel } from "./obd/ObdAdapterPanel.js";
 import { ObdElmPanel } from "./obd/ObdElmPanel.js";
 
-type AdminTab = "stats" | "settings" | "edits" | "obd";
+type AdminTab = "stats" | "settings" | "edits" | "obd" | "kb";
 
 type Features = {
   suggestions: boolean;
@@ -17,6 +17,7 @@ type Features = {
   navBrowse: boolean;
   dtcSearch: boolean;
   obdAdapter: boolean;
+  kbComments: boolean;
 };
 
 type Settings = {
@@ -132,6 +133,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   navBrowse: "Навигация по зонам и узлам",
   dtcSearch: "Поиск DTC / OBD кодов",
   obdAdapter: "Скан с адаптера OBD (ESP32) — сейчас не влияет: кнопка временно снята с сайта, тест на вкладке OBD",
+  kbComments: "Комментарии в базе знаний",
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
@@ -139,11 +141,12 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "stats", label: "Статистика" },
   { key: "settings", label: "Настройки" },
   { key: "edits", label: "Правки" },
+  { key: "kb", label: "База знаний" },
   { key: "obd", label: "OBD" },
 ];
 
 function parseAdminTab(value: string | null): AdminTab {
-  return value === "settings" || value === "edits" || value === "obd" || value === "stats"
+  return value === "settings" || value === "edits" || value === "obd" || value === "stats" || value === "kb"
     ? value
     : "stats";
 }
@@ -241,6 +244,35 @@ export function AdminPage() {
     name_ru: "",
   });
   const [obdSubTab, setObdSubTab] = useState<"elm" | "esp">("elm");
+  const [kbSubs, setKbSubs] = useState<
+    Array<{
+      id: number;
+      created_at: string;
+      status: string;
+      kind: string;
+      platform: string;
+      topic: string;
+      title: string;
+      summary: string;
+      body_md: string;
+      source_url: string;
+      author_name: string;
+      published_slug: string;
+    }>
+  >([]);
+  const [kbFilter, setKbFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [kbCounts, setKbCounts] = useState<Record<string, number>>({});
+  const [kbBusyId, setKbBusyId] = useState<number | null>(null);
+  const [kbComments, setKbComments] = useState<
+    Array<{
+      id: number;
+      created_at: string;
+      article_slug: string;
+      author_name: string;
+      body: string;
+    }>
+  >([]);
+  const [kbCommentBusyId, setKbCommentBusyId] = useState<number | null>(null);
 
   async function refreshMe() {
     const r = await fetch("/api/admin/me", { credentials: "include" });
@@ -255,6 +287,15 @@ export function AdminPage() {
     if (!r.ok) return;
     const d = (await r.json()) as Settings;
     d.appearance = normalizeAppearance(d.appearance);
+    d.features = {
+      suggestions: d.features?.suggestions !== false,
+      ewdDiagrams: d.features?.ewdDiagrams !== false,
+      vinSearch: d.features?.vinSearch !== false,
+      navBrowse: d.features?.navBrowse !== false,
+      dtcSearch: d.features?.dtcSearch !== false,
+      obdAdapter: d.features?.obdAdapter !== false,
+      kbComments: d.features?.kbComments !== false,
+    };
     setSettings(d);
     setDraftSettings(d);
     applySiteAppearance(d.appearance);
@@ -293,6 +334,70 @@ export function AdminPage() {
       configured: Boolean(d.configured),
       subscribers: Number(d.subscribers) || 0,
     });
+  }
+
+  async function loadKbSubmissions(status: typeof kbFilter = kbFilter) {
+    const r = await fetch(`/api/admin/knowledge/submissions?status=${status}`, { credentials: "include" });
+    if (!r.ok) return;
+    const d = (await r.json()) as {
+      submissions?: typeof kbSubs;
+      counts?: Record<string, number>;
+    };
+    setKbSubs(Array.isArray(d.submissions) ? d.submissions : []);
+    setKbCounts(d.counts || {});
+  }
+
+  async function moderateKb(id: number, action: "approve" | "reject") {
+    setKbBusyId(id);
+    setNotice("");
+    try {
+      const r = await fetch(`/api/admin/knowledge/submissions/${id}/${action}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: "" }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setNotice(d.error || "Ошибка модерации БЗ");
+        return;
+      }
+      setNotice(
+        action === "approve"
+          ? `Опубликовано: ${d.submission?.published_slug || `#${id}`}`
+          : `Отклонено #${id}`,
+      );
+      await loadKbSubmissions();
+    } finally {
+      setKbBusyId(null);
+    }
+  }
+
+  async function loadKbComments() {
+    const r = await fetch("/api/admin/knowledge/comments?limit=100", { credentials: "include" });
+    if (!r.ok) return;
+    const d = (await r.json()) as { comments?: typeof kbComments };
+    setKbComments(Array.isArray(d.comments) ? d.comments : []);
+  }
+
+  async function deleteKbComment(id: number) {
+    setKbCommentBusyId(id);
+    setNotice("");
+    try {
+      const r = await fetch(`/api/admin/knowledge/comments/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setNotice(d.error || "Не удалось удалить комментарий");
+        return;
+      }
+      setKbComments((prev) => prev.filter((c) => c.id !== id));
+      setNotice(`Комментарий #${id} удалён`);
+    } finally {
+      setKbCommentBusyId(null);
+    }
   }
 
   function flashEditBadge(tone: "ok" | "bad", text: string) {
@@ -498,6 +603,12 @@ export function AdminPage() {
     url.searchParams.set("tab", activeTab);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!admin || activeTab !== "kb") return;
+    void loadKbSubmissions(kbFilter);
+    void loadKbComments();
+  }, [admin, activeTab, kbFilter]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -1453,6 +1564,151 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                 <div className={obdSubTab === "esp" ? "" : "hidden"} aria-hidden={obdSubTab !== "esp"}>
                   <ObdAdapterPanel />
                 </div>
+              </section>
+            ) : null}
+
+            {activeTab === "kb" ? (
+              <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3" data-testid="admin-kb">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Заявки в базу знаний
+                  </h2>
+                  <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+                    pending {kbCounts.pending || 0} · approved {kbCounts.approved || 0} · rejected{" "}
+                    {kbCounts.rejected || 0}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Пользователи присылают ссылку + свою выжимку. Approve пишет статью в{" "}
+                  <code className="text-[10px]">data/knowledge/articles</code>.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {(["pending", "approved", "rejected", "all"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`md-btn text-[11px] px-2.5 py-1.5 ${kbFilter === s ? "md-btn--filled" : "md-btn--tonal"}`}
+                      onClick={() => setKbFilter(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {kbSubs.length === 0 ? (
+                  <p className="text-sm text-[var(--text-muted)]">Нет заявок в этом фильтре.</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {kbSubs.map((s) => (
+                      <li
+                        key={s.id}
+                        className="rounded-lg border border-[var(--border-color)] p-3 space-y-2 text-sm"
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <strong>
+                            #{s.id} · {s.platform.toUpperCase()} · {s.kind}
+                          </strong>
+                          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{s.created_at}</span>
+                        </div>
+                        <div className="font-medium">{s.title}</div>
+                        {s.summary ? <p className="text-xs text-[var(--text-muted)]">{s.summary}</p> : null}
+                        {s.source_url ? (
+                          <a
+                            className="text-xs text-emerald-700 underline break-all"
+                            href={s.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {s.source_url}
+                          </a>
+                        ) : null}
+                        {s.body_md ? (
+                          <pre className="text-[11px] whitespace-pre-wrap max-h-40 overflow-auto bg-[var(--input-bg)] rounded p-2 border border-[var(--border-color)]">
+                            {s.body_md}
+                          </pre>
+                        ) : null}
+                        {s.published_slug ? (
+                          <p className="text-[11px] text-[var(--text-muted)]">
+                            slug: <code>{s.published_slug}</code>
+                          </p>
+                        ) : null}
+                        {s.status === "pending" ? (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              disabled={kbBusyId === s.id}
+                              className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                              onClick={() => void moderateKb(s.id, "approve")}
+                            >
+                              Approve → опубликовать
+                            </button>
+                            <button
+                              type="button"
+                              disabled={kbBusyId === s.id}
+                              className="rounded border border-[var(--border-color)] px-3 py-1.5 text-xs disabled:opacity-50"
+                              onClick={() => void moderateKb(s.id, "reject")}
+                            >
+                              Отклонить
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{s.status}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+
+            {activeTab === "kb" ? (
+              <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3" data-testid="admin-kb-comments">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Комментарии к статьям
+                  </h2>
+                  <button
+                    type="button"
+                    className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+                    onClick={() => void loadKbComments()}
+                  >
+                    Обновить
+                  </button>
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Без очереди: комментарий сразу публичный. Здесь только удаление спама. Глобальный вкл/выкл — в
+                  Настройках («Комментарии в базе знаний»).
+                </p>
+                {kbComments.length === 0 ? (
+                  <p className="text-sm text-[var(--text-muted)]">Пока нет комментариев.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {kbComments.map((c) => (
+                      <li
+                        key={c.id}
+                        className="rounded-lg border border-[var(--border-color)] p-3 space-y-1.5 text-sm"
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <strong>
+                            #{c.id} · <code className="text-[11px]">{c.article_slug}</code>
+                          </strong>
+                          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{c.created_at}</span>
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)]">
+                          {c.author_name?.trim() ? c.author_name : "Аноним"}
+                        </div>
+                        <p className="text-xs whitespace-pre-wrap">{c.body}</p>
+                        <button
+                          type="button"
+                          disabled={kbCommentBusyId === c.id}
+                          className="rounded border border-[var(--border-color)] px-3 py-1.5 text-xs disabled:opacity-50"
+                          onClick={() => void deleteKbComment(c.id)}
+                        >
+                          Удалить
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             ) : null}
           </>
