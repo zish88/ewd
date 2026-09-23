@@ -1,7 +1,7 @@
 {
   "version": 1,
   "model_pass": "rules-v1+purpose",
-  "generated_at": "2026-09-20T19:27:28.734Z",
+  "generated_at": "2026-09-23T09:17:38.175Z",
   "components": {
     "1/1": {
       "role_ru": "предохранитель батареи",
@@ -3995,6 +3995,573 @@
     },
     "9/9": {
       "role_ru": "нагревательный элемент спинки, левый задний",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/112": {
+      "role_ru": "Освещение правого зеркала для макияжа",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/162": {
+      "role_ru": "Потолочная лампа салона",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/166": {
+      "role_ru": "Лампочка освещения дорожной карты",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/20": {
+      "role_ru": "Освещение номерного знака, левое",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/21": {
+      "role_ru": "Освещение номерного знака, правое",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/24": {
+      "role_ru": "Лампа багажника",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/264": {
+      "role_ru": "Освещение багажного отделения, левое",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/265": {
+      "role_ru": "Освещение багажного отделения, правое",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "10/6": {
+      "role_ru": "Противотуманный свет, передний правый",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/108": {
+      "role_ru": "Дисплей мультимедии",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/139": {
+      "role_ru": "Модуль глобальной системы местоопределения (GPS)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/142": {
+      "role_ru": "Волновой фильтр, правое заднее стекло",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/143": {
+      "role_ru": "Контроль аккумулятора сирены BBS",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/147": {
+      "role_ru": "Модуль телефона Bluetooth (BPM)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/157": {
+      "role_ru": "Высокочастотный громкоговоритель, дверь водителя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/46": {
+      "role_ru": "Дисплей RTI/MMM",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/49": {
+      "role_ru": "Модуль канала сообщений о дорожном движении (TMC)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/62": {
+      "role_ru": "Телефонная трубка",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "16/94": {
+      "role_ru": "Модуль управления информационно-развлекательной системы (ICM)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "20/17": {
+      "role_ru": "Трансформатор, катушки зажигания",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/120": {
+      "role_ru": "Контакт, сигнализация, капот двигателя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/132": {
+      "role_ru": "Модуль управления запуска (SCU)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/15": {
+      "role_ru": "Электровыключатель, процессор стеклоподъемника двери водителя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/161": {
+      "role_ru": "Освещение левого зеркала для макияжа",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/254": {
+      "role_ru": "Модуль подрулевых рычагов и датчик угла поворота рулевого колеса",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/268": {
+      "role_ru": "Переключатель помощи для загрузки",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/269": {
+      "role_ru": "Переключатель заднего сиденья с электроподогревом",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/309": {
+      "role_ru": "Модуль выключателя потолочной консоли",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/38": {
+      "role_ru": "Переключатель педали тормоза",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/39": {
+      "role_ru": "Электроника, муфта",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/47": {
+      "role_ru": "Переключатель ручного тормоза",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/5": {
+      "role_ru": "С дворн. задн. стекла",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/78": {
+      "role_ru": "Механизм замка крышки багажника",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "3/8": {
+      "role_ru": "Включено в комплект блока цилиндров в сборе",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/112": {
+      "role_ru": "Модуль газоразрядной лампы (GDL), ведущая левая",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/113": {
+      "role_ru": "Модуль газоразрядной лампы (GDL), подчиненная правая",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/114": {
+      "role_ru": "Модуль управления высотой положения фар AFS/HCM, справа и слева",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/118": {
+      "role_ru": "Модуль управления вращением фар, двойной",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/122": {
+      "role_ru": "Модуль управления, нагрев заднего левого сиденья",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/123": {
+      "role_ru": "Модуль управления, нагрев заднего правого сиденья",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/129": {
+      "role_ru": "Дистанционный приемник бесключевого автомобиля (LRX)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/137": {
+      "role_ru": "Модуль управления системой защиты пешеходов (РРМ)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/21": {
+      "role_ru": "Дневные огни",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/7": {
+      "role_ru": "Модуль подогревателя сгорания (CPM)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "4/98": {
+      "role_ru": "Модуль управления генератора (ACM)",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/1": {
+      "role_ru": "Для подсоединения к жгуту проводов моторного отсека",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/100": {
+      "role_ru": "Для подсоединения к жгуту проводов распредвала",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/146": {
+      "role_ru": "Для подсоединения к жгуту проводов моторного отсека",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/16": {
+      "role_ru": "Для подсоединения к жгуту проводов, датчик дождя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/20": {
+      "role_ru": "Задняя дверь",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/36": {
+      "role_ru": "Для подключения к адаптеру проводки топливного насоса",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/53": {
+      "role_ru": "Для подсоединения к жгуту проводов датчика детонации",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "54/74": {
+      "role_ru": "Для подсоединения к жгуту проводов, AOC-соединение",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/113": {
+      "role_ru": "Насос охлаждающей жидкости",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/118": {
+      "role_ru": "Привод завихрения",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/143": {
+      "role_ru": "Регулирующий мотор, турбо",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/2": {
+      "role_ru": "Насос омывателя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/9": {
+      "role_ru": "Мотор стеклоподъемника, передний левый",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "6/99": {
+      "role_ru": "Серый+коричневый",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/13": {
+      "role_ru": "Полож. электропитание",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/153": {
+      "role_ru": "Клапан управления",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/163": {
+      "role_ru": "Датчик положения распределительного вала 2",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/168": {
+      "role_ru": "Датчик давления топлива, низкое",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/192": {
+      "role_ru": "Датчик присутствия воды",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/194": {
+      "role_ru": "Датчик скорости ролика ремня, передний, слева",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/195": {
+      "role_ru": "Датчик скорости ролика ремня, передний, справа",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/202": {
+      "role_ru": "EGR, датчик положения",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/21": {
+      "role_ru": "Датчик положения распредвала",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/225": {
+      "role_ru": "Голубой",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/232": {
+      "role_ru": "Датчик давления и температуры, впускной коллектор",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/249": {
+      "role_ru": "Датчик солнечного и дневного света",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/54": {
+      "role_ru": "Положение датчика дросселя",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/59": {
+      "role_ru": "Датчик температуры, левый",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/60": {
+      "role_ru": "Датчик температуры, правый",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/71": {
+      "role_ru": "Датчик давления наддува",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/77": {
+      "role_ru": "Датчик температуры, всасываемый воздух 1",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "7/86": {
+      "role_ru": "Датчик температуры воздуха, вход, дизель",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "74/318": {
+      "role_ru": "Промежуточный разъем",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "74/402": {
+      "role_ru": "Панель приборов",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "74/529": {
+      "role_ru": "Переходной разъем жгута пола / туннеля",
+      "confidence": "high",
+      "sources": [
+        "components.name_ru"
+      ]
+    },
+    "74/539": {
+      "role_ru": "Задний бампер",
       "confidence": "high",
       "sources": [
         "components.name_ru"

@@ -34,6 +34,7 @@ import {
   startNightlyCorrectionsScheduler,
 } from "./adminCorrections.js";
 import { ensurePushStore, maybeNotifyDeployUpdate } from "./pushNotify.js";
+import { platformsCatalogPayload, normalizePlatformId, getPlatform } from "./platforms.js";
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
@@ -58,6 +59,29 @@ app.use(express.json());
 
 app.get("/api/site-status", (_req, res) => {
   res.json(publicSiteStatus());
+});
+
+/** Platform catalog (P3 active; SPA/CMA slots). */
+app.get("/api/platforms", (_req, res) => {
+  res.json(platformsCatalogPayload());
+});
+
+/** Resolve ?platform= for clients; coming_soon returns hint without switching DB yet. */
+app.get("/api/platforms/current", (req, res) => {
+  const id = normalizePlatformId(req.query.platform);
+  const p = getPlatform(id);
+  const catalog = platformsCatalogPayload();
+  const dto = catalog.platforms.find((x) => x.id === p.id)!;
+  res.json({
+    ...dto,
+    brand: catalog.brand,
+    tagline: catalog.tagline,
+    active_data_platform: catalog.default_id,
+    note:
+      p.status === "coming_soon"
+        ? `Платформа ${p.label} появится после импорта VIDA/Capital. Сейчас открыт каталог P3.`
+        : undefined,
+  });
 });
 
 /** Public visit beacon (once per session; allowlisted when site is closed). */
@@ -107,6 +131,8 @@ app.use("/api", (req, res, next) => {
     path === "/health" ||
     path === "/site-status" ||
     path === "/visit" ||
+    path === "/platforms" ||
+    path.startsWith("/platforms/") ||
     path.startsWith("/admin") ||
     path.startsWith("/push")
   ) {

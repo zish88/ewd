@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Volvo EWD",
   "short_name": "Volvo EWD",
-  "description": "Справочник электропроводки Volvo P3 (XC70, V70, S80, XC60, S60, V60)",
+  "description": "Электросхемы Volvo · платформа P3 (XC70, V70, S80, XC60, S60, V60). SPA/CMA — в планах.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

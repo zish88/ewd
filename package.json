@@ -24,6 +24,7 @@
     "audit:wire-context": "tsx scripts/audit-wire-context.ts",
     "enrich:wires": "tsx scripts/enrich-wire-cache.ts",
     "enrich:wires:llm": "tsx scripts/enrich-wire-cache-llm.ts",
+    "fill:p3-names": "tsx scripts/fill-p3-names-from-vida.ts",
     "git:save": "node scripts/commit-push.mjs",
     "typecheck": "tsc --noEmit",
     "stamp:updating": "node scripts/stamp-updating.mjs"
