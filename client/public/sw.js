@@ -1,5 +1,5 @@
 /* Shell-only service worker: caches app shell, never /api/* or EWD SVG assets. */
-const CACHE = "volvo-ewd-shell-v4";
+const CACHE = "volvo-ewd-shell-v5";
 const SHELL = [
   "/",
   "/index.html",

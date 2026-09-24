@@ -1777,7 +1777,7 @@ function App() {
   const [navAllGroups, setNavAllGroups] = useState<NavGroup[]>([]);
   const [selectedZone, setSelectedZone] = useState(() => persisted0.zone || "all");
   const [isAdmin, setIsAdmin] = useState(false);
-  /** null = status not loaded yet (do not render the full app for visitors). */
+  /** null = status not loaded yet; only `false` shows maintenance. */
   const [siteOpen, setSiteOpen] = useState<boolean | null>(null);
   const [features, setFeatures] = useState({
     suggestions: true,
@@ -2189,7 +2189,10 @@ function App() {
       .then((d) => setIsAdmin(Boolean(d.admin)))
       .catch(() => setIsAdmin(false));
     fetch("/api/site-status")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`site-status ${r.status}`);
+        return r.json();
+      })
       .then((d) => {
         setSiteOpen(d.siteOpen !== false);
         if (d.features) setFeatures((f) => ({ ...f, ...d.features }));
@@ -2205,7 +2208,10 @@ function App() {
           }
         }
       })
-      .catch(() => setSiteOpen(false));
+      .catch(() => {
+        // Network/HTML glitch or Vite without API: do not lock UI on maintenance.
+        setSiteOpen(true);
+      });
     trackVisitOnce();
     void getPushUiState().then(setPushState);
   }, []);
@@ -3320,10 +3326,10 @@ function App() {
     }
   }
 
-  // Closed site: maintenance for everyone on the main app (including admins).
-  // Admin panel stays at /admin; API still allows admin session there.
-  if (siteOpen !== true) {
-    return <MaintenancePage pending={siteOpen === null} />;
+  // Closed site: maintenance only when server explicitly says so.
+  // null = still loading status — keep showing the app shell (pending dots on MaintenancePage looked like an outage).
+  if (siteOpen === false) {
+    return <MaintenancePage />;
   }
 
   const cardCtx = {

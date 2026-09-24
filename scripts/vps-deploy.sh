@@ -198,9 +198,28 @@ docker run -d --name "$NAME" --restart unless-stopped \
 sleep 3
 echo "==> status"
 docker ps --filter "name=$NAME"
+echo "==> ensure siteOpen=true (KB works while closed; diagrams need open)"
+python3 - <<'PY' || true
+import json, os
+p = os.environ.get("APP_DIR", "/opt/ewd-app") + "/data/site-settings.json"
+try:
+    s = json.load(open(p, encoding="utf-8")) if os.path.isfile(p) else {}
+except Exception:
+    s = {}
+s["siteOpen"] = True
+s.setdefault("features", {})
+os.makedirs(os.path.dirname(p), exist_ok=True)
+json.dump(s, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+print("wrote", p, "siteOpen=true")
+PY
 echo "==> health"
 HEALTH="$(curl -sS "http://127.0.0.1:${PORT}/api/health" || true)"
 echo "$HEALTH"
+STATUS="$(curl -sS "http://127.0.0.1:${PORT}/api/site-status" || true)"
+echo "$STATUS"
+if echo "$STATUS" | grep -q '"siteOpen":false'; then
+  echo "WARN: siteOpen still false — set SITE_OPEN=true in .env or fix data/site-settings.json"
+fi
 if echo "$HEALTH" | grep -q '"adminConfigured":false'; then
   echo "WARN: контейнер без ADMIN_PASSWORD — /admin не откроется. Проверьте ${APP_DIR}/.env"
 elif echo "$HEALTH" | grep -q '"adminConfigured":true'; then

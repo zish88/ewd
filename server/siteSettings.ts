@@ -172,18 +172,30 @@ function settingsPath(): string {
 
 export function readSiteSettings(): SiteSettings {
   const path = settingsPath();
-  if (!existsSync(path)) return structuredClone(DEFAULTS);
-  try {
-    const raw = JSON.parse(readFileSync(path, "utf-8")) as Partial<SiteSettings>;
-    return {
-      siteOpen: raw.siteOpen !== false,
-      features: { ...DEFAULTS.features, ...(raw.features || {}) },
-      appearance: normalizeAppearance(raw.appearance),
-      updatedAt: raw.updatedAt,
-    };
-  } catch {
-    return structuredClone(DEFAULTS);
+  let base: SiteSettings = structuredClone(DEFAULTS);
+  if (existsSync(path)) {
+    try {
+      const raw = JSON.parse(readFileSync(path, "utf-8")) as Partial<SiteSettings>;
+      base = {
+        siteOpen: raw.siteOpen !== false,
+        features: { ...DEFAULTS.features, ...(raw.features || {}) },
+        appearance: normalizeAppearance(raw.appearance),
+        updatedAt: raw.updatedAt,
+      };
+    } catch {
+      base = structuredClone(DEFAULTS);
+    }
   }
+  // Ops escape hatch: SITE_OPEN=0|false closes; SITE_OPEN=1|true forces open (overrides JSON).
+  const envOpen = String(process.env.SITE_OPEN || "")
+    .trim()
+    .toLowerCase();
+  if (envOpen === "0" || envOpen === "false" || envOpen === "off") {
+    base.siteOpen = false;
+  } else if (envOpen === "1" || envOpen === "true" || envOpen === "on") {
+    base.siteOpen = true;
+  }
+  return base;
 }
 
 export function writeSiteSettings(next: SiteSettings): SiteSettings {
