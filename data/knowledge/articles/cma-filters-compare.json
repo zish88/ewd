@@ -2,7 +2,9 @@
   "slug": "cma-filters-compare",
   "title": "CMA XC40: оригинал vs Filtron — что смотреть",
   "platform": "cma",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Сравнение салонных/воздушных фильтров XC40: у Filtron воздушный близок к OEM, угольный салонный — реже по плотности. Решайте по VIN и запаху в салоне.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **XC40** владельцы сравнивают OEM и **Filtron**: воздушный часто один в один, салонный угольный у аналога может быть реже.\n\n## На что смотреть\n\n- Высота пакета и поролон по торцам\n- Наличие угля / запах после 1–2 недель\n- Номер в EPC, не «похоже на фото»\n\n## Важно\n\nВыжимка опыта Drive2, не тест лаборатории. Сверяйте PN.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/628759023952343142/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/628759023952343142/"
+  },
+  "title_en": "CMA XC40: OEM vs Filtron — what to check",
+  "summary_en": "XC40 cabin/air filter comparison: Filtron air is often close to OEM; charcoal cabin may be less dense. Decide by VIN and cabin odor.",
+  "body_md_en": "## Summary\n\nOn the **XC40**, owners compare OEM and **Filtron**: air often matches; charcoal cabin aftermarket may be looser.\n\n## What to check\n\n- Pack height and end foam\n- Charcoal / odor after 1–2 weeks\n- EPC number, not “looks like the photo”\n\n## Important\n\nDrive2 experience, not a lab test. Verify PN."
 }

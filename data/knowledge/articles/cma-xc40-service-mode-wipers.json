@@ -1,0 +1,22 @@
+{
+  "slug": "cma-xc40-service-mode-wipers",
+  "title": "CMA XC40: сервисный режим дворников",
+  "platform": "cma",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Перед заменой щёток на XC40 поводки поднимают через сервисный режим в дисплее (не силой). Иначе можно повредить механизм под жабо.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nНа **XC40** дворники паркуются низко; для замены нужен **service position**.\n\n## Практика\n\n1. Меню автомобиля → стеклоочистители → сервисное положение.\n2. Зажигание/авто — по инструкции экрана.\n3. Замена щётки клипсой на поводке.\n4. Вывести из сервиса тем же меню.\n\n## Важно\n\nНе поднимайте поводок «на холодную» из парковки — можно сломать тягу.",
+  "links": [
+    {
+      "title": "Volvo XC40 Support — wipers",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "CMA XC40: wiper service mode",
+  "summary_en": "Before blade swap, raise arms via service mode in the display (not by force). Otherwise you can damage the mechanism under the cowl.",
+  "body_md_en": "## Summary\n\nOn **XC40** wipers park low; replacement needs **service position**.\n\n## Procedure\n\n1. Car menu → wipers → service position.\n2. Ignition/car — per screen instructions.\n3. Swap blade with the arm clip.\n4. Exit service mode the same way.\n\n## Important\n\nDo not lift the arm cold from park — you can break the linkage."
+}

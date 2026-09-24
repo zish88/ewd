@@ -2,7 +2,9 @@
   "slug": "p1-timing-pump-brands",
   "title": "P1: ГРМ + помпа — какие бренды ставят",
   "platform": "p1",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На 850/S70 при замене ремня ГРМ часто меняют помпу пакетом: ремень OEM, помпа Aisin, ролики INA. Это уже не «5 минут», но PN полезны заранее.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P1** по сроку/пробегу меняют **ремень ГРМ**; помпу берут сразу, даже если «ещё живая».\n\n## Что берут в БЖ\n\n- Ремень — оригинал Volvo\n- Помпа — **Aisin**\n- Ролики/натяжитель — **INA** / Aisin\n- Сальник коленвала — оригинал (в постах встречаются **6768219**, **6842273** — сверяйте)\n\n## Важно\n\nНужны метки и фиксатор распредвалов. Это не лёгкая замена фильтра — планируйте время. **VIN обязателен.** Источник Drive2.",
@@ -18,5 +20,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/689270921264903003/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/689270921264903003/"
+  },
+  "title_en": "P1: timing belt + pump — brands owners use",
+  "summary_en": "850/S70 timing jobs often include pump in the kit: OEM belt, Aisin pump, INA rollers. Not a 5-minute job, but PN are worth having early.",
+  "body_md_en": "## Summary\n\nOn **P1**, replace the **timing belt** on interval/mileage; take the pump even if it “still spins”.\n\n## Common picks in logs\n\n- Belt — Volvo OEM\n- Pump — **Aisin**\n- Rollers/tensioner — **INA** / Aisin\n- Crank seal — OEM (posts mention **6768219**, **6842273** — verify)\n\n## Important\n\nTiming marks and cam locks required. Not a filter swap — plan time. **VIN mandatory.** Source: Drive2."
 }

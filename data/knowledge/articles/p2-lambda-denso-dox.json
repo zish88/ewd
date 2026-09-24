@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/674080343493444013/"
-  }
+  },
+  "title_en": "P2 S60: Denso lambda — DOX-0410/0412/1419",
+  "summary_en": "B5244S has three regulator sensor variants by VIN/chassis: DOX-0410, DOX-0412, DOX-1419. OEM confusion is common.",
+  "body_md_en": "## Summary\n\nLambda selection on **S60 P2** 2.4 NA.\n\n## References\n\n- DOX-0410 / OEM **8627599** (US market / S6)\n- DOX-0412 / **8658237** (chassis from ~235108)\n- DOX-1419 / **9497252** (chassis to ~235107)\n\n## Important\n\nVIN + cable length only."
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { LangInlineControl, useUiLang } from "./i18n/LangProvider.js";
 
 type PlatformStatus = "full" | "partial" | "ewd_on_site";
 
@@ -40,6 +41,8 @@ type Article = ArticleMeta & {
   links: ArticleLink[];
   author?: ArticleAuthor | null;
   liked_by_me?: boolean;
+  content_lang?: string;
+  needs_en_body?: boolean;
 };
 
 type KbComment = {
@@ -51,19 +54,7 @@ type KbComment = {
 };
 
 const LS_PLATFORM = "volvoKbPlatform";
-
-/** Unified short badge — same look for every platform */
-const STATUS_BADGE: Record<PlatformStatus, string> = {
-  full: "полно",
-  partial: "частично",
-  ewd_on_site: "частично",
-};
-
-const STATUS_HINT: Record<PlatformStatus, string> = {
-  full: "материалы полные",
-  partial: "ограниченно — курируемые заметки",
-  ewd_on_site: "схемы EWD на сайте · KB — FAQ и запчасти",
-};
+const KB_PAGE_SIZE = 20;
 
 function readInitialPlatform(defaultId: string): string {
   const q = new URLSearchParams(window.location.search);
@@ -101,6 +92,12 @@ function syncUrl(platform: string, topic: string | null, slug: string | null, q:
   if (topic) params.set("topic", topic);
   if (slug) params.set("slug", slug);
   if (q.trim()) params.set("q", q.trim());
+  try {
+    const lang = new URLSearchParams(window.location.search).get("lang");
+    if (lang === "ru" || lang === "en") params.set("lang", lang);
+  } catch {
+    /* ignore */
+  }
   const next = `/knowledge?${params.toString()}`;
   if (`${window.location.pathname}${window.location.search}` !== next) {
     window.history.replaceState(null, "", next);
@@ -187,6 +184,7 @@ function inlineMd(text: string): ReactNode[] {
 }
 
 export function KnowledgePage() {
+  const { t, lang } = useUiLang();
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [platform, setPlatform] = useState(() => readInitialPlatform("p3"));
@@ -201,6 +199,7 @@ export function KnowledgePage() {
   const [error, setError] = useState("");
   const [expandingSlug, setExpandingSlug] = useState<string | null>(null);
   const [commentsEnabled, setCommentsEnabled] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(KB_PAGE_SIZE);
 
   const currentPlatform = useMemo(
     () => platforms.find((p) => p.id === platform) || null,
@@ -229,7 +228,7 @@ export function KnowledgePage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/knowledge/platforms")
+    fetch(`/api/knowledge/platforms?lang=${lang}`)
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return;
@@ -242,12 +241,12 @@ export function KnowledgePage() {
         setTopic((prev) => (prev === "ewd_status" ? null : prev));
       })
       .catch(() => {
-        if (!cancelled) setError("Не удалось загрузить платформы");
+        if (!cancelled) setError(t("kb.loadPlatformsErr"));
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [lang, t]);
 
   useEffect(() => {
     if (!platform) return;
@@ -260,12 +259,16 @@ export function KnowledgePage() {
   }, [platform, topic, slug, query]);
 
   useEffect(() => {
+    setVisibleCount(KB_PAGE_SIZE);
+  }, [platform, topic, query, searching]);
+
+  useEffect(() => {
     if (!platform || searching) return;
     let cancelled = false;
     setLoading(true);
     setError("");
     setSearchHits(null);
-    const qs = new URLSearchParams({ platform });
+    const qs = new URLSearchParams({ platform, lang });
     if (topic) qs.set("topic", topic);
     fetch(`/api/knowledge/articles?${qs}`)
       .then((r) => r.json())
@@ -281,14 +284,14 @@ export function KnowledgePage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setError("Не удалось загрузить статьи");
+          setError(t("kb.loadArticlesErr"));
           setLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [platform, topic, searching]);
+  }, [platform, topic, searching, lang, slug, t]);
 
   useEffect(() => {
     if (!searching) {
@@ -298,7 +301,7 @@ export function KnowledgePage() {
     let cancelled = false;
     setLoading(true);
     setError("");
-    const qs = new URLSearchParams({ q: query.trim(), platform });
+    const qs = new URLSearchParams({ q: query.trim(), platform, lang });
     fetch(`/api/knowledge/search?${qs}`)
       .then((r) => r.json())
       .then((d) => {
@@ -309,14 +312,14 @@ export function KnowledgePage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setError("Поиск не удался");
+          setError(t("kb.searchErr"));
           setLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [query, platform, searching]);
+  }, [query, platform, searching, lang, t]);
 
   useEffect(() => {
     if (!slug) {
@@ -324,7 +327,7 @@ export function KnowledgePage() {
       return;
     }
     let cancelled = false;
-    fetch(`/api/knowledge/articles/${encodeURIComponent(slug)}`)
+    fetch(`/api/knowledge/articles/${encodeURIComponent(slug)}?lang=${lang}`)
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return;
@@ -342,7 +345,7 @@ export function KnowledgePage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, lang]);
 
   function selectPlatform(id: string) {
     setPlatform(id);
@@ -380,19 +383,22 @@ export function KnowledgePage() {
   };
 
   const list = searching ? searchHits || [] : articles;
+  const visibleList = list.slice(0, visibleCount);
+  const remaining = Math.max(0, list.length - visibleCount);
 
   return (
     <main className="kb-page" data-testid="knowledge-page">
       <div className="kb-page__inner">
         <header className="kb-page__header" id="kb-top">
           <div>
-            <h1 className="kb-page__title">База знаний</h1>
-            <p className="kb-page__lead">
-              Платформа → тема или поиск по симптомам. Материалы разных поколений не смешиваются.
-            </p>
+            <div className="kb-page__brand-row">
+              <h1 className="kb-page__title">{t("kb.title")}</h1>
+              <LangInlineControl />
+            </div>
+            <p className="kb-page__lead">{t("kb.lead")}</p>
           </div>
           <a className="kb-page__back" href="/">
-            ← К схемам P3
+            {t("kb.back")}
           </a>
         </header>
 
@@ -405,7 +411,7 @@ export function KnowledgePage() {
 
         <form className="kb-search" onSubmit={runSearch} role="search">
           <label className="kb-page__section-label" htmlFor="kb-search-input">
-            Поиск по проблеме
+            {t("kb.searchLabel")}
           </label>
           <div className="kb-search__row">
             <input
@@ -413,30 +419,30 @@ export function KnowledgePage() {
               data-testid="kb-search-input"
               className="kb-search__input"
               type="search"
-              placeholder="Например: термостат, салонный фильтр, омыватель…"
+              placeholder={t("kb.searchPlaceholder")}
               value={queryDraft}
               onChange={(e) => setQueryDraft(e.target.value)}
             />
             <button type="submit" className="kb-search__btn">
-              Найти
+              {t("kb.searchSubmit")}
             </button>
             {searching ? (
               <button type="button" className="kb-search__clear" onClick={clearSearch}>
-                Сброс
+                {t("kb.searchClear")}
               </button>
             ) : null}
           </div>
           {searching ? (
             <p className="kb-page__hint">
-              Поиск в полке <strong>{platform.toUpperCase()}</strong>
-              {searchHits ? ` · найдено ${searchHits.length}` : ""}
+              {t("kb.searchInShelf")} <strong>{platform.toUpperCase()}</strong>
+              {searchHits ? ` · ${t("kb.searchFound", { n: searchHits.length })}` : ""}
             </p>
           ) : null}
         </form>
 
-        <section className="kb-page__section" aria-label="Платформа">
-          <div className="kb-page__section-label">Платформа</div>
-          <div className="kb-platform-picker" role="tablist" aria-label="Выбор платформы">
+        <section className="kb-page__section" aria-label={t("kb.platformAria")}>
+            <div className="kb-page__section-label">{t("kb.platform")}</div>
+          <div className="kb-platform-picker" role="tablist" aria-label={t("kb.platformPickAria")}>
             {platforms.map((p) => {
               const active = p.id === platform;
               return (
@@ -453,7 +459,7 @@ export function KnowledgePage() {
                   <span className="kb-platform-btn__count" data-testid={`kb-platform-count-${p.id}`}>
                     {typeof p.article_count === "number" ? p.article_count : "—"}
                   </span>
-                  <span className="kb-badge">{STATUS_BADGE[p.status] || "частично"}</span>
+                  <span className="kb-badge">{t(`kb.status.${p.status}`) || t("kb.status.partial")}</span>
                 </button>
               );
             })}
@@ -462,34 +468,34 @@ export function KnowledgePage() {
             <p className="kb-page__hint">
               {currentPlatform.subtitle}
               {" · "}
-              {STATUS_HINT[currentPlatform.status]}
+              {t(`kb.statusHint.${currentPlatform.status}`)}
               {currentPlatform.models_short?.length
-                ? ` · типичные кузова: ${currentPlatform.models_short.join(", ")}`
+                ? ` · ${currentPlatform.models_short.join(", ")}`
                 : null}
             </p>
           ) : null}
         </section>
 
         {!searching ? (
-          <section className="kb-page__section" aria-label="Тема">
-            <div className="kb-page__section-label">Раздел</div>
+          <section className="kb-page__section" aria-label={t("kb.topicAria")}>
+            <div className="kb-page__section-label">{t("kb.topic")}</div>
             <div className="kb-topic-chips">
               <button
                 type="button"
                 className={`kb-chip${!topic ? " is-active" : ""}`}
                 onClick={() => selectTopic(null)}
               >
-                Все
+                {t("kb.allTopics")}
               </button>
-              {topics.map((t) => (
+              {topics.map((topicItem) => (
                 <button
-                  key={t.id}
+                  key={topicItem.id}
                   type="button"
-                  data-testid={`kb-topic-${t.id}`}
-                  className={`kb-chip${topic === t.id ? " is-active" : ""}`}
-                  onClick={() => selectTopic(t.id)}
+                  data-testid={`kb-topic-${topicItem.id}`}
+                  className={`kb-chip${topic === topicItem.id ? " is-active" : ""}`}
+                  onClick={() => selectTopic(topicItem.id)}
                 >
-                  {t.label}
+                  {topicItem.label}
                 </button>
               ))}
             </div>
@@ -501,43 +507,48 @@ export function KnowledgePage() {
         {article ? (
           <article className="kb-article" data-testid="kb-article">
             <button type="button" className="kb-article__back" onClick={() => setSlug(null)}>
-              ← К списку
+              {t("kb.backList")}
             </button>
             <h2 className="kb-article__title">{article.title}</h2>
             <p className="kb-article__meta">
               {article.platform.toUpperCase()}
               {article.updated ? ` · ${article.updated}` : ""}
             </p>
+            {lang === "en" && article.needs_en_body ? (
+              <p className="kb-page__hint" data-testid="kb-en-pending">
+                {t("kb.originalRu")}
+              </p>
+            ) : null}
             <SimpleMarkdown source={article.body_md || article.summary} />
             {article.component_code ? (
               <p className="kb-article__deep">
                 <a href={`/?code=${encodeURIComponent(article.component_code)}`}>
-                  Открыть узел {article.component_code} в EWD →
+                  {t("kb.openNode", { code: article.component_code })}
                 </a>
               </p>
             ) : null}
             {article.author?.post_url || article.author?.profile_url || article.author?.name ? (
               <div className="kb-author" data-testid="kb-author">
-                <h3 className="kb-author__title">Источник / автор</h3>
+                <h3 className="kb-author__title">{t("kb.authorTitle")}</h3>
                 <p className="kb-author__body">
                   {article.author.name ? <span>{article.author.name} · </span> : null}
                   {article.author.post_url ? (
                     <a href={article.author.post_url} target="_blank" rel="noopener noreferrer external">
-                      Пост на Drive2
+                      {t("kb.authorPost")}
                     </a>
                   ) : article.author.profile_url ? (
                     <a href={article.author.profile_url} target="_blank" rel="noopener noreferrer external">
-                      Профиль автора
+                      {t("kb.authorProfile")}
                     </a>
                   ) : (
-                    <span>Материал по мотивам бортжурнала</span>
+                    <span>{t("kb.authorFallback")}</span>
                   )}
                 </p>
               </div>
             ) : null}
             {article.links?.length ? (
               <div className="kb-sources">
-                <h3 className="kb-sources__title">Источники</h3>
+                <h3 className="kb-sources__title">{t("kb.sources")}</h3>
                 <ul>
                   {article.links.map((l) => (
                     <li key={l.url}>
@@ -558,46 +569,61 @@ export function KnowledgePage() {
             {commentsEnabled ? <KbCommentsBlock slug={article.slug} /> : null}
           </article>
         ) : (
-          <section className="kb-list" aria-label="Статьи" data-testid="kb-article-list">
+          <section className="kb-list" aria-label={t("kb.articlesAria")} data-testid="kb-article-list">
             {loading ? (
-              <p className="kb-page__hint">Загрузка…</p>
+              <p className="kb-page__hint">{t("kb.loading")}</p>
             ) : list.length === 0 ? (
               <p className="kb-empty" data-testid="kb-empty">
                 {searching
-                  ? "Ничего не найдено по запросу на этой платформе. Смените полку или уточните слова."
-                  : `Пока мало материалов по этой платформе${topic ? " и теме" : ""}.`}
+                  ? t("kb.emptySearch")
+                  : `${t("kb.emptyList")}${topic ? t("kb.emptyTopic") : ""}.`}
               </p>
             ) : (
-              <div className="kb-list__cards">
-                {list.map((a) => (
+              <>
+                <div className="kb-list__cards">
+                  {visibleList.map((a) => (
+                    <button
+                      key={a.slug}
+                      type="button"
+                      className={`kb-card${expandingSlug === a.slug ? " is-expanding" : ""}`}
+                      data-testid={`kb-card-${a.slug}`}
+                      onClick={() => openArticle(a.slug)}
+                    >
+                      <span className="kb-card__title">{a.title}</span>
+                      <span className="kb-card__summary">{a.summary}</span>
+                      <span className="kb-card__tags">
+                        <span className="kb-card__tag">{a.platform.toUpperCase()}</span>
+                        {a.topics.map((t) => (
+                          <span key={t} className="kb-card__tag">
+                            {t}
+                          </span>
+                        ))}
+                        {(a.like_count || 0) > 0 ? (
+                          <span className="kb-card__tag kb-card__tag--eng">+{a.like_count}</span>
+                        ) : null}
+                        {commentsEnabled && (a.comment_count || 0) > 0 ? (
+                          <span className="kb-card__tag kb-card__tag--eng">
+                            комм. {a.comment_count}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {remaining > 0 ? (
                   <button
-                    key={a.slug}
                     type="button"
-                    className={`kb-card${expandingSlug === a.slug ? " is-expanding" : ""}`}
-                    data-testid={`kb-card-${a.slug}`}
-                    onClick={() => openArticle(a.slug)}
+                    className="kb-list__more"
+                    data-testid="kb-list-more"
+                    onClick={() => setVisibleCount((n) => n + KB_PAGE_SIZE)}
                   >
-                    <span className="kb-card__title">{a.title}</span>
-                    <span className="kb-card__summary">{a.summary}</span>
-                    <span className="kb-card__tags">
-                      <span className="kb-card__tag">{a.platform.toUpperCase()}</span>
-                      {a.topics.map((t) => (
-                        <span key={t} className="kb-card__tag">
-                          {t}
-                        </span>
-                      ))}
-                      {(a.like_count || 0) > 0 ? (
-                        <span className="kb-card__tag kb-card__tag--eng">+{a.like_count}</span>
-                      ) : null}
-                      {commentsEnabled && (a.comment_count || 0) > 0 ? (
-                        <span className="kb-card__tag kb-card__tag--eng">
-                          комм. {a.comment_count}
-                        </span>
-                      ) : null}
+                    {t("kb.more")} {Math.min(KB_PAGE_SIZE, remaining)}
+                    <span className="kb-list__more-meta">
+                      · {t("kb.moreMeta", { shown: visibleList.length, total: list.length })}
                     </span>
                   </button>
-                ))}
-              </div>
+                ) : null}
+              </>
             )}
           </section>
         )}
@@ -607,14 +633,14 @@ export function KnowledgePage() {
             type="button"
             className="kb-to-top"
             data-testid="kb-to-top"
-            aria-label="Наверх"
+            aria-label={t("kb.toTopAria")}
             onClick={() => {
               const el = document.getElementById("kb-top");
               if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
               else window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            ↑ Наверх
+            {t("kb.toTop")}
           </button>
         ) : null}
       </div>
@@ -635,6 +661,7 @@ function KbContributeForm({
   topics: Topic[];
   defaultTopic: string;
 }) {
+  const { t } = useUiLang();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"link" | "article">("link");
   const [formPlatform, setFormPlatform] = useState(platform);
@@ -702,7 +729,7 @@ function KbContributeForm({
       });
       const data = await response.json();
       if (!response.ok || data.ok === false) {
-        setFormError(data.error || "Ошибка отправки");
+        setFormError(data.error || t("kb.formErr"));
         await loadChallenge();
         return;
       }
@@ -714,7 +741,7 @@ function KbContributeForm({
       setAuthorName("");
       setChallengeAnswer("");
     } catch {
-      setFormError("Сеть недоступна. Попробуйте позже.");
+      setFormError(t("kb.networkErr"));
     } finally {
       setBusy(false);
     }
@@ -724,9 +751,9 @@ function KbContributeForm({
     <section className="kb-contribute" id="kb-contribute" data-testid="kb-contribute">
       <div className="kb-contribute__head">
         <div className="kb-contribute__intro">
-          <h2 className="kb-contribute__title">Предложить материал</h2>
+          <h2 className="kb-contribute__title">{t("kb.contributeTitle")}</h2>
           {!open ? (
-            <p className="kb-contribute__hint">Своя выжимка + ссылка · после модерации</p>
+            <p className="kb-contribute__hint">{t("kb.contributeHint")}</p>
           ) : null}
         </div>
         <button
@@ -740,7 +767,7 @@ function KbContributeForm({
             setFormError("");
           }}
         >
-          {open ? "Свернуть" : "Форма"}
+          {open ? t("kb.contributeClose") : t("kb.contributeToggleOpen")}
         </button>
       </div>
 
@@ -748,7 +775,7 @@ function KbContributeForm({
         doneId !== null ? (
           <div className="kb-contribute__done" data-testid="kb-contribute-done">
             <p>
-              Спасибо! Заявка <strong>#{doneId || "—"}</strong> принята и ждёт модерации.
+              {t("kb.contributeDone", { id: doneId || "—" })}
             </p>
             <button
               type="button"
@@ -758,39 +785,39 @@ function KbContributeForm({
                 void loadChallenge();
               }}
             >
-              Ещё
+              {t("kb.contributeAgain")}
             </button>
           </div>
         ) : (
           <form className="kb-contribute__form" onSubmit={onSubmit} data-testid="kb-contribute-form">
             <p className="kb-contribute__hint kb-contribute__hint--form">
-              Без копипаста чужих текстов. Своими словами + ссылка на автора.
+              {t("kb.contributeHintForm")}
             </p>
             <label className="kb-contribute__hp" aria-hidden>
-              Компания
+              Company
               <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
             </label>
 
-            <div className="kb-contribute__kinds" role="group" aria-label="Тип">
+            <div className="kb-contribute__kinds" role="group" aria-label={t("kb.kindAria")}>
               <button
                 type="button"
                 className={`kb-chip${kind === "link" ? " is-active" : ""}`}
                 onClick={() => setKind("link")}
               >
-                Ссылка
+                {t("kb.kindLink")}
               </button>
               <button
                 type="button"
                 className={`kb-chip${kind === "article" ? " is-active" : ""}`}
                 onClick={() => setKind("article")}
               >
-                Статья
+                {t("kb.kindArticle")}
               </button>
             </div>
 
             <div className="kb-contribute__row">
               <label className="kb-contribute__field">
-                Платформа
+                {t("kb.platform")}
                 <select
                   value={formPlatform}
                   onChange={(e) => setFormPlatform(e.target.value)}
@@ -805,11 +832,11 @@ function KbContributeForm({
                 </select>
               </label>
               <label className="kb-contribute__field">
-                Раздел
+                {t("kb.topic")}
                 <select value={formTopic} onChange={(e) => setFormTopic(e.target.value)}>
-                  {(topics.length ? topics : [{ id: "parts", label: "Запчасти" }]).map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
+                  {(topics.length ? topics : [{ id: "parts", label: t("kb.topic.parts") }]).map((topicItem) => (
+                    <option key={topicItem.id} value={topicItem.id}>
+                      {topicItem.label}
                     </option>
                   ))}
                 </select>
@@ -817,19 +844,19 @@ function KbContributeForm({
             </div>
 
             <label className="kb-contribute__field">
-              Заголовок
+              {t("kb.fieldTitle")}
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 maxLength={160}
-                placeholder="Кратко: что за материал"
+                placeholder={t("kb.fieldTitlePh")}
                 data-testid="kb-contribute-title"
               />
             </label>
 
             <label className="kb-contribute__field">
-              Ссылка {kind === "link" ? "(обязательно)" : ""}
+              {kind === "link" ? t("kb.fieldUrlRequired") : t("kb.fieldUrl")}
               <input
                 type="url"
                 value={sourceUrl}
@@ -841,13 +868,13 @@ function KbContributeForm({
             </label>
 
             <label className="kb-contribute__field">
-              Кратко своими словами
+              {t("kb.fieldSummary")}
               <textarea
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
                 rows={2}
                 maxLength={500}
-                placeholder="Суть / PN — без копипаста"
+                placeholder={t("kb.fieldSummaryPh")}
                 required={kind === "link"}
                 data-testid="kb-contribute-summary"
               />
@@ -855,30 +882,30 @@ function KbContributeForm({
 
             {kind === "article" ? (
               <label className="kb-contribute__field">
-                Текст (markdown)
+                {t("kb.fieldBody")}
                 <textarea
                   value={bodyMd}
                   onChange={(e) => setBodyMd(e.target.value)}
                   rows={4}
                   maxLength={8000}
-                  placeholder={"## Суть\n\n…"}
+                  placeholder={"## …"}
                   data-testid="kb-contribute-body"
                 />
               </label>
             ) : null}
 
             <label className="kb-contribute__field">
-              Имя / ник (необяз.)
+              {t("kb.commentName")}
               <input
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 maxLength={80}
-                placeholder="Как подписать"
+                placeholder={t("kb.fieldAuthorPh")}
               />
             </label>
 
             <label className="kb-contribute__field">
-              {challenge ? `${challenge.a} + ${challenge.b} = ?` : "Проверка…"}
+              {challenge ? `${challenge.a} + ${challenge.b} = ?` : t("kb.commentChallenge")}
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -892,7 +919,7 @@ function KbContributeForm({
             {formError ? <p className="kb-page__error">{formError}</p> : null}
 
             <button type="submit" className="kb-contribute__submit" disabled={busy} data-testid="kb-contribute-submit">
-              {busy ? "…" : "Отправить"}
+              {busy ? t("kb.sending") : t("kb.send")}
             </button>
           </form>
         )
@@ -910,6 +937,7 @@ function KbArticleLike({
   initialCount: number;
   initiallyLiked: boolean;
 }) {
+  const { t } = useUiLang();
   const [count, setCount] = useState(initialCount);
   const [liked, setLiked] = useState(initiallyLiked);
   const [busy, setBusy] = useState(false);
@@ -949,7 +977,7 @@ function KbArticleLike({
         disabled={liked || busy}
         onClick={() => void onLike()}
       >
-        {liked ? "Оценено" : "Полезно +"}
+        {liked ? t("kb.liked") : t("kb.like")}
       </button>
       <span className="kb-like__count" data-testid="kb-like-count">
         {count}
@@ -959,6 +987,7 @@ function KbArticleLike({
 }
 
 function KbCommentsBlock({ slug }: { slug: string }) {
+  const { t } = useUiLang();
   const [comments, setComments] = useState<KbComment[]>([]);
   const [authorName, setAuthorName] = useState("");
   const [body, setBody] = useState("");
@@ -1027,7 +1056,7 @@ function KbCommentsBlock({ slug }: { slug: string }) {
       });
       const d = await r.json();
       if (!r.ok || !d?.ok) {
-        setError(String(d?.error || "Не удалось отправить"));
+        setError(String(d?.error || t("kb.commentSendErr")));
         void loadChallenge();
         return;
       }
@@ -1037,7 +1066,7 @@ function KbCommentsBlock({ slug }: { slug: string }) {
       else void loadComments();
       void loadChallenge();
     } catch {
-      setError("Сеть недоступна");
+      setError(t("kb.networkShort"));
     } finally {
       setBusy(false);
     }
@@ -1049,7 +1078,7 @@ function KbCommentsBlock({ slug }: { slug: string }) {
     <section
       className={`kb-comments${open ? " is-open" : ""}`}
       data-testid="kb-comments"
-      aria-label="Комментарии"
+      aria-label={t("kb.comments")}
     >
       <button
         type="button"
@@ -1059,7 +1088,8 @@ function KbCommentsBlock({ slug }: { slug: string }) {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="kb-comments__title">
-          Комментарии{countLabel}
+          {t("kb.comments")}
+          {countLabel}
         </span>
         <span className="kb-comments__chevron" aria-hidden>
           {open ? "▾" : "▸"}
@@ -1073,17 +1103,17 @@ function KbCommentsBlock({ slug }: { slug: string }) {
               <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
             </label>
             <label className="kb-contribute__field">
-              Имя (необяз.)
+              {t("kb.commentName")}
               <input
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 maxLength={40}
-                placeholder="Аноним"
+                placeholder={t("kb.commentNamePh")}
                 data-testid="kb-comment-name"
               />
             </label>
             <label className="kb-contribute__field">
-              Комментарий
+              {t("kb.commentBody")}
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -1091,12 +1121,12 @@ function KbCommentsBlock({ slug }: { slug: string }) {
                 maxLength={1000}
                 required
                 minLength={2}
-                placeholder="Коротко по делу…"
+                placeholder={t("kb.commentBodyPh")}
                 data-testid="kb-comment-body"
               />
             </label>
             <label className="kb-contribute__field">
-              {challenge ? `${challenge.a} + ${challenge.b} = ?` : "Проверка…"}
+              {challenge ? `${challenge.a} + ${challenge.b} = ?` : t("kb.commentChallenge")}
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -1108,24 +1138,24 @@ function KbCommentsBlock({ slug }: { slug: string }) {
             </label>
             {error ? <p className="kb-page__error">{error}</p> : null}
             <button type="submit" className="kb-comments__submit" disabled={busy} data-testid="kb-comment-submit">
-              {busy ? "…" : "Отправить"}
-            </button>
-          </form>
+          {busy ? t("kb.sending") : t("kb.send")}
+        </button>
+      </form>
 
-          <ul className="kb-comments__list">
-            {comments.map((c) => (
-              <li key={c.id} className="kb-comments__item" data-testid={`kb-comment-${c.id}`}>
-                <div className="kb-comments__meta">
-                  <strong>{c.author_name.trim() || "Аноним"}</strong>
-                  <span>{c.created_at}</span>
-                </div>
-                <p className="kb-comments__body">{c.body}</p>
-              </li>
-            ))}
-          </ul>
-          {loaded && comments.length === 0 ? (
-            <p className="kb-page__hint">Пока нет комментариев — будьте первым.</p>
-          ) : null}
+      <ul className="kb-comments__list">
+        {comments.map((c) => (
+          <li key={c.id} className="kb-comments__item" data-testid={`kb-comment-${c.id}`}>
+            <div className="kb-comments__meta">
+              <strong>{c.author_name.trim() || t("kb.commentNamePh")}</strong>
+              <span>{c.created_at}</span>
+            </div>
+            <p className="kb-comments__body">{c.body}</p>
+          </li>
+        ))}
+      </ul>
+      {loaded && comments.length === 0 ? (
+        <p className="kb-page__hint">{t("kb.commentsEmpty")}</p>
+      ) : null}
         </div>
       ) : null}
     </section>

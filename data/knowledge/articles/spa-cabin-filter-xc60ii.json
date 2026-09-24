@@ -2,7 +2,9 @@
   "slug": "spa-cabin-filter-xc60ii",
   "title": "SPA: салонный фильтр XC60 II — OEM и аналоги",
   "platform": "spa",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На SPA XC60 II фильтр под бардачком без полного снятия ящика: Torx T20, крышка на фиксаторах. OEM 31407748 / 31404469, MANN CUK34003.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **SPA** (XC60 II и родственные) замена салонного фильтра проще, чем кажется: панель под бардачком, крышка канала, фильтр.\n\n## Партномера\n\n- OEM угольный: **31407748**\n- OEM пылевой/связанный: **31404469**\n- Аналог: **MANN CUK34003** (и кроссы вроде Nordfil CN1141K — проверяйте размер)\n\n## Практика\n\nTorx **T20** на нижней панели → два поворота фиксаторов крышки → боковые защёлки. Иногда удобнее отстегнуть воздуховод («хобот»).\n\n## Важно\n\nПолка SPA на сайте — **partial** (полного EWD нет). Сверяйте PN по VIN. Выжимка с Drive2.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/695747044752497179/"
-  }
+  },
+  "title_en": "SPA: XC60 II cabin filter — OEM and crosses",
+  "summary_en": "SPA XC60 II: filter under glove box without removing the box — Torx T20, latch cover. OEM 31407748 / 31404469, MANN CUK34003.",
+  "body_md_en": "## Summary\n\n**SPA** (XC60 II family) cabin filter: panel under glove box, duct cover, element.\n\n## Part numbers\n\n- Charcoal OEM **31407748**\n- Dust/related OEM **31404469**\n- Cross **MANN CUK34003** (Nordfil CN1141K etc. — verify size)\n\n## Procedure\n\nTorx **T20** lower panel → twist cover latches → side clips. Sometimes detach the “snout” duct.\n\n## Important\n\nSPA shelf on site is **partial** (no full EWD). Verify PN via VIN. Drive2 summary."
 }

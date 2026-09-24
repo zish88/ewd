@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/634966866602754319/"
-  }
+  },
+  "title_en": "P2 S60: top alternator swap + Gates belt",
+  "summary_en": "Bearing/overrun noise: alternator out from top after fan; Gates belt 6DPK1838 and INA 531076010 idler.",
+  "body_md_en": "## Summary\n\nAlternator replacement on **S60 P2** from above.\n\n## Procedure\n\nRemove fan → belt → bolts past compressor → lift out.\n\n## Related PN\n\n- Belt Gates **6DPK1838**\n- Idler INA/LUK **531076010**\n\n## Important\n\nCheck overrun pulley separately."
 }

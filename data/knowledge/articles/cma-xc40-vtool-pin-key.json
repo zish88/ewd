@@ -18,5 +18,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/686584264602419987/"
-  }
+  },
+  "title_en": "CMA XC40: VTool — key PIN and service functions",
+  "summary_en": "XC40 owners use VTool for key PIN read, service resets and calibrations (AWD/climate) when Orbit is not enough.",
+  "body_md_en": "## Summary\n\nOn **XC40**, **VTool** diagnostics: second-key PIN, adaptations, calibrations.\n\n## Procedure\n\nAuthor notes fast PIN retrieval with known CEM PIN; service mode is free.\n\n## Important\n\nNot a hacking guide — owner experience only. Drive2 summary."
 }

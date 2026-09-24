@@ -2,7 +2,9 @@
   "slug": "cma-wipers-xc40",
   "title": "CMA XC40: замена щёток дворников",
   "platform": "cma",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC40 щётки снимаются кнопкой на поводке; передние часто переводят в сервисный режим с экрана. Можно менять целиком или только резинки.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nЗамена дворников на **XC40** — одна из самых простых работ: сервисное положение поводков + кнопка фиксатора на щётке.\n\n## Партномера\n\n- Передние: ориентиры послерынка вроде **DENSO DF-076** (проверяйте длину L/R).\n- Задняя OEM (пример из БЖ): **31349857**\n- Отдельно резинки (если меняете только ленту) — под ваш тип каркаса; универсальные комплекты вроде ALCA встречаются у владельцев.\n\n## Практика\n\n1. Сервисный режим щёток (через меню автомобиля — зависит от ПО).\n2. Нажать квадратную кнопку на креплении, сдвинуть щётку вверх.\n3. Не гнуть поводок.\n\n## Важно\n\nДлины левой/правой разные. Сверяйте по VIN/каталогу. Источник — опыт Drive2.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/621870583604323686/"
-  }
+  },
+  "title_en": "CMA XC40: wiper blade replacement",
+  "summary_en": "XC40 blades release with a button on the arm; fronts often need service mode from the screen. Full blades or refills only.",
+  "body_md_en": "## Summary\n\nWiper swap on the **XC40** is simple: service position + release button on the blade.\n\n## Part numbers\n\n- Front: aftermarket refs like **DENSO DF-076** (check L/R length).\n- Rear OEM (log example): **31349857**\n- Refills only — match your frame type; ALCA kits appear in owner posts.\n\n## Procedure\n\n1. Wiper service mode (car menu — software-dependent).\n2. Press the square latch, slide the blade up.\n3. Do not bend the arm.\n\n## Important\n\nLeft/right lengths differ. Verify via VIN/catalog. Source: Drive2."
 }

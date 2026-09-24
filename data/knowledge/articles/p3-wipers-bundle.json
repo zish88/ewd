@@ -2,7 +2,9 @@
   "slug": "p3-wipers-bundle",
   "title": "P3: щётки дворников — сервисный режим и PN",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Передние щётки: сервисное положение поводков после выключения зажигания. Пример комплекта VO31333385 / Valeo 574377 — сверяйте длины.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P3** смена щёток простая, но важно поднять поводки в **сервисное положение**, иначе ломают механизм.\n\n## Практика\n\nПосле выключения зажигания один раз поднять рычаг стеклоочистителей вверх — поводки встанут в сервис.\n\n## Партномера (пример из БЖ)\n\n- Комплект: **VO31333385**\n- Аналог: **Valeo 574377**\n\n## Важно\n\nДлины L/R разные. Сверяйте по VIN. Источник Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/543986402572895691/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/543986402572895691/"
+  },
+  "title_en": "P3: wiper blades — service position and PN",
+  "summary_en": "Front blades: service position after ignition off. Example kit VO31333385 / Valeo 574377 — check lengths.",
+  "body_md_en": "## Summary\n\n**P3** blade swap needs **service position** or you risk the linkage.\n\n## Procedure\n\nAfter ignition off, pull stalk once up — arms park in service.\n\n## Part numbers (log)\n\n- Kit **VO31333385**\n- Cross **Valeo 574377**\n\n## Important\n\nL/R lengths differ. VIN. Drive2."
 }

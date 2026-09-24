@@ -2,7 +2,9 @@
   "slug": "p3-accessory-belts-xc60",
   "title": "P3 XC60: приводные ремни и натяжитель — PN",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На бензиновом XC60 I при ТО-5 часто меняют внешний ремень 30777431, внутренний 31325042, натяжитель 31258153 и винт 30624274. Комплект ГРМ — отдельно по VIN.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **XC60 P3** регламент по пробегу/сроку включает **приводные ремни** навесного оборудования. Это не ГРМ, но путают часто.\n\n## Партномера (пример из БЖ)\n\n- Ремень основной (5PK): **30777431**\n- Ремень внутренний (3PK): **31325042**\n- Натяжитель: **31258153**\n- Винт натяжителя: **30624274**\n\nГРМ — отдельный ремкомплект (в посте встречается **30731727** для конкретной машины).\n\n## Важно\n\nСхема ремней зависит от мотора. **Только по VIN.** Выжимка Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/561319378751063350/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/561319378751063350/"
+  },
+  "title_en": "P3 XC60: accessory belts and tensioner — PN",
+  "summary_en": "Petrol XC60 I at service 5: outer belt 30777431, inner 31325042, tensioner 31258153, bolt 30624274. Timing belt is separate by VIN.",
+  "body_md_en": "## Summary\n\n**XC60 P3** interval service includes **accessory belts**, not the timing belt — easy to confuse.\n\n## Part numbers (log example)\n\n- Main belt (5PK): **30777431**\n- Inner belt (3PK): **31325042**\n- Tensioner: **31258153**\n- Tensioner bolt: **30624274**\n\nTiming is a separate kit (post mentions **30731727** for one car).\n\n## Important\n\nBelt routing depends on engine. **VIN only.** Drive2 summary."
 }

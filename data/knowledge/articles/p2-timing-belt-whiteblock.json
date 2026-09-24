@@ -1,0 +1,22 @@
+{
+  "slug": "p2-timing-belt-whiteblock",
+  "title": "P2 бензин: ГРМ whiteblock — комплект и признаки",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "5-цилиндровые бензины P2 (whiteblock): ремень + ролики + помпа. Свист/течь помпы — повод не ждать интервала. Комплект Gates/INA/OEM по мотору.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nБензиновые **P2** с ремнём ГРМ требуют плановой замены комплектом.\n\n## Практика\n\n- Не экономьте на помпе — меняйте вместе с ремнём.\n- Следите за течью антифриза у помпы и люфтом роликов.\n- После замены — прокачка охлаждения без воздушных пробок.\n\n## Важно\n\nИнтервал зависит от мотора и рынка; сверяйте VIDA.",
+  "links": [
+    {
+      "title": "FCP Euro — P2 timing belt kits",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "P2 petrol: whiteblock timing belt — kit and signs",
+  "summary_en": "P2 five-cylinder petrol (whiteblock): belt + rollers + pump. Whine/coolant leak at pump — do not wait for interval. Gates/INA/OEM kit per engine.",
+  "body_md_en": "## Summary\n\nPetrol **P2** with timing belt needs planned kit replacement.\n\n## Procedure\n\n- Do not skip the pump with the belt.\n- Watch coolant seep at pump and roller play.\n- Bleed cooling without air locks after.\n\n## Important\n\nInterval depends on engine and market; check VIDA."
+}

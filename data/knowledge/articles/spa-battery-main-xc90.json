@@ -2,7 +2,9 @@
   "slug": "spa-battery-main-xc90",
   "title": "SPA XC90: основная АКБ — OEM 31652065",
   "platform": "spa",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC90 II основная батарея часто OEM 31652065 (≈80 А·ч AGM). После замены владельцы обсуждают регистрацию/BMS — не ограничивайтесь «просто клеммы».",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **SPA XC90** основная АКБ в моторном отсеке; отдельно бывает вспомогательная. Типичный OEM основной: **31652065**.\n\n## Практика\n\n1. Зажигание OFF, сначала минус, потом плюс.\n2. Поставьте АКБ с теми же параметрами (ёмкость/тип AGM).\n3. После установки проверьте запуск Webasto/старт-стоп и при необходимости сделайте процедуру по BMS сканером.\n\n## Важно\n\nПолка SPA partial. Сверяйте PN по VIN. Выжимка Drive2 — без копирования чужого гайда.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/721553957045941764/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/721553957045941764/"
+  },
+  "title_en": "SPA XC90: main battery — OEM 31652065",
+  "summary_en": "XC90 II main battery is often OEM 31652065 (~80 Ah AGM). After swap owners discuss registration/BMS — not “just terminals”.",
+  "body_md_en": "## Summary\n\n**SPA XC90** main battery in engine bay; auxiliary may be separate. Typical OEM main: **31652065**.\n\n## Procedure\n\n1. Ignition OFF, negative first, then positive.\n2. Match capacity/type (AGM).\n3. Check Webasto/start-stop; BMS procedure via scanner if needed.\n\n## Important\n\nSPA shelf is partial. Verify PN via VIN. Drive2 summary."
 }

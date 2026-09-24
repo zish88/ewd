@@ -1,0 +1,22 @@
+{
+  "slug": "cma-tmap-sensor-note",
+  "title": "CMA: ошибка наддува / TMAP — с чего начать",
+  "platform": "cma",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На XC40 бензин ошибки давления/температуры наддува: патрубки интеркулера, утечки clamp, датчик TMAP. Не сразу «турбина в хлам».",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСистема наддува CMA чувствительна к **утечкам воздуха** после турбины.\n\n## Чеклист\n\n1. Коды ECM (boost / TMAP).\n2. Патрубки и хомуты интеркулера.\n3. Разъём датчика, загрязнение.\n4. Клапан управления турбо (часто в ТО-списках).\n\n## Важно\n\nПосле работ — смотреть адаптацию и повторные коды на тест-драйве.",
+  "links": [
+    {
+      "title": "Swedespeed — XC40 boost / TMAP",
+      "url": "https://www.swedespeed.com/",
+      "site": "Swedespeed"
+    }
+  ],
+  "author": null,
+  "title_en": "CMA: boost / TMAP fault — where to start",
+  "summary_en": "XC40 petrol boost pressure/temperature faults: intercooler hoses, clamp leaks, TMAP sensor. Do not assume the turbo is destroyed first.",
+  "body_md_en": "## Summary\n\nCMA boost is sensitive to **air leaks** after the turbo.\n\n## Checklist\n\n1. ECM codes (boost / TMAP).\n2. Intercooler hoses and clamps.\n3. Sensor connector, contamination.\n4. Turbo control valve (often on service lists).\n\n## Important\n\nAfter work — check adaptation and repeat codes on a test drive."
+}

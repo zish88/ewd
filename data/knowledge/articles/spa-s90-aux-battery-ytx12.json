@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/631315663364840297/"
-  }
+  },
+  "title_en": "SPA S90: auxiliary Start/Stop battery YTX12-BS",
+  "summary_en": "Small battery at strut tower: YTX12-BS (152×88×131). Crosses Bosch M6 014, Varta 510012009, Yuasa YTX12-BS. Start/Stop fault often dead “moto” battery.",
+  "body_md_en": "## Summary\n\nAuxiliary Start/Stop battery on **S90**.\n\n## PN / size\n\n- **YTX12-BS** form factor\n- Bosch **M6 014**, Varta **510012009**, Yuasa **YTX12-BS**\n\n## Important\n\nCluster message may linger — see power-down procedure."
 }

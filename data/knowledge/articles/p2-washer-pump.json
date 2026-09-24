@@ -2,7 +2,9 @@
   "slug": "p2-washer-pump",
   "title": "P2: насос омывателя стекла — типовые PN",
   "platform": "p2",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Зимой «не льёт на стекло, а на фары льёт» — часто умирает насос или форсунки. На S60/V70 P2 смотрите OEM-номера насоса и форсунок.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P2** (S60/V70/XC70 ~2000–2007) банальная, но частая история: в мороз омыватель лобового работает нестабильно, а контур фар ещё жив — или наоборот. Часто меняют **насос** и/или **форсунки**.\n\n## Партномера (как в бортжурналах)\n\n- Форсунки / связанные OEM: встречаются **30655606** и соседние номера — сверяйте по EPC.\n- Насос: берите по VIN; «похожий от Газели» часто не садится по фишке/кронштейну.\n\n## Практика\n\nДоступ к насосу — через бачок в арке/подкрылке (зависит от кузова). После замены проверьте оба контура (стекло / фары), если они раздельные.\n\n## Важно\n\n**Сверяйте PN по VIN.** Это ориентир по чужому опыту Drive2, не полный каталог.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/669990984871848512/"
-  }
+  },
+  "title_en": "P2: windshield washer pump — typical PN",
+  "summary_en": "Winter: wrong spray pattern often means pump or nozzles. S60/V70 P2 — check OEM pump and jet numbers.",
+  "body_md_en": "## Summary\n\nOn **P2** (~2000–2007) a common winter story: windshield washer weak while headlamp washer still works — or the reverse. Often **pump** and/or **jets**.\n\n## Part numbers (owner logs)\n\n- Jets / related OEM: **30655606** and neighbors — verify in EPC.\n- Pump: by VIN; “universal” pumps often wrong plug/bracket.\n\n## Procedure\n\nPump access via reservoir in arch/liner (body-dependent). Test both circuits after replacement.\n\n## Important\n\n**Verify PN via VIN.** Drive2 hint, not a full catalog."
 }

@@ -1,0 +1,22 @@
+{
+  "slug": "spa-software-update-note",
+  "title": "SPA: обновления ПО и Sensus/Google",
+  "platform": "spa",
+  "topics": [
+    "links"
+  ],
+  "summary": "На SPA обновления идут оTA или дилером. Перед визитом сохраните профили и проверьте кампании по VIN. Это не замена диагностики железа.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСофт мультимедиа и бло ков различается по годам (Sensus vs Android Automotive).\n\n## Практика\n\n- Смотрите открытые кампании по VIN у дилера.\n- После обновления — проверить камеры/парктроник/телефон.\n- Ошибки модулей после оTA иногда лечатся повторной прошивкой, но сначала исключить 12V.\n\n## Важно\n\nНизкий заряд 12V во время обновления = риск «кирпича» мультимедиа.",
+  "links": [
+    {
+      "title": "Volvo Cars Support — software",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "SPA: software updates and Sensus/Google",
+  "summary_en": "SPA updates via OTA or dealer. Save profiles and check VIN campaigns before visit. Not a substitute for hardware diagnosis.",
+  "body_md_en": "## Summary\n\nInfotainment and module software varies by year (Sensus vs Android Automotive).\n\n## Procedure\n\n- Open campaigns by VIN at dealer.\n- After update — cameras/parking/phone.\n- Post-OTA module faults sometimes need reflash — rule out 12V first.\n\n## Important\n\nLow 12V during update risks bricked head unit."
+}

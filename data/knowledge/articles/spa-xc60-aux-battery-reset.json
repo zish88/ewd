@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/687663160387181159/"
-  }
+  },
+  "title_en": "SPA XC60: clear fault after AUX battery swap",
+  "summary_en": "CEM-B10A613 / “Start/Stop service required”: replacing the battery is not enough. AUX off → main negative → BCSM plug S → wait ≥15 min → reverse → clear CEM DTCs.",
+  "body_md_en": "## Summary\n\nProcedure after auxiliary battery on **XC60 II**.\n\n## Checklist\n\n1. Remove AUX (cover, terminals).\n2. Main battery negative.\n3. Plug **S** on **BCSM**.\n4. Wait **≥15 minutes** (new AUX installed, terminals still off).\n5. Plug S → AUX terminals → main negative.\n6. Active mode → clear CEM faults with scanner.\n\n## Important\n\nWithout pause and plug S the message often remains."
 }

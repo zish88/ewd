@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/688939418509130712/"
-  }
+  },
+  "title_en": "P3 XC60: tall battery, cover and counter reset",
+  "summary_en": "Tall ~100 Ah Akom and cover; after swap teach windows and reset battery counter (low beam + fogs + hazard per log).",
+  "body_md_en": "## Summary\n\n**XC60 P3** battery without VIDA.\n\n## Procedure\n\nNegative → BMS wire → vent hose → new cover for tall case. Counter reset per log button combo.\n\n## Important\n\nRe-learn windows afterward."
 }

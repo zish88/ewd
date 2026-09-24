@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/581729887975374876/"
-  }
+  },
+  "title_en": "SPA XC90: AGM Banner 92 Ah for Webasto",
+  "summary_en": "Stock 80 Ah AGM starts at −25 but Webasto drops on charge. Higher-capacity AGM (e.g. Banner 92 Ah) + charger; watch auxiliary heater afterward.",
+  "body_md_en": "## Summary\n\nMain battery capacity matters for **Webasto** on **XC90 II**.\n\n## Procedure\n\nFull charge on quality charger first; if Webasto still quits — higher Ah AGM in same case size.\n\n## Important\n\nBMS registration/reset via diagnostics after."
 }

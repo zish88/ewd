@@ -2,7 +2,9 @@
   "slug": "p2-stop-lamp-relay",
   "title": "P2: ошибка стоп-сигнала — реле, не лампа",
   "platform": "p2",
-  "topics": ["electrical"],
+  "topics": [
+    "electrical"
+  ],
   "summary": "На V70 II лампа стопов цела, а ошибка горит — часто виновато общее реле стоп/ПТФ (OEM 9441161/9441181). Меняют на одиночные Bosch.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P2** (пример V70 II) сообщение о стоп-сигнале при целых лампах часто лечится **реле**, а не патроном.\n\n## Партномера\n\n- Штатные (из БЖ): **9441161**, **9441181**\n- Замена одиночными Bosch (пример): **0986332021**\n\n## Практика\n\nСначала проверьте лампы и контакты, затем блок реле. Родное «сдвоенное» реле часто неразборное.\n\n## Важно\n\nРаспиновка зависит от кузова. Выжимка Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/461996920001266689/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/461996920001266689/"
+  },
+  "title_en": "P2: stop lamp fault — relay, not the bulb",
+  "summary_en": "V70 II: bulb OK but warning on — often combined stop/fog relay (OEM 9441161/9441181). Replaced with single Bosch relays.",
+  "body_md_en": "## Summary\n\nOn **P2** (e.g. V70 II) stop-lamp message with good bulbs is often a **relay**, not the socket.\n\n## Part numbers\n\n- Stock (from log): **9441161**, **9441181**\n- Single Bosch replacement (example): **0986332021**\n\n## Procedure\n\nCheck bulbs and contacts first, then relay box. Stock dual relay is often non-serviceable.\n\n## Important\n\nPinout varies by body. Drive2 summary."
 }

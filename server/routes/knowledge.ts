@@ -2,9 +2,11 @@ import { Router } from "express";
 import { createHash } from "node:crypto";
 import {
   getKnowledgeArticle,
+  getKnowledgeArticleLocalized,
   listKnowledgeArticles,
   listKnowledgePlatforms,
   normalizeKnowledgePlatformId,
+  parseKnowledgeLang,
   searchKnowledgeArticles,
 } from "../knowledge.js";
 import {
@@ -49,8 +51,9 @@ function withEngagement<T extends { slug: string }>(
 export function createKnowledgeRouter(): Router {
   const router = Router();
 
-  router.get("/platforms", (_req, res) => {
-    const data = listKnowledgePlatforms();
+  router.get("/platforms", (req, res) => {
+    const lang = parseKnowledgeLang(req.query.lang);
+    const data = listKnowledgePlatforms(lang);
     res.json({ ok: true, ...data });
   });
 
@@ -109,34 +112,39 @@ export function createKnowledgeRouter(): Router {
       res.status(400).json({ ok: false, error: "Укажите q (минимум 2 символа)" });
       return;
     }
+    const lang = parseKnowledgeLang(req.query.lang);
     const platformRaw = String(req.query.platform || "").trim();
     const platform = platformRaw ? normalizeKnowledgePlatformId(platformRaw) : null;
-    const articles = withEngagement(searchKnowledgeArticles({ q, platform, limit: 40 }));
+    const articles = withEngagement(searchKnowledgeArticles({ q, platform, limit: 40, lang }));
     res.json({
       ok: true,
       q,
       platform,
+      lang,
       count: articles.length,
       articles,
     });
   });
 
   router.get("/articles", (req, res) => {
-    const catalog = listKnowledgePlatforms();
+    const lang = parseKnowledgeLang(req.query.lang);
+    const catalog = listKnowledgePlatforms(lang);
     const platform = normalizeKnowledgePlatformId(req.query.platform, catalog.default_id);
     const topic = String(req.query.topic || "").trim() || null;
-    const articles = withEngagement(listKnowledgeArticles({ platform, topic }));
+    const articles = withEngagement(listKnowledgeArticles({ platform, topic, lang }));
     res.json({
       ok: true,
       platform,
       topic,
+      lang,
       count: articles.length,
       articles,
     });
   });
 
   router.get("/articles/:slug", (req, res) => {
-    const article = getKnowledgeArticle(req.params.slug);
+    const lang = parseKnowledgeLang(req.query.lang);
+    const article = getKnowledgeArticleLocalized(req.params.slug, lang);
     if (!article) {
       res.status(404).json({ ok: false, error: "Статья не найдена" });
       return;
@@ -145,6 +153,7 @@ export function createKnowledgeRouter(): Router {
     const commentsOn = readSiteSettings().features.kbComments !== false;
     res.json({
       ok: true,
+      lang,
       article: {
         ...article,
         comment_count: commentsOn ? countKbCommentsBySlugs([article.slug])[article.slug] || 0 : 0,

@@ -1,0 +1,27 @@
+{
+  "slug": "links-obd-protocols-volvo",
+  "title": "Ссылки: OBD / DoIP на современных Volvo",
+  "platform": "spa",
+  "topics": [
+    "links"
+  ],
+  "summary": "На SPA/CMA диагностика часто DoIP (Ethernet), не только классический CAN K-line. Дешёвый ELM327 многое не увидит — нужен совместимый интерфейс.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nПоколения протоколов:\n\n- **P1/P2** — классический OBD/CAN, многое читается широким кругом адаптеров.\n- **P3** — CAN, часть функций только дилерским ПО.\n- **SPA/CMA** — **DoIP**, обычный ELM327 недостаточен для модулей.\n\n## Важно\n\nПеред покупкой сканера смотрите список поддерживаемых платформ, не маркетинговое «для всех Volvo».",
+  "links": [
+    {
+      "title": "Volvo Cars Support",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    },
+    {
+      "title": "Swedespeed — diagnostics",
+      "url": "https://www.swedespeed.com/",
+      "site": "Swedespeed"
+    }
+  ],
+  "author": null,
+  "title_en": "Links: OBD / DoIP on modern Volvo",
+  "summary_en": "SPA/CMA diagnostics is often DoIP (Ethernet), not classic CAN K-line only. A cheap ELM327 will not see much — you need a compatible interface.",
+  "body_md_en": "## Summary\n\nProtocol generations:\n\n- **P1/P2** — classic OBD/CAN; many adapters work.\n- **P3** — CAN; some functions need dealer software.\n- **SPA/CMA** — **DoIP**; a plain ELM327 is not enough for modules.\n\n## Important\n\nBefore buying a scanner, check supported platforms, not marketing “works on all Volvo”."
+}

@@ -2,7 +2,9 @@
   "slug": "p3-filters-fuel-air-cabin-pn",
   "title": "P3 D5: топливный / воздушный / салонный — таблица PN",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Справочник с бортжурнала XC70 III: топливный 32242188 (MANN PU9003Z), воздушный 31370161 (C35177), салонный угольный 31390880 (CUK2733). Сверяйте по VIN.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P3 D5** удобно держать под рукой набор фильтров. Ниже — номера, которые владельцы часто указывают в одном списке расходников.\n\n## Партномера\n\n- Топливный OEM: **32242188** · аналог **MANN PU9003Z**\n- Воздушный OEM: **31370161** · **MANN C35177**\n- Салонный угольный OEM: **31390880** · **MANN CUK2733**\n- Масляный (напоминание): **30788490** / HU719/8Y — отдельно в другой заметке\n\n## Важно\n\nКроссы зависят от мотора и рынка. **Сверяйте по VIN/EPC.** Выжимка, не полный каталог.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/620846388523109791/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/620846388523109791/"
+  },
+  "title_en": "P3 D5: fuel / air / cabin filter PN table",
+  "summary_en": "XC70 III log reference: fuel 32242188 (MANN PU9003Z), air 31370161 (C35177), charcoal cabin 31390880 (CUK2733). Verify VIN.",
+  "body_md_en": "## Summary\n\n**P3 D5** filter set owners keep in one list.\n\n## Part numbers\n\n- Fuel OEM **32242188** · cross **MANN PU9003Z**\n- Air OEM **31370161** · **MANN C35177**\n- Charcoal cabin OEM **31390880** · **MANN CUK2733**\n- Oil (reminder): **30788490** / HU719/8Y — see other note\n\n## Important\n\nCrosses vary by engine/market. **VIN/EPC.** Summary, not full catalog."
 }

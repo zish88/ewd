@@ -2,7 +2,9 @@
   "slug": "cma-battery-bms-xc40",
   "title": "CMA XC40: замена основной АКБ и сброс BMS",
   "platform": "cma",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC40 после смены основной батареи (пример: Exide ET720 под параметры ET700) владельцы делают сброс BMS — иначе счётчик «врёт» и возможны ложные ошибки.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **XC40** АКБ связана с **BMS**. Просто поменять клеммы часто мало — нужен сброс/регистрация батареи диагностикой.\n\n## Практика\n\n1. Подберите ёмкость/тип по VIN (в БЖ сравнивают ET700/ET720).\n2. Проверьте дату производства батареи.\n3. Замена на D4/схожих — по отсеку в моторном; сборка обратно.\n4. **Сброс BMS** сканером (VIDA / совместимый инструмент).\n\n## Важно\n\nПараметры АКБ только по VIN. Выжимка Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/697759700787134659/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/697759700787134659/"
+  },
+  "title_en": "CMA XC40: main battery replacement and BMS reset",
+  "summary_en": "On the XC40, after swapping the main battery (e.g. Exide ET720 sized like ET700), owners reset the BMS — otherwise the state-of-charge display lies and false faults can appear.",
+  "body_md_en": "## Summary\n\nOn the **XC40**, the battery is tied to the **BMS**. Swapping terminals alone is often not enough — you need a scan-tool reset/registration.\n\n## Procedure\n\n1. Match capacity/type to VIN (logs often compare ET700/ET720).\n2. Check battery date code.\n3. On D4 and similar: replace via the engine-bay compartment; reassemble.\n4. **BMS reset** with a scanner (VIDA / compatible tool).\n\n## Important\n\nBattery parameters only from VIN. Drive2 summary."
 }

@@ -4,6 +4,7 @@ import express from "express";
 import request from "supertest";
 import {
   getKnowledgeArticle,
+  getKnowledgeArticleLocalized,
   listKnowledgeArticles,
   listKnowledgePlatforms,
   normalizeKnowledgePlatformId,
@@ -32,13 +33,18 @@ describe("knowledge data", () => {
     assert.ok(!p2.some((a) => spa.some((s) => s.slug === a.slug)));
   });
 
-  it("loads demo article bodies", () => {
-    const spa = getKnowledgeArticle("spa-ewd-status");
-    assert.ok(spa);
-    assert.equal(spa.platform, "spa");
-    assert.ok(spa.body_md.includes("VIDA") || spa.body_md.includes("partial"));
-    const p3 = getKnowledgeArticle("p3-cem-battery-faq");
-    assert.equal(p3?.component_code, "4/56");
+  it("localizes article fields when lang=en", () => {
+    const en = getKnowledgeArticleLocalized("p2-washer-pump", "en");
+    const ru = getKnowledgeArticleLocalized("p2-washer-pump", "ru");
+    assert.ok(en);
+    assert.ok(ru);
+    assert.notEqual(en!.title, ru!.title);
+    assert.equal(en!.needs_en_body, false);
+    assert.match(en!.body_md, /Summary|P2/i);
+    const list = listKnowledgeArticles({ platform: "p2", lang: "en" });
+    assert.ok(list.some((a) => a.slug === "p2-washer-pump" && /washer|pump/i.test(a.title)));
+    const plat = listKnowledgePlatforms("en");
+    assert.ok(plat.topics.some((t) => t.id === "parts" && /parts/i.test(t.label)));
   });
 
   it("SLICE-04: each platform has ≥2 parts articles + Drive2 author link", () => {

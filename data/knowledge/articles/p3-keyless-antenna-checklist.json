@@ -1,0 +1,22 @@
+{
+  "slug": "p3-keyless-antenna-checklist",
+  "title": "P3 Keyless: не видит ключ в салоне",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "Keyless на P3: батарейка ключа, антенны салона/бампара, модуль KVM. Симптом «только у замка» часто антенна салона, не сам ключ.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСистема **keyless** опирается на несколько антенн. Одна мёртвая даёт странные зоны.\n\n## Чеклист\n\n1. Батарейка ключа и второй ключ.\n2. Коды KVM / CEM.\n3. Антенны салона (пол / консоль) и наружные.\n4. После кузовного ремонта — разъёмы в бампере.\n\n## Важно\n\nНе прописывайте новый ключ, пока не исключена антенна.",
+  "links": [
+    {
+      "title": "Volvo Forums — P3 keyless",
+      "url": "https://www.volvoforums.org.uk/",
+      "site": "Volvo Forums"
+    }
+  ],
+  "author": null,
+  "title_en": "P3 Keyless: key not detected in cabin",
+  "summary_en": "P3 keyless: key battery, cabin/bumper antennas, KVM module. “Only at the door” often cabin antenna, not the key.",
+  "body_md_en": "## Summary\n\n**Keyless** uses several antennas. One dead antenna gives odd zones.\n\n## Checklist\n\n1. Key battery and spare key.\n2. KVM / CEM codes.\n3. Cabin (floor/console) and exterior antennas.\n4. After body repair — bumper connectors.\n\n## Important\n\nDo not program a new key until antennas are ruled out."
+}

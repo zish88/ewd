@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/720755711604180305/"
-  }
+  },
+  "title_en": "SPA V90: BMS reset after main battery",
+  "summary_en": "V90/CC after new main battery: reset BMS (VTool / Launch); battery parameters must match CEM profile.",
+  "body_md_en": "## Summary\n\nMain battery on **SPA** without BMS reset skews charging.\n\n## Procedure\n\n- VTool: Service → Misc → **Reset BMS**\n- Replacement V/A/Ah = original\n\n## Important\n\nDrive2 summary."
 }

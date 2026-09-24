@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/717890659180104210/"
-  }
+  },
+  "title_en": "SPA XC90: main battery — size vs VIN",
+  "summary_en": "Webasto drains main battery. VIN may list “XC60-like” battery; 95 Ah tray may fit but retainer may not (strap workaround).",
+  "body_md_en": "## Summary\n\nMain battery **XC90 II**.\n\n## Procedure\n\nMatch **VIN**, not model name alone. Exide/OEM by tray and posts.\n\n## Important\n\nRetainer and lid height must match; strap is not a long-term fix."
 }

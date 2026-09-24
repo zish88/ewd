@@ -18,5 +18,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/713767765453841906/"
-  }
+  },
+  "title_en": "CMA XC40: main battery Exide EK720",
+  "summary_en": "Petrol XC40 at ~4 years is a common time to replace the main battery; logs used Exide EK720 — size/capacity must match exactly.",
+  "body_md_en": "## Summary\n\nOn **XC40 (CMA)** the main battery is often replaced preventively at 4–5 years.\n\n## Procedure\n\nPost used **Exide EK720** from a specialist shop; load-test before buying.\n\n## Important\n\nAfter replacement on CMA/SPA a **BMS reset** is often required. Verify PN via VIN. Drive2 summary."
 }

@@ -8,7 +8,12 @@
       "order": 1,
       "status": "partial",
       "silhouette": "wagon",
-      "models_short": ["850", "S70", "V70"]
+      "models_short": [
+        "850",
+        "S70",
+        "V70"
+      ],
+      "subtitle_en": "850 · S70 · V70 · XC70 (early)"
     },
     {
       "id": "p2",
@@ -17,7 +22,12 @@
       "order": 2,
       "status": "partial",
       "silhouette": "sedan",
-      "models_short": ["S60", "V70", "S80"]
+      "models_short": [
+        "S60",
+        "V70",
+        "S80"
+      ],
+      "subtitle_en": "S60 · V70 · XC70 · S80 (2000–2007)"
     },
     {
       "id": "p3",
@@ -26,7 +36,12 @@
       "order": 3,
       "status": "ewd_on_site",
       "silhouette": "crossover",
-      "models_short": ["XC70", "XC60", "S60"]
+      "models_short": [
+        "XC70",
+        "XC60",
+        "S60"
+      ],
+      "subtitle_en": "XC70 · V70 · S80 · XC60 · S60 · V60"
     },
     {
       "id": "cma",
@@ -35,7 +50,11 @@
       "order": 4,
       "status": "partial",
       "silhouette": "compact_suv",
-      "models_short": ["XC40", "C40"]
+      "models_short": [
+        "XC40",
+        "C40"
+      ],
+      "subtitle_en": "XC40 · C40"
     },
     {
       "id": "spa",
@@ -44,7 +63,12 @@
       "order": 5,
       "status": "partial",
       "silhouette": "large_suv",
-      "models_short": ["XC90", "XC60", "S90"]
+      "models_short": [
+        "XC90",
+        "XC60",
+        "S90"
+      ],
+      "subtitle_en": "XC90 · XC60 II · S90 · V90"
     }
   ]
 }

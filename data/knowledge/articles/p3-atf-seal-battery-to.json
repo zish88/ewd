@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/633116113655332909/"
-  }
+  },
+  "title_en": "P3 XC70: transaxle seal + battery at service",
+  "summary_en": "XC70 III service often combines left driveshaft trans seal and battery (Webasto kills batteries in winter).",
+  "body_md_en": "## Summary\n\nService + driveshaft seal + battery on **XC70 D5**.\n\n## Procedure\n\nAfter Webasto, weak crank — test/charge first, then replace. Left driveshaft seal is a common leak.\n\n## Important\n\nMeasure parasitic draw after modules sleep (~30–60 min)."
 }

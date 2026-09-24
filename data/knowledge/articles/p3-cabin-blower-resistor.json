@@ -1,0 +1,22 @@
+{
+  "slug": "p3-cabin-blower-resistor",
+  "title": "P3: печка дует только на max — резистор вентилятора",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "Если на XC60/S60 P3 вентилятор салона работает только на максимальной скорости — почти всегда блок резистора/модуль управления вентилятором под бардачком или у улитки.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nКлассика климат-системы: **только max** → сгорел резистор (или электронный модуль) вентилятора.\n\n## Практика\n\n1. Проверить, крутится ли мотор на max.\n2. Доступ к резистору/модулю — обычно у улитки (сторона пассажира).\n3. Осмотреть разъём на подгар.\n4. Менять модуль целиком; иногда виноват изношенный мотор (повышенный ток).\n\n## Важно\n\nСхему питания вентилятора смотрите в EWD (климат / CEM).",
+  "links": [
+    {
+      "title": "Схемы климат / вентилятор P3",
+      "url": "/",
+      "site": "EWD"
+    }
+  ],
+  "author": null,
+  "title_en": "P3: heat only on max — blower resistor",
+  "summary_en": "XC60/S60 P3 blower only on max speed — almost always resistor/module under glove box or at the blower.",
+  "body_md_en": "## Summary\n\nClimate classic: **max only** → failed resistor (or electronic module).\n\n## Procedure\n\n1. Motor spins on max?\n2. Access resistor/module at blower (passenger side).\n3. Connector for melt/burn.\n4. Replace module; worn motor (high current) sometimes the cause.\n\n## Important\n\nBlower power diagram in EWD (climate / CEM)."
+}

@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/720465440534435687/"
-  }
+  },
+  "title_en": "CMA XC40 T3: partial ATF change 31492173",
+  "summary_en": "XC40 1.5 T3: drain ATF via plug/level tube, fill ~4 L OEM 31492173, level at ~50°C.",
+  "body_md_en": "## Summary\n\nDIY automatic trans fluid on **XC40 T3**.\n\n## Part numbers\n\n- ATF OEM: **31492173**\n\n## Procedure\n\nRemove air filter housing for access; after fill, warm up and check overflow.\n\n## Important\n\nDrive2 summary."
 }

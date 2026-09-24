@@ -2,7 +2,9 @@
   "slug": "p3-cem-battery-faq",
   "title": "P3 FAQ: после замены АКБ «глючит» CEM / ключи",
   "platform": "p3",
-  "topics": ["electrical"],
+  "topics": [
+    "electrical"
+  ],
   "summary": "Типовой сценарий после разряда/замены батареи — не дубль схемы, а чеклист действий. Схемы CEM смотрите в навигаторе EWD.",
   "updated": "2026-09-23",
   "component_code": "4/56",
@@ -13,5 +15,8 @@
       "url": "https://www.swedespeed.com/",
       "site": "SwedeSpeed"
     }
-  ]
+  ],
+  "title_en": "P3 FAQ: after battery swap CEM / keys act up",
+  "summary_en": "Typical post-battery scenario — not a wiring duplicate, but an action checklist. CEM diagrams in EWD navigator.",
+  "body_md_en": "## Not a diagram\n\nInteractive CEM EWD is on the home page. Here — **FAQ** after battery work.\n\n## Common symptoms\n\n- Clock/radio reset, low voltage messages.\n- Key not detected after full discharge.\n- Power DTCs that clear after an ignition cycle.\n\n## Checklist\n\n1. Terminals and body ground — loose negative causes CEM “ghosts”.\n2. After install let modules wake: ignition ON 1–2 min, then start.\n3. Key not authorized — diagnostics (VIDA/compatible), not random reflashing.\n4. Open CEM power diagram on site by component code when listed.\n\nWe do not copy full third-party guides — pointers and discussion links only."
 }

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 /* Material Design 3–inspired tokens on existing theme system (no MUI) */
 :root,
@@ -2726,11 +2726,18 @@ html[data-telegram="true"] {
 
 /* Compact theme switch living next to the "Volvo EWD" wordmark — plain text,
    same accent-gold family as the brand, no boxed pill background. */
-.app-bar__theme-inline {
+.app-bar__theme-inline,
+.app-bar__lang-inline {
   display: inline-flex;
   align-items: baseline;
   gap: 0.45rem;
   flex-shrink: 0;
+}
+
+.app-bar__lang-inline {
+  margin-left: 0.15rem;
+  padding-left: 0.45rem;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .app-bar__theme-inline-btn {
@@ -4231,6 +4238,13 @@ main.is-filters-sheet-open {
   color: var(--accent);
 }
 
+.kb-page__brand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
 .kb-page__lead {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
@@ -4429,6 +4443,34 @@ main.is-filters-sheet-open {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.kb-list__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem 0.65rem;
+  width: 100%;
+  margin-top: 0.2rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-color));
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.kb-list__more:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card));
+}
+
+.kb-list__more-meta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .kb-card {

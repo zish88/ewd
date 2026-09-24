@@ -1,0 +1,22 @@
+{
+  "slug": "spa-bms-12v-aux-reset",
+  "title": "SPA: сброс BMS после замены 12V / AUX",
+  "platform": "spa",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На XC90/XC60 II / S90 после замены основной или дополнительной АКБ нужна регистрация в BMS. Иначе ошибки зарядки и «battery fail». Делается VIDA/VTool/совместимым сканером.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nПлатформа **SPA** ведёт учёт батареи. Новая АКБ без регистрации = ложные отказы.\n\n## Практика\n\n1. Ставить АКБ нужной спецификации (AGM/EFB, ёмкость).\n2. Зарегистрировать замену в CEM/BMS.\n3. Для AUX (багажник) — отдельная процедура на многих моделях.\n4. Проверить заряд генератором после.\n\n## Важно\n\nНе оставляйте клеммы снятыми надолго без поддержки питания — риск рассинхрона модулей.",
+  "links": [
+    {
+      "title": "Volvo Cars Support — 12V battery",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "SPA: BMS reset after 12V / AUX replacement",
+  "summary_en": "XC90/XC60 II / S90 after main or auxiliary battery: register in BMS or get charging faults and “battery fail”. VIDA/VTool/compatible scanner.",
+  "body_md_en": "## Summary\n\n**SPA** tracks battery history. New battery without registration = false faults.\n\n## Procedure\n\n1. Correct AGM/EFB and capacity.\n2. Register replacement in CEM/BMS.\n3. AUX (trunk) — separate procedure on many cars.\n4. Verify alternator charging after.\n\n## Important\n\nLong disconnect without support power risks module sync issues."
+}

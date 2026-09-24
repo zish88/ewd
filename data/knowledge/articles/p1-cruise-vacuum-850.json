@@ -1,0 +1,22 @@
+{
+  "slug": "p1-cruise-vacuum-850",
+  "title": "P1: круиз не держит — вакуум и актуатор",
+  "platform": "p1",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На 850 круиз часто «не цепляет» из-за вакуумных шлангов и актуатора, а не кнопки на руле. Проверьте вакуум до замены электроники.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nКруиз **P1** — вакуумный актуатор + электроника.\n\n## Практика\n\n1. Целостность вакуумных трубок к актуатору.\n2. Сам актуатор (мембрана).\n3. Кнопки/подрулевой модуль — после механики.\n\n## Важно\n\nНа части моторов вакуум берётся от впуска — сильный подсос воздуха даёт и ХХ, и мёртвый круиз.",
+  "links": [
+    {
+      "title": "IPD — 850 cruise parts",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    }
+  ],
+  "author": null,
+  "title_en": "P1: cruise won't hold — vacuum and actuator",
+  "summary_en": "850 cruise often fails to engage due to vacuum lines and actuator, not the steering buttons. Check vacuum before replacing electronics.",
+  "body_md_en": "## Summary\n\n**P1** cruise — vacuum actuator + electronics.\n\n## Procedure\n\n1. Vacuum lines to the actuator.\n2. Actuator diaphragm.\n3. Buttons/stalk module — after mechanical checks.\n\n## Important\n\nSome engines use intake vacuum — a big air leak hurts idle and cruise alike."
+}

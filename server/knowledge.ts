@@ -6,10 +6,13 @@ import { join, resolve } from "node:path";
 
 export type KnowledgePlatformStatus = "full" | "partial" | "ewd_on_site";
 
+export type KnowledgeLang = "ru" | "en";
+
 export type KnowledgePlatform = {
   id: string;
   label: string;
   subtitle: string;
+  subtitle_en?: string;
   order: number;
   status: KnowledgePlatformStatus;
   silhouette?: string;
@@ -19,6 +22,7 @@ export type KnowledgePlatform = {
 export type KnowledgeTopic = {
   id: string;
   label: string;
+  label_en?: string;
 };
 
 export type KnowledgeLink = {
@@ -36,18 +40,33 @@ export type KnowledgeAuthor = {
 export type KnowledgeArticleMeta = {
   slug: string;
   title: string;
+  title_en?: string;
   platform: string;
   topics: string[];
   summary: string;
+  summary_en?: string;
   updated?: string;
   component_code?: string | null;
 };
 
 export type KnowledgeArticle = KnowledgeArticleMeta & {
   body_md: string;
+  body_md_en?: string;
   links: KnowledgeLink[];
   author?: KnowledgeAuthor | null;
+  /** Effective language of title/summary/body after localize. */
+  content_lang?: KnowledgeLang;
+  /** True when lang=en but body_md_en is missing — UI shows RU body + notice. */
+  needs_en_body?: boolean;
 };
+
+export function parseKnowledgeLang(raw: unknown): KnowledgeLang {
+  return String(raw || "")
+    .trim()
+    .toLowerCase() === "en"
+    ? "en"
+    : "ru";
+}
 
 type PlatformsFile = {
   default_id: string;
@@ -77,7 +96,7 @@ export function knowledgeRoot(): string {
   return ROOT;
 }
 
-export function listKnowledgePlatforms(): {
+export function listKnowledgePlatforms(lang: KnowledgeLang = "ru"): {
   default_id: string;
   platforms: Array<KnowledgePlatform & { article_count: number }>;
   topics: KnowledgeTopic[];
@@ -95,11 +114,19 @@ export function listKnowledgePlatforms(): {
   const topics = (Array.isArray(index.topics) ? index.topics : []).filter((t) => t.id !== "ewd_status");
   return {
     default_id: platforms.default_id || "p3",
-    platforms: sorted.map((p) => ({
-      ...p,
-      article_count: article_counts[p.id] || 0,
+    platforms: sorted.map((p) => {
+      const subtitle =
+        lang === "en" && p.subtitle_en?.trim() ? p.subtitle_en.trim() : p.subtitle;
+      return {
+        ...p,
+        subtitle,
+        article_count: article_counts[p.id] || 0,
+      };
+    }),
+    topics: topics.map((t) => ({
+      ...t,
+      label: lang === "en" && t.label_en?.trim() ? t.label_en.trim() : t.label,
     })),
-    topics,
     article_counts,
   };
 }
@@ -113,27 +140,69 @@ export function normalizeKnowledgePlatformId(raw: unknown, defaultId = "p3"): st
   return defaultId;
 }
 
+function metaFromIndex(a: KnowledgeArticleMeta): KnowledgeArticleMeta {
+  return {
+    slug: a.slug,
+    title: a.title,
+    title_en: a.title_en || undefined,
+    platform: a.platform,
+    topics: [...(a.topics || [])],
+    summary: a.summary || "",
+    summary_en: a.summary_en || undefined,
+    updated: a.updated,
+    component_code: a.component_code ?? null,
+  };
+}
+
+export function localizeArticleMeta(
+  meta: KnowledgeArticleMeta,
+  lang: KnowledgeLang,
+): KnowledgeArticleMeta & { content_lang: KnowledgeLang } {
+  if (lang !== "en") {
+    return { ...meta, content_lang: "ru" };
+  }
+  const titleEn = String(meta.title_en || "").trim();
+  const summaryEn = String(meta.summary_en || "").trim();
+  return {
+    ...meta,
+    title: titleEn || meta.title,
+    summary: summaryEn || meta.summary || "",
+    content_lang: "en",
+  };
+}
+
+export function localizeArticle(article: KnowledgeArticle, lang: KnowledgeLang): KnowledgeArticle {
+  if (lang !== "en") {
+    return { ...article, content_lang: "ru", needs_en_body: false };
+  }
+  const titleEn = String(article.title_en || "").trim();
+  const summaryEn = String(article.summary_en || "").trim();
+  const bodyEn = String(article.body_md_en || "").trim();
+  return {
+    ...article,
+    title: titleEn || article.title,
+    summary: summaryEn || article.summary || "",
+    body_md: bodyEn || article.body_md || "",
+    content_lang: "en",
+    needs_en_body: !bodyEn,
+  };
+}
+
 export function listKnowledgeArticles(opts: {
   platform: string;
   topic?: string | null;
-}): KnowledgeArticleMeta[] {
+  lang?: KnowledgeLang;
+}): Array<KnowledgeArticleMeta & { content_lang: KnowledgeLang }> {
   const platform = normalizeKnowledgePlatformId(opts.platform);
   const topic = String(opts.topic || "")
     .trim()
     .toLowerCase();
+  const lang = opts.lang || "ru";
   const index = loadIndexFile();
   return index.articles
     .filter((a) => a.platform === platform)
     .filter((a) => !topic || (Array.isArray(a.topics) && a.topics.includes(topic)))
-    .map((a) => ({
-      slug: a.slug,
-      title: a.title,
-      platform: a.platform,
-      topics: [...(a.topics || [])],
-      summary: a.summary || "",
-      updated: a.updated,
-      component_code: a.component_code ?? null,
-    }));
+    .map((a) => localizeArticleMeta(metaFromIndex(a), lang));
 }
 
 function normQuery(q: string): string[] {
@@ -150,23 +219,25 @@ export function searchKnowledgeArticles(opts: {
   q: string;
   platform?: string | null;
   limit?: number;
-}): Array<KnowledgeArticleMeta & { score: number }> {
+  lang?: KnowledgeLang;
+}): Array<KnowledgeArticleMeta & { score: number; content_lang: KnowledgeLang }> {
   const tokens = normQuery(opts.q);
   if (!tokens.length) return [];
   const platformFilter = opts.platform
     ? normalizeKnowledgePlatformId(opts.platform)
     : null;
   const limit = Math.min(Math.max(Number(opts.limit) || 30, 1), 50);
+  const lang = opts.lang || "ru";
   const index = loadIndexFile();
   const scored: Array<KnowledgeArticleMeta & { score: number }> = [];
 
   for (const meta of index.articles) {
     if (platformFilter && meta.platform !== platformFilter) continue;
     const full = getKnowledgeArticle(meta.slug);
-    const hayTitle = `${meta.title}`.toLowerCase();
-    const haySummary = `${meta.summary || ""}`.toLowerCase();
+    const hayTitle = `${meta.title} ${meta.title_en || ""}`.toLowerCase();
+    const haySummary = `${meta.summary || ""} ${meta.summary_en || ""}`.toLowerCase();
     const hayTopics = (meta.topics || []).join(" ").toLowerCase();
-    const hayBody = `${full?.body_md || ""}`.toLowerCase();
+    const hayBody = `${full?.body_md || ""} ${full?.body_md_en || ""}`.toLowerCase();
     let score = 0;
     for (const t of tokens) {
       if (hayTitle.includes(t)) score += 8;
@@ -176,19 +247,16 @@ export function searchKnowledgeArticles(opts: {
     }
     if (score <= 0) continue;
     scored.push({
-      slug: meta.slug,
-      title: meta.title,
-      platform: meta.platform,
-      topics: [...(meta.topics || [])],
-      summary: meta.summary || "",
-      updated: meta.updated,
-      component_code: meta.component_code ?? null,
+      ...metaFromIndex(meta),
       score,
     });
   }
 
   scored.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "ru"));
-  return scored.slice(0, limit);
+  return scored.slice(0, limit).map((a) => {
+    const { score, ...meta } = a;
+    return { ...localizeArticleMeta(meta, lang), score };
+  });
 }
 
 export function getKnowledgeArticle(slugRaw: string): KnowledgeArticle | null {
@@ -205,12 +273,10 @@ export function getKnowledgeArticle(slugRaw: string): KnowledgeArticle | null {
   const articlePath = join(ROOT, "articles", `${slug}.json`);
   if (!existsSync(articlePath)) {
     return {
-      ...meta,
-      topics: [...(meta.topics || [])],
+      ...metaFromIndex(meta),
       body_md: meta.summary || "",
       links: [],
       author: null,
-      component_code: meta.component_code ?? null,
     };
   }
 
@@ -233,13 +299,16 @@ export function getKnowledgeArticle(slugRaw: string): KnowledgeArticle | null {
   return {
     slug: meta.slug,
     title: String(full.title || meta.title),
+    title_en: String(full.title_en || meta.title_en || "").trim() || undefined,
     platform: String(full.platform || meta.platform),
     topics: Array.isArray(full.topics) ? full.topics.map(String) : [...(meta.topics || [])],
     summary: String(full.summary || meta.summary || ""),
+    summary_en: String(full.summary_en || meta.summary_en || "").trim() || undefined,
     updated: full.updated || meta.updated,
     component_code:
       full.component_code !== undefined ? full.component_code || null : meta.component_code ?? null,
     body_md: String(full.body_md || meta.summary || ""),
+    body_md_en: String(full.body_md_en || "").trim() || undefined,
     links: Array.isArray(full.links)
       ? full.links
           .map((l) => ({
@@ -251,4 +320,13 @@ export function getKnowledgeArticle(slugRaw: string): KnowledgeArticle | null {
       : [],
     author,
   };
+}
+
+export function getKnowledgeArticleLocalized(
+  slugRaw: string,
+  lang: KnowledgeLang,
+): KnowledgeArticle | null {
+  const article = getKnowledgeArticle(slugRaw);
+  if (!article) return null;
+  return localizeArticle(article, lang);
 }

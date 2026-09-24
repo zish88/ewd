@@ -1,0 +1,22 @@
+{
+  "slug": "p2-ac-pressure-switch",
+  "title": "P2: кондиционер не включается — датчик давления",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Компрессор А/С на P2 не стартует при низком/высоком давлении фреона или мёртвом датчике на магистрали. Сначала манометры, потом электроника муфты.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nКлимат режет компрессор по **датчику давления** и питанию муфты.\n\n## Практика\n\n1. Манометры: есть ли фреон в допустимом диапазоне.\n2. Разъём датчика на магистрали — окислы.\n3. Питание муфты компрессора при запросе А/С.\n4. Реле/предохранитель А/С.\n\n## Важно\n\nЗаправка «на глаз» без весов и утечек — путь к повторному отказу.",
+  "links": [
+    {
+      "title": "IPD — A/C parts for Volvo P2",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    }
+  ],
+  "author": null,
+  "title_en": "P2: A/C won't engage — pressure switch",
+  "summary_en": "P2 A/C compressor won't start on low/high refrigerant pressure or a dead line sensor. Gauges first, then clutch electrical.",
+  "body_md_en": "## Summary\n\nClimate disables the compressor via **pressure switch** and clutch power.\n\n## Procedure\n\n1. Gauges — refrigerant in range.\n2. Line sensor connector — corrosion.\n3. Clutch power when A/C is requested.\n4. A/C relay/fuse.\n\n## Important\n\nTopping up “by feel” without scales and leak check leads to repeat failure."
+}

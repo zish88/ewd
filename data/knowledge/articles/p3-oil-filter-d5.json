@@ -2,7 +2,9 @@
   "slug": "p3-oil-filter-d5",
   "title": "P3 D5: масляный фильтр 30788490 и крышка",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC70 III D5 часто берут OEM 30788490 (MANN HU 719/8). Если подтекает — смотрите крышку корпуса 30788489.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nПлановое ТО на **P3 D5**: масляный фильтр-элемент и при подтёках — крышка корпуса.\n\n## Партномера\n\n- Фильтр OEM: **30788490**\n- Аналог: **MANN HU 719/8** (HU7198Y)\n- Крышка (если течёт): **30788489**\n\n## Важно\n\nСверяйте по VIN. Момент затяжки крышки — по мануалу, без перетяга. Выжимка с Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/602871572432166231/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/602871572432166231/"
+  },
+  "title_en": "P3 D5: oil filter 30788490 and housing cap",
+  "summary_en": "XC70 III D5 often uses OEM 30788490 (MANN HU 719/8). If it leaks — housing cap 30788489.",
+  "body_md_en": "## Summary\n\nPlanned **P3 D5** service: filter element and cap if leaking.\n\n## Part numbers\n\n- Filter OEM **30788490**\n- Cross **MANN HU 719/8** (HU7198Y)\n- Cap if leaking **30788489**\n\n## Important\n\nVerify VIN. Cap torque per manual — no overtight. Drive2 summary."
 }

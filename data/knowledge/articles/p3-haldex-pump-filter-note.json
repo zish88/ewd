@@ -1,0 +1,22 @@
+{
+  "slug": "p3-haldex-pump-filter-note",
+  "title": "P3 AWD: насос Haldex и сетка — когда шумит",
+  "platform": "p3",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На XC60/XC70 P3 AWD шум сзади и ошибка муфты часто из-за грязной сетки насоса Haldex Gen 4/5. Масло + чистка/замена насоса по VIN.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nМуфта **Haldex** на P3 AWD чувствительна к маслу и сетке всасывания насоса.\n\n## Практика\n\n1. Считать код (DEM / AWD).\n2. Слить масло — чёрное/с стружкой → разборка.\n3. Сетка насоса: промывка или новый насос в сборе.\n4. Залить специфицированное масло Haldex, не «универсальное ATF».\n\n## Важно\n\nИнтервал и PN масла — по EPC/VIN. Это не замена угловой передачи.",
+  "links": [
+    {
+      "title": "FCP Euro — Haldex service overview",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "P3 AWD: Haldex pump and strainer — when it whines",
+  "summary_en": "XC60/XC70 P3 AWD rear noise and coupling fault often dirty Haldex Gen 4/5 pump strainer. Fluid + clean/replace pump per VIN.",
+  "body_md_en": "## Summary\n\n**Haldex** on P3 AWD is sensitive to fluid and pump strainer.\n\n## Procedure\n\n1. Read codes (DEM / AWD).\n2. Drain — black/metal → teardown.\n3. Strainer: clean or new pump assembly.\n4. Spec Haldex fluid, not generic ATF.\n\n## Important\n\nInterval and fluid PN — EPC/VIN. Not angle gear service."
+}

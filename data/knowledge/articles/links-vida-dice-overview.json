@@ -1,0 +1,27 @@
+{
+  "slug": "links-vida-dice-overview",
+  "title": "Ссылки: VIDA / DiCE — что это и зачем",
+  "platform": "p3",
+  "topics": [
+    "links"
+  ],
+  "summary": "VIDA — дилерская среда Volvo (схемы, ТО, кодирование). DiCE — интерфейс. Для P3 на сайте уже есть EWD; VIDA нужна для кодирования и Deep info.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\n**VIDA** + **DiCE** — заводской инструмент. Этот сайт закрывает **EWD P3** в браузере; кодирование модулей и полные TSB — по-прежнему в VIDA/аналогах.\n\n## Когда что\n\n| Задача | Где |\n|--------|-----|\n| Схема провода P3 | этот сайт |\n| Кодирование CEM/DIM | VIDA / совместимый сканер |\n| Регистрация АКБ SPA/CMA | VIDA / VTool и аналоги |\n\n## Важно\n\nНе путайте «прошил» и «посмотрел схему».",
+  "links": [
+    {
+      "title": "EWD P3 на сайте",
+      "url": "/",
+      "site": "EWD"
+    },
+    {
+      "title": "Volvo Cars Support",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "Links: VIDA / DiCE — what they are for",
+  "summary_en": "VIDA is Volvo dealer environment (diagrams, service, coding). DiCE is the interface. P3 EWD is on this site; VIDA is still needed for coding and deep info.",
+  "body_md_en": "## Summary\n\n**VIDA** + **DiCE** — factory toolchain. This site covers **P3 EWD** in the browser; module coding and full TSBs remain in VIDA/alternatives.\n\n## When to use what\n\n| Task | Where |\n|--------|-----|\n| P3 wire diagram | this site |\n| CEM/DIM coding | VIDA / compatible scanner |\n| SPA/CMA battery registration | VIDA / VTool and similar |\n\n## Important\n\nDo not confuse “flashed a module” with “opened a schematic”."
+}

@@ -1,0 +1,22 @@
+{
+  "slug": "spa-air-suspension-leak-check",
+  "title": "SPA: пневмоподвеска — уходит воздух за ночь",
+  "platform": "spa",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "XC90/V90 с пневмо: утро на пузе — ищите утечку на подушках/магистралях и работу компрессора. Коды SUM/воздушной подвески до замены компрессора.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nКомпрессор часто вторичен: первична **утечка**.\n\n## Чеклист\n\n1. Коды пневмосистемы.\n2. Мыльный раствор / слух на подушках и штуцерах.\n3. Время накачки и перегрев компрессора.\n4. Клапанный блок (блок распределения).\n\n## Важно\n\nЕзда с постоянно работающим компрессором убивает его за недели.",
+  "links": [
+    {
+      "title": "Swedespeed — SPA air suspension",
+      "url": "https://www.swedespeed.com/",
+      "site": "Swedespeed"
+    }
+  ],
+  "author": null,
+  "title_en": "SPA: air suspension — sinks overnight",
+  "summary_en": "XC90/V90 air ride: morning on a bag — find bag/line leaks and compressor duty before replacing the compressor.",
+  "body_md_en": "## Summary\n\nCompressor is often secondary; **leak** is primary.\n\n## Checklist\n\n1. Air suspension codes.\n2. Soapy water / listen at bags and fittings.\n3. Fill time and compressor overheat.\n4. Valve block (distribution unit).\n\n## Important\n\nDriving with compressor always on kills it in weeks."
+}

@@ -1,0 +1,22 @@
+{
+  "slug": "p2-pscm-steering-angle",
+  "title": "P2: ошибка угла руля / DSTC после работ",
+  "platform": "p2",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "После сход-развала или снятия руля на P2 часто нужна калибровка датчика угла. Без неё DSTC/ABS в ошибке. Делается дилерским ПО или совместимым сканером.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nНа **P2** модуль стабилизации опирается на датчик угла руля. После рулевых работ калибровка сбрасывается.\n\n## Практика\n\n1. Считать коды BCM/ABS/DSTC.\n2. Если стояли «угол руля» / «calibration» — калибровать на ровной площадке.\n3. Проверить разъём под рулем и часовую пружину при airbag-работах.\n\n## Важно\n\nНе обнуляйте коды без калибровки — лампа вернётся.",
+  "links": [
+    {
+      "title": "Swedespeed — P2 steering / DSTC threads",
+      "url": "https://www.swedespeed.com/",
+      "site": "Swedespeed"
+    }
+  ],
+  "author": null,
+  "title_en": "P2: steering angle fault / DSTC after work",
+  "summary_en": "After alignment or steering wheel removal on P2 you often need steering angle calibration. Without it DSTC/ABS fault. Dealer or compatible scanner.",
+  "body_md_en": "## Summary\n\n**P2** stability uses steering angle. Steering work resets calibration.\n\n## Procedure\n\n1. Read BCM/ABS/DSTC codes.\n2. If “steering angle” / “calibration” — calibrate on level ground.\n3. Check connector under wheel and clock spring after airbag work.\n\n## Important\n\nClearing codes without calibration brings the lamp back."
+}

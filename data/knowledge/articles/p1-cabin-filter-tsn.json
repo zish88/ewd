@@ -2,7 +2,9 @@
   "slug": "p1-cabin-filter-tsn",
   "title": "P1: угольный салонный фильтр — ориентация по стрелке",
   "platform": "p1",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На S70/850 доступ под капотом: саморезы + грязеотводящий шланг. Бюджетный TSN 9.7.181 и MANN CU2650 — ставьте по стрелке потока.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nДополнение к замене фильтра на **P1**: важна **ориентация** элемента — стрелка потока, иначе пыль идёт мимо.\n\n## Партномера\n\n- **MANN CU2650**\n- **TSN 9.7.181** (бюджет)\n- OEM-кроссы линейки **9171296**\n\n## Практика\n\nКапот → 2–3 самореза крышки → шланг грязеотвода → вынуть/вставить фильтр.\n\n## Важно\n\nСверяйте размер по VIN. Выжимка Drive2.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/7137177/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/7137177/"
+  },
+  "title_en": "P1: charcoal cabin filter — airflow arrow",
+  "summary_en": "S70/850 access under the hood: screws + drain hose. Budget TSN 9.7.181 and MANN CU2650 — install to the airflow arrow.",
+  "body_md_en": "## Summary\n\n**P1** filter note: **orientation** matters — airflow arrow, or dust bypasses the element.\n\n## Part numbers\n\n- **MANN CU2650**\n- **TSN 9.7.181** (budget)\n- OEM crosses **9171296** line\n\n## Procedure\n\nHood → 2–3 cover screws → drain hose → remove/install filter.\n\n## Important\n\nVerify size via VIN. Drive2 summary."
 }

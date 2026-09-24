@@ -1,0 +1,22 @@
+{
+  "slug": "cma-xc40-12v-battery-access",
+  "title": "CMA XC40: доступ к 12V и BMS",
+  "platform": "cma",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "АКБ XC40 под полом багажника/крышкой; после замены — регистрация BMS. Для прикуривания используйте штатные точки, не клеммы вслепую.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nДоступ к батарее на **CMA** неочевиден; электроника чувствительна к «кривому» прикуриванию.\n\n## Практика\n\n1. Точки jump-start — по шильдику под капотом.\n2. Замена АКБ — спецификация AGM/ёмкость по VIN.\n3. Регистрация в BMS сканером.\n4. Проверка утечек тока после установки.\n\n## Важно\n\nГибрид/Recharge — отдельные правила для высоковольтной части: не лезть без допуска.",
+  "links": [
+    {
+      "title": "Volvo Cars — XC40 manuals",
+      "url": "https://www.volvocars.com/intl/support/manuals/",
+      "site": "Volvo Manuals"
+    }
+  ],
+  "author": null,
+  "title_en": "CMA XC40: 12V access and BMS",
+  "summary_en": "XC40 battery is under the cargo floor/cover; after replacement — BMS registration. For jump-start use factory points, not random terminals.",
+  "body_md_en": "## Summary\n\nBattery access on **CMA** is non-obvious; electronics dislike sloppy jump-starts.\n\n## Procedure\n\n1. Jump points — label under the hood.\n2. Replacement — AGM/capacity per VIN.\n3. BMS registration with a scanner.\n4. Check parasitic draw after install.\n\n## Important\n\nHybrid/Recharge — separate HV rules; no work without qualification."
+}

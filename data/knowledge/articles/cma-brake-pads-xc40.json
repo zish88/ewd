@@ -2,7 +2,9 @@
   "slug": "cma-brake-pads-xc40",
   "title": "CMA XC40: тормозные колодки — перед/зад PN",
   "platform": "cma",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Передние OEM часто 31471407; задние по VIN встречается 32276934. На задних с электроручником нужна процедура разведения суппорта — не сжимайте поршень «наугад».",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nЗамена колодок на **XC40** — типовой расходник, но **задний электроручник** требует диагностики (развести/свести привод).\n\n## Партномера\n\n- Передние (пример): **31471407**\n- Задние (пример по VIN): **32276934**\n- Послерынок: Zimmermann и др. — только после сверки размера диска 15″/16″\n\n## Практика\n\nПеред: стандартная замена. Зад: сначала сервисный режим ручника, иначе риск сломать моторчики EPB.\n\n## Важно\n\nСверяйте по VIN. Выжимка Drive2.",
@@ -18,5 +20,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/627676829632693454/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/627676829632693454/"
+  },
+  "title_en": "CMA XC40: brake pads — front/rear PN",
+  "summary_en": "Front OEM is often 31471407; rear by VIN is often 32276934. Rear EPB needs a caliper wind-back procedure — do not squeeze the piston blindly.",
+  "body_md_en": "## Summary\n\nPad replacement on the **XC40** is routine, but the **rear EPB** needs diagnostics (wind/unwind the actuator).\n\n## Part numbers\n\n- Front (example): **31471407**\n- Rear (VIN example): **32276934**\n- Aftermarket: Zimmermann etc. — only after confirming 15″/16″ disc size\n\n## Procedure\n\nFront: standard swap. Rear: service parking-brake mode first, or you risk damaging EPB motors.\n\n## Important\n\nVerify against VIN. Drive2 summary."
 }

@@ -2,7 +2,9 @@
   "slug": "cma-cabin-filter-xc40",
   "title": "CMA XC40: салонный и воздушный фильтры — PN",
   "platform": "cma",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC40 салонный под бардачком; в БЖ встречаются MANN CUK29010, BIG FILTER GB98106C, Filtron. Воздушный — например Filtron AP180/2. Сверяйте по VIN.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\n**XC40 (CMA)** — лёгкое ТО: салонный фильтр и воздушный двигателя меняются без подъёмника.\n\n## Партномера (из бортжурналов)\n\n- Салонный: **MANN CUK29010**, **BIG FILTER GB98106C**, линейка Filtron K1418 / K1418A — сравнивайте уголь и плотность с OEM.\n- Воздушный: **Filtron AP180/2** (и OEM-кроссы по EPC).\n- Кольцо сливной пробки масла (часто рядом на ТО): **977751**\n\n## Практика\n\nСалонный — под бардачком/нижней панелью; не перепутайте направление стрелки. После замены имеет смысл прогнать климат на рециркуляции несколько минут.\n\n## Важно\n\nСверяйте по VIN. Выжимка с Drive2, не каталог дилера.",
@@ -20,5 +22,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/686866564212855783/"
-  }
+  },
+  "title_en": "CMA XC40: cabin and engine air filters — PN",
+  "summary_en": "XC40 cabin filter is under the glove box; logs mention MANN CUK29010, BIG FILTER GB98106C, Filtron. Air filter e.g. Filtron AP180/2. Verify against VIN.",
+  "body_md_en": "## Summary\n\n**XC40 (CMA)** — easy service: cabin and engine air filters without a lift.\n\n## Part numbers (from owner logs)\n\n- Cabin: **MANN CUK29010**, **BIG FILTER GB98106C**, Filtron K1418 / K1418A — compare charcoal and density to OEM.\n- Air: **Filtron AP180/2** (and OEM crosses in EPC).\n- Oil drain plug ring (often on the same service): **977751**\n\n## Procedure\n\nCabin — under glove box / lower panel; mind the arrow direction. After replacement, run climate on recirc for a few minutes.\n\n## Important\n\nVerify against VIN. Drive2 summary, not a dealer catalog."
 }

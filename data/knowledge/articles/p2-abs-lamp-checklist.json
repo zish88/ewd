@@ -2,7 +2,9 @@
   "slug": "p2-abs-lamp-checklist",
   "title": "P2: горит ABS — с чего начать",
   "platform": "p2",
-  "topics": ["electrical"],
+  "topics": [
+    "electrical"
+  ],
   "summary": "Лампа ABS на P2 часто из-за датчика/проводки колеса или кольца. Считайте код (напр. BCM), проверьте разъём и жгут до замены дорогого блока.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P2** горящая ABS/TRACS часто лечится **датчиком** или проводкой, а не «мозгами».\n\n## Чеклист\n\n1. Считать код (сканер / DiCE), запомнить колесо.\n2. Осмотреть разъём датчика и жгут на изломы.\n3. Проверить кольцо на ШРУСе (грязь, трещины).\n4. Менять датчик только после локализации стороны.\n\n## Важно\n\nЭто ориентир, не схема. Электросхемы P2 на сайте нет — смотрите пост автора. Сверяйте PN датчика по VIN.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/727792586021945438/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/727792586021945438/"
+  },
+  "title_en": "P2: ABS lamp on — where to start",
+  "summary_en": "P2 ABS lamp is often a wheel sensor, wiring or tone ring. Read the code (e.g. BCM), check the connector and harness before replacing an expensive module.",
+  "body_md_en": "## Summary\n\nOn **P2**, ABS/TRACS often needs a **sensor** or wiring, not a new “brain”.\n\n## Checklist\n\n1. Read codes (scanner / DiCE), note the wheel.\n2. Inspect sensor connector and harness for breaks.\n3. Check tone ring on CV joint (dirt, cracks).\n4. Replace sensor only after locating the side.\n\n## Important\n\nOrientation only, not a wiring diagram. No P2 EWD on this site — see the author's post. Verify sensor PN via VIN."
 }

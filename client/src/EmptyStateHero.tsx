@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useUiLang } from "./i18n/LangProvider.js";
 
 type EmptyStateHeroProps = {
   selectedModel: string;
@@ -6,26 +7,7 @@ type EmptyStateHeroProps = {
 
 type DetailId = "connector" | "door" | "lamp" | "ecu";
 
-type Detail = {
-  id: DetailId;
-  label: string;
-  shortLabel: string;
-};
-
-const DETAILS: Detail[] = [
-  { id: "connector", label: "Разъёмы", shortLabel: "Разъёмы" },
-  { id: "door", label: "Двери", shortLabel: "Двери" },
-  { id: "lamp", label: "Свет", shortLabel: "Свет" },
-  { id: "ecu", label: "ECU", shortLabel: "ECU" },
-];
-
-const GREETING = "Добро пожаловать";
-
-const INTRO =
-  "Электросхемы EWD, поиск узлов и DTC — плюс база знаний по платформам Volvo: типовые отказы, запчасти и выжимки с форумов.";
-
-const HINT = "Выберите авто, зону и узел выше — или откройте «База знаний» в меню.";
-
+const DETAIL_IDS: DetailId[] = ["connector", "door", "lamp", "ecu"];
 
 /** Five Capital TwoDviews — clean stroke silhouettes (no callout diagrams). */
 const SILHOUETTES: readonly string[] = [
@@ -49,6 +31,7 @@ function startIndexForModel(model: string): number {
 }
 
 export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
+  const { t } = useUiLang();
   const [activeIndex, setActiveIndex] = useState(() => startIndexForModel(selectedModel));
   const [activeDetail, setActiveDetail] = useState<DetailId | null>(null);
   const tapClearRef = useRef<number | null>(null);
@@ -108,52 +91,55 @@ export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
       </div>
 
       <div className="empty-state-hero__orbit">
-        {DETAILS.map((detail) => (
-          <button
-            key={detail.id}
-            type="button"
-            className={`empty-state-hero__detail empty-state-hero__detail--${detail.id}${
-              activeDetail === detail.id ? " is-active" : ""
-            }`}
-            data-testid={`empty-state-detail-${detail.id}`}
-            aria-label={detail.label}
-            onMouseEnter={() => {
-              clearTapTimer();
-              setActiveDetail(detail.id);
-            }}
-            onMouseLeave={() => {
-              clearTapTimer();
-              setActiveDetail(null);
-            }}
-            onFocus={() => {
-              clearTapTimer();
-              setActiveDetail(detail.id);
-            }}
-            onBlur={() => {
-              clearTapTimer();
-              setActiveDetail(null);
-            }}
-            onClick={() => activateSticky(detail.id)}
-          >
-            <span
-              className={`empty-state-hero__detail-icon empty-state-hero__detail-icon--${detail.id}`}
-              aria-hidden="true"
-            />
-            <span className="empty-state-hero__detail-label">{detail.shortLabel}</span>
-          </button>
-        ))}
+        {DETAIL_IDS.map((id) => {
+          const label = t(`empty.detail.${id}`);
+          return (
+            <button
+              key={id}
+              type="button"
+              className={`empty-state-hero__detail empty-state-hero__detail--${id}${
+                activeDetail === id ? " is-active" : ""
+              }`}
+              data-testid={`empty-state-detail-${id}`}
+              aria-label={label}
+              onMouseEnter={() => {
+                clearTapTimer();
+                setActiveDetail(id);
+              }}
+              onMouseLeave={() => {
+                clearTapTimer();
+                setActiveDetail(null);
+              }}
+              onFocus={() => {
+                clearTapTimer();
+                setActiveDetail(id);
+              }}
+              onBlur={() => {
+                clearTapTimer();
+                setActiveDetail(null);
+              }}
+              onClick={() => activateSticky(id)}
+            >
+              <span
+                className={`empty-state-hero__detail-icon empty-state-hero__detail-icon--${id}`}
+                aria-hidden="true"
+              />
+              <span className="empty-state-hero__detail-label">{label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="empty-state-hero__copy">
         <p className="empty-state-hero__wordmark">VOLVO EWD</p>
         <p className="empty-state-hero__greeting" data-testid="empty-state-greeting">
-          {GREETING}
+          {t("empty.welcome")}
         </p>
         <p className="empty-state-hero__intro" data-testid="empty-state-intro">
-          {INTRO}
+          {t("empty.intro")}
         </p>
         <p className="empty-state-hero__instruction" data-testid="empty-state-instruction">
-          {HINT}
+          {t("empty.hint")}
         </p>
       </div>
     </div>

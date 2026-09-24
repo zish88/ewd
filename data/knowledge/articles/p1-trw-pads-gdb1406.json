@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/552704155391623577/"
-  }
+  },
+  "title_en": "P1 V70: front pads TRW GDB1406 vs GDB1159",
+  "summary_en": "V70 I with 15″: GDB1406 without sensor pocket (like OEM) vs GDB1159 with sensor pocket — V70 had no sensor.",
+  "body_md_en": "## Summary\n\nTRW front pad choice for **V70 I**.\n\n## PN\n\n- Prefer **GDB1406** (more area, no sensor)\n- **GDB1159** — sensor pocket (850 legacy)\n\n## Important\n\nMost brands unify on the sensor pocket."
 }

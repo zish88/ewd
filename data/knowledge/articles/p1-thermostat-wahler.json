@@ -2,7 +2,9 @@
   "slug": "p1-thermostat-wahler",
   "title": "P1: термостат бензин — Wahler 4272.90D",
   "platform": "p1",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Если двигатель долго греется / рано уходит в большой круг — часто меняют термостат. На бензиновых P1 часто ставят Wahler 4272.90D (~90 °C).",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа бензиновых **850/S70** типичная жалоба — долгий прогрев. Владельцы часто меняют **термостат** через крышку корпуса после частичного слива ОЖ.\n\n## Партномера\n\n- Популярный элемент: **Wahler 4272.90D** (в карточках Drive2 встречается как 427290D).\n- Параллельно нередко меняют масло/фильтр и шайбу сливной пробки — но это уже отдельный ТО.\n\n## Практика\n\nСлить верхний контур, снять патрубок с крышки, открутить крепёж крышки (часто Torx), вынуть старый термостат, поставить новый с корректной ориентацией.\n\n## Важно\n\nТемпература открытия и корпус зависят от мотора. **Сверяйте по VIN.** Выжимка, не сервис-мануал.",
@@ -20,5 +22,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/518048098639937693/"
-  }
+  },
+  "title_en": "P1: petrol thermostat — Wahler 4272.90D",
+  "summary_en": "Slow warm-up / early fan on petrol P1 — often the thermostat. Many use Wahler 4272.90D (~90 °C).",
+  "body_md_en": "## Summary\n\nPetrol **850/S70** often complain about long warm-up. Owners replace the **thermostat** via the housing cover after partial coolant drain.\n\n## Part numbers\n\n- Common element: **Wahler 4272.90D** (Drive2 cards also show 427290D).\n- Oil/filter/drain washer often done separately.\n\n## Procedure\n\nDrain upper circuit, remove hose from cover, unbolt cover (often Torx), install new stat with correct orientation.\n\n## Important\n\nOpening temperature and housing depend on engine. **Verify via VIN.** Summary, not a service manual."
 }

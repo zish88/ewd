@@ -2,7 +2,9 @@
   "slug": "p3-thermostat-d5-pn",
   "title": "P3 D5: термостат 31368373 и сопутствующие кольца",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC70/XC60/S80 P3 с D5 холодный салон на трассе часто лечится заменой термостата OEM 31368373; попутно — уплотнительные кольца патрубков.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P3 дизель D5** (XC70 III и др.) типичный симптом — печка еле греет на скорости, Webasto «спасает» только на месте. Часто виноват **термостат** (резинка внутри корпуса).\n\n## Партномера\n\n- Термостат OEM: **31368373**\n- Уплотнения патрубков (примеры из БЖ): **30622784**, **31109235**\n- Иногда попутно: прокладка дросселя **30757766** (если снимали узел/чистили EGR)\n\nНа части моторов доступ связан со снятием/чисткой EGR — работа уже не «пять минут».\n\n## Важно\n\nЭто **не схема EWD** — только запчасти-контекст. Сверяйте по VIN/EPC. Выжимка с Drive2.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/605792699949265828/"
-  }
+  },
+  "title_en": "P3 D5: thermostat 31368373 and hose rings",
+  "summary_en": "XC70/XC60/S80 P3 D5: weak heat on highway often thermostat OEM 31368373; replace hose O-rings too.",
+  "body_md_en": "## Summary\n\n**P3 D5** (XC70 III etc.): heat weak at speed, Webasto only helps parked — often **thermostat** (rubber insert in housing).\n\n## Part numbers\n\n- Thermostat OEM **31368373**\n- Hose seals (log examples) **30622784**, **31109235**\n- Sometimes throttle gasket **30757766** if EGR/throttle removed\n\nSome engines need EGR access — not a five-minute job.\n\n## Important\n\n**Not an EWD diagram** — parts context only. VIN/EPC. Drive2 summary."
 }

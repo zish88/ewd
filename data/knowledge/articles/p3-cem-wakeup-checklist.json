@@ -1,0 +1,27 @@
+{
+  "slug": "p3-cem-wakeup-checklist",
+  "title": "P3: CEM не просыпается / нет связи по шине",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "Нет связи с CEM на P3: сначала питание и масса блока, LIN/CAN к приборке, затем батарея и послезаменный BMS. Не меняйте CEM без диагностики.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nНа **P3** «мёртвый» салон часто упирается в **CEM** (центральный электронный модуль): нет пробуждения, нет LIN к приборке, нет CAN к узлам.\n\n## Чеклист\n\n1. Напряжение АКБ ≥12,4 В в покое; клеммы и масса кузова.\n2. Питание/масса разъёма CEM (см. EWD на сайте для вашей конфигурации).\n3. Связь диагностикой: виден ли CEM / DIM / другие узлы.\n4. После замены АКБ — сброс мониторинга батареи (BMS), иначе ложные отказы.\n\n## Важно\n\nВыжимка по типовым отказам P3. Конкретные пины — в навигаторе EWD, не по фото из форума.",
+  "links": [
+    {
+      "title": "Volvo Cars Support — battery / electrical",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    },
+    {
+      "title": "Схемы P3 на этом сайте",
+      "url": "/knowledge",
+      "site": "EWD"
+    }
+  ],
+  "author": null,
+  "title_en": "P3: CEM won't wake / no bus communication",
+  "summary_en": "No CEM comms on P3: power and ground at the module, LIN/CAN to cluster, then battery and post-replacement BMS. Do not swap CEM without diagnosis.",
+  "body_md_en": "## Summary\n\n**P3** “dead” interior often traces to **CEM**: no wake-up, no LIN to DIM, no CAN to nodes.\n\n## Checklist\n\n1. Battery ≥12.4 V resting; terminals and body ground.\n2. CEM connector power/ground (EWD on site for your config).\n3. Scanner: is CEM / DIM / others online?\n4. After battery — BMS reset or false faults persist.\n\n## Important\n\nTypical P3 failure patterns. Pin numbers in EWD navigator, not forum photos."
+}

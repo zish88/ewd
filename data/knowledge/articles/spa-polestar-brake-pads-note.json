@@ -1,0 +1,22 @@
+{
+  "slug": "spa-polestar-brake-pads-note",
+  "title": "SPA: колодки/диски — штат vs Performance",
+  "platform": "spa",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На XC60/XC90 II размеры тормозов отличаются от комплектации (стандарт / R-Design / Polestar). Перед заказом сверяйте диаметр диска и скобу по VIN, не по фото.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nОдин кузов SPA ≠ один размер тормозов.\n\n## Практика\n\n1. Измерить диаметр/толщину диска или смотреть EPC.\n2. Колодки и датчики износа — парами на ось.\n3. После замены — адаптация электроручника сзади (процедура сканером).\n\n## Важно\n\nНа электроручнике нельзя просто «открутить» без сервисного режима.",
+  "links": [
+    {
+      "title": "FCP Euro — SPA brake catalog",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "SPA: pads/discs — standard vs Performance",
+  "summary_en": "XC60/XC90 II brake sizes vary by trim (standard / R-Design / Polestar). Measure disc and carrier by VIN, not photos.",
+  "body_md_en": "## Summary\n\nOne SPA body ≠ one brake size.\n\n## Procedure\n\n1. Measure disc or use EPC.\n2. Pads and wear sensors per axle.\n3. Rear EPB adaptation after (scanner procedure).\n\n## Important\n\nDo not wind EPB without service mode."
+}

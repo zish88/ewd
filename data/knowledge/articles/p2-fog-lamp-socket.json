@@ -2,7 +2,9 @@
   "slug": "p2-fog-lamp-socket",
   "title": "P2: туманки — патрон, изолятор, лампы",
   "platform": "p2",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Возврат штатного галогена в ПТФ на P2: патрон 30795072, изолятор 979041, пины 30656688, лампы вроде OSRAM 64150.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **S60/V70 P2** после «колхоз-ксенона» в туманках часто восстанавливают штатный свет: нужны **патрон**, **изолятор** и нормальные **галогенные** лампы.\n\n## Партномера\n\n- Патрон: **30795072**\n- Изолятор: **979041**\n- Пины контактов: **30656688**\n- Лампы (пример из БЖ): **OSRAM 64150** / CBI — уточняйте тип цоколя под ваш корпус\n\nПараллельно владельцы часто освежают омыватель фар (насос **81439800**, фильтр **30649801**) — это уже соседняя работа.\n\n## Важно\n\nНе ставьте ксенон в рефлектор без линзы/омывателя — это и закон, и ослепление. PN сверяйте по **VIN**. Выжимка с Drive2.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/592303066666014897/"
-  }
+  },
+  "title_en": "P2: fog lamps — socket, insulator, bulbs",
+  "summary_en": "Restore halogen fogs on P2: socket 30795072, insulator 979041, pins 30656688, bulbs like OSRAM 64150.",
+  "body_md_en": "## Summary\n\nOn **S60/V70 P2** after HID “hacks” in fogs, owners restore halogen: **socket**, **insulator**, proper **bulbs**.\n\n## Part numbers\n\n- Socket: **30795072**\n- Insulator: **979041**\n- Contact pins: **30656688**\n- Bulbs (log example): **OSRAM 64150** / CBI — confirm base for your housing\n\nHeadlamp washer refresh (pump **81439800**, filter **30649801**) is adjacent work.\n\n## Important\n\nNo HID in reflector without lens/washer — legal and glare issues. Verify PN via **VIN**. Drive2 summary."
 }

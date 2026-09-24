@@ -1,0 +1,32 @@
+{
+  "slug": "links-parts-catalogs-map",
+  "title": "Ссылки: где смотреть партномера Volvo",
+  "platform": "p2",
+  "topics": [
+    "links"
+  ],
+  "summary": "Короткий указатель: EPC/дилерский каталог по VIN, IPD/FCP для аналогов, этот сайт — для электрики P3. Не смешивайте PN между платформами.",
+  "updated": "2026-09-24",
+  "body_md": "## Каталоги\n\n- **OEM по VIN** — дилерский EPC / Volvo Parts.\n- **Аналоги** — IPD, FCP Euro, проверенные EU-склады (сверяйте кросс).\n- **Электрика P3** — навигатор схем на этом сайте.\n\n## Правило\n\nОдин и тот же «фильтр XC60» на P3 и SPA — **разные** PN. Всегда платформа + VIN.",
+  "links": [
+    {
+      "title": "IPD",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    },
+    {
+      "title": "FCP Euro",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    },
+    {
+      "title": "Volvo Support",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "Links: where to look up Volvo part numbers",
+  "summary_en": "Short guide: EPC/dealer catalog by VIN, IPD/FCP for aftermarket, this site for P3 wiring. Do not mix PN across platforms.",
+  "body_md_en": "## Catalogs\n\n- **OEM by VIN** — dealer EPC / Volvo Parts.\n- **Aftermarket** — IPD, FCP Euro, trusted EU warehouses (verify crosses).\n- **P3 wiring** — schematic navigator on this site.\n\n## Rule\n\nThe same “XC60 filter” on P3 and SPA are **different** PN. Always platform + VIN."
+}

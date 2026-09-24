@@ -1,0 +1,22 @@
+{
+  "slug": "p1-heater-core-flush-note",
+  "title": "P1: печка еле греет — радиатор отопителя",
+  "platform": "p1",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Холодный воздух из сопел при горячем моторе на 850/S70 часто забит радиатор отопителя или заслонки. Промывка vs замена — оценка по течи и доступу.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСлабый нагрев салона при рабочей температуре ОЖ — классика **heater core**.\n\n## Практика\n\n1. Температура патрубков к отопителю (оба горячие?).\n2. Воздух в системе охлаждения.\n3. Заслонки климат-блока (механика/тросы на ранних).\n4. Промывка или замена радиатора — работа трудоёмкая на P1.\n\n## Важно\n\nСладкий запах и влажный коврик пассажира = течь отопителя, не «просто грязь».",
+  "links": [
+    {
+      "title": "Volvo Forums — heater core P1",
+      "url": "https://www.volvoforums.org.uk/",
+      "site": "Volvo Forums"
+    }
+  ],
+  "author": null,
+  "title_en": "P1: weak heat — heater core",
+  "summary_en": "Cold air from vents with a hot engine on 850/S70 is often a clogged heater core or flaps. Flush vs replace — judge by leak and access.",
+  "body_md_en": "## Summary\n\nWeak cabin heat at normal coolant temp — classic **heater core**.\n\n## Procedure\n\n1. Heater hose temperatures (both hot?).\n2. Air in cooling system.\n3. Climate flaps (mechanical/cables on early cars).\n4. Flush or replace core — labor-heavy on P1.\n\n## Important\n\nSweet smell and wet passenger carpet = heater leak, not “just dirt”."
+}

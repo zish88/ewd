@@ -18,5 +18,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/633837668161033504/"
-  }
+  },
+  "title_en": "P3 S60 II: thermostat heater fault ECM-P0597",
+  "summary_en": "S60 II petrol: open circuit on electronic thermostat heater; OEM 31686560 or used 31474989 + adaptation.",
+  "body_md_en": "## Summary\n\n**ECM-P059700** — thermostat heater control circuit open on **S60 II**.\n\n## Part numbers\n\n- New OEM ref **31686560** (costly)\n- Log used **31474989**\n- Gasket **31368063**\n\n## Important\n\nSoftware adaptation often required. VIN mandatory. Drive2 summary."
 }

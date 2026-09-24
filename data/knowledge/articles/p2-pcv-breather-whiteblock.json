@@ -1,0 +1,22 @@
+{
+  "slug": "p2-pcv-breather-whiteblock",
+  "title": "P2: PCV / маслоуловитель whiteblock",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Запотевание, расход масла и свист на бензиновых P2 — часто маслоотделитель/PCV в клапанной крышке или корпусе. Есть ремкомплекты без замены всей крышки.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСистема вентиляции картера на whiteblock стареет и забивается.\n\n## Практика\n\n1. Осмотр шлангов PCV на хрупкость.\n2. Маслоуловитель — чистка или kit.\n3. Проверка давления в картере (выдавливает щуп?).\n4. После — короткое ТО масла.\n\n## Важно\n\nИгнорировать PCV = сальники и расход масла.",
+  "links": [
+    {
+      "title": "IPD — P2 PCV / flame trap",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    }
+  ],
+  "author": null,
+  "title_en": "P2: PCV / oil separator whiteblock",
+  "summary_en": "Oil misting, consumption and whistle on petrol P2 — often PCV/oil trap in the valve cover or housing. Kits exist without replacing the whole cover.",
+  "body_md_en": "## Summary\n\nWhiteblock crankcase ventilation ages and clogs.\n\n## Procedure\n\n1. Inspect brittle PCV hoses.\n2. Oil trap — clean or kit.\n3. Crankcase pressure (blows dipstick out?).\n4. Short oil service after.\n\n## Important\n\nIgnoring PCV = seals and oil consumption."
+}

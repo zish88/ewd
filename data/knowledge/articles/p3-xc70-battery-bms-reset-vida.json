@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/520224032151306392/"
-  }
+  },
+  "title_en": "P3 XC70 III: battery replacement and BMS reset in CEM",
+  "summary_en": "After XC70 III battery swap, reset BMS in VIDA (CEM → Advanced); leave car locked 5–6 hours without starting.",
+  "body_md_en": "## Summary\n\n**P3** BMS learns the installed battery. No reset — undercharge/faults.\n\n## Procedure\n\n- Charger negative on **chassis**, not battery post\n- VIDA: **CEM → Advanced → Battery Monitoring Sensor → reset**\n- No start ~5–6 h after reset\n\n## Important\n\nDrive2 summary, not dealer procedure replacement."
 }

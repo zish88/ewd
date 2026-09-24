@@ -2,7 +2,9 @@
   "slug": "spa-spark-plugs-air-filter",
   "title": "SPA XC90: свечи и воздушный фильтр — PN",
   "platform": "spa",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "Около 60 ткм на бензиновом SPA часто меняют свечи (OEM 32290011 или комплект 31673604) и воздушный MANN C29021 / C29021M. Нужна головка на 14 мм.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nЛёгкая часть большого ТО на **XC90 II**: **свечи** + **воздушный фильтр** двигателя.\n\n## Партномера\n\n- Свечи (варианты из БЖ): комплект **31673604** или **32290011** — уточняйте по VIN/мотору\n- Воздушный: **MANN C29021** / **C29021M** (кросс к OEM)\n\n## Практика\n\nВоздушник — крышка на Torx T25. Свечи — катушки + головка **14 мм** (без неё легко сорвать керамику).\n\n## Важно\n\nНе путать с салонным фильтром (отдельная заметка). Сверяйте по VIN.",
@@ -18,5 +20,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/l/702944172990010229/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/l/702944172990010229/"
+  },
+  "title_en": "SPA XC90: plugs and air filter — PN",
+  "summary_en": "~60k km petrol SPA: plugs (OEM 32290011 or kit 31673604) and air MANN C29021 / C29021M. Needs 14 mm socket.",
+  "body_md_en": "## Summary\n\nEasy part of major service **XC90 II**: **plugs** + **engine air filter**.\n\n## Part numbers\n\n- Plugs: kit **31673604** or **32290011** — confirm VIN/engine\n- Air **MANN C29021** / **C29021M**\n\n## Procedure\n\nAir box Torx T25. Plugs — coils + **14 mm** socket (ceramic damage risk).\n\n## Important\n\nNot the cabin filter (separate note). Verify VIN."
 }

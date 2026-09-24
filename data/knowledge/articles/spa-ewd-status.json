@@ -2,7 +2,9 @@
   "slug": "spa-ewd-status",
   "title": "SPA: что есть по электросхемам в открытом доступе",
   "platform": "spa",
-  "topics": ["links"],
+  "topics": [
+    "links"
+  ],
   "summary": "Полного публичного EWD SPA нет. Есть VIDA по подписке и отдельные публичные PDF (NHTSA). На этом сайте схем SPA нет.",
   "updated": "2026-09-23",
   "body_md": "## Статус полки SPA\n\nНа **ewd-volvo.ru** интерактивные схемы доступны только для **P3**. Полный каталог SPA (XC90 II, XC60 II, S90/V90 и др.) в открытом виде не публиковался.\n\n## Что обычно используют\n\n- **VIDA** — официальный дилерский инструмент (подписка).\n- Публичные PDF по конкретным MY (например материалы для регуляторов / NHTSA) — узкие выдержки, не замена EWD.\n\nПолка помечена **partial**: сюда попадут только курируемые заметки и ссылки, без претензии на полный wiring catalog.",
@@ -12,5 +14,8 @@
       "url": "https://www.nhtsa.gov/",
       "site": "NHTSA"
     }
-  ]
+  ],
+  "title_en": "SPA: what wiring diagrams exist publicly",
+  "summary_en": "No full public SPA EWD. VIDA by subscription and some public PDFs (NHTSA). This site has no SPA schematics.",
+  "body_md_en": "## SPA shelf status\n\n**ewd-volvo.ru** interactive diagrams are **P3 only**. Full SPA catalog (XC90 II, XC60 II, S90/V90…) was not published openly.\n\n## What people use\n\n- **VIDA** — official dealer tool (subscription).\n- Public PDFs for specific MY (regulators / NHTSA) — excerpts, not full EWD.\n\nShelf marked **partial**: curated notes and links only, not a wiring catalog."
 }

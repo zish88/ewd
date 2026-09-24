@@ -1,0 +1,22 @@
+{
+  "slug": "p2-throttle-body-clean",
+  "title": "P2: ХХ плавает — чистка дросселя",
+  "platform": "p2",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На бензиновых P2 нагар на дроссельной заслонке даёт плавающий ХХ и ошибку адаптации. Чистка + адаптация сканером часто дешевле замены узла.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nЭлектронный дроссель зарастает — мотор «ищет» ХХ.\n\n## Практика\n\n1. Снять патрубок, открыть заслонку аккуратно.\n2. Очиститель дросселя, без перегибания механизма.\n3. Адаптация ХХ/дросселя после сборки.\n4. Проверить патрубки вакуума и DCV.\n\n## Важно\n\nЕсли люфт привода или ошибка сенсора — чистка не поможет, нужна замена.",
+  "links": [
+    {
+      "title": "IPD — throttle body P2",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    }
+  ],
+  "author": null,
+  "title_en": "P2: unstable idle — throttle body clean",
+  "summary_en": "Petrol P2 carbon on the throttle plate causes hunting idle and adaptation faults. Clean + scanner adaptation is often cheaper than a new body.",
+  "body_md_en": "## Summary\n\nElectronic throttle plates foul — engine hunts idle.\n\n## Procedure\n\n1. Remove duct, open plate carefully.\n2. Throttle cleaner, do not force the mechanism.\n3. Idle/throttle adaptation after reassembly.\n4. Check vacuum lines and DCV.\n\n## Important\n\nDrive play or sensor fault — cleaning won't fix; replace the unit."
+}

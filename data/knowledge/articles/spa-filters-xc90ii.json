@@ -2,7 +2,9 @@
   "slug": "spa-filters-xc90ii",
   "title": "SPA XC90 II: фильтр салона и воздуха двигателя",
   "platform": "spa",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC90 II салонный под бардачком (~15 мин); OEM угольный 31407748, воздушный двигателя 31370089. После замены часто заметнее поток климата.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **XC90 II (SPA)** два простых расходника: **салонный** (под бардачком) и **воздушный двигателя** (корпус в моторном отсеке).\n\n## Партномера (как в БЖ)\n\n- Салонный угольный OEM: **31407748**\n- Воздушный двигателя OEM: **31370089**\n\nНа конвейере встречаются поставки Mahle/Mann в коробке Volvo — ориентируйтесь на номер, не только бренд на этикетке.\n\n## Практика\n\nСалонный: снять крышку на винтах/фиксаторах под бардачком, вынуть фильтр, поставить новый по метке потока. Воздушный — по защёлкам корпуса фильтра.\n\n## Важно\n\nСверяйте по VIN. Полного EWD SPA на сайте нет — только такие заметки. Источник Drive2.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/505982332914631478/"
-  }
+  },
+  "title_en": "SPA XC90 II: cabin and engine air filters",
+  "summary_en": "XC90 II cabin under glove box (~15 min); charcoal OEM 31407748, engine air 31370089. Climate flow often improves after.",
+  "body_md_en": "## Summary\n\n**XC90 II (SPA)** easy consumables: **cabin** (under glove box) and **engine air** (under hood).\n\n## Part numbers (log)\n\n- Charcoal cabin OEM **31407748**\n- Engine air OEM **31370089**\n\nFactory boxes may show Mahle/Mann — trust the number on the label.\n\n## Procedure\n\nCabin: remove cover under glove box, install to flow mark. Air: unclip housing.\n\n## Important\n\nVerify VIN. No full SPA EWD here — notes only. Drive2."
 }

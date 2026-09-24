@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/9469974/"
-  }
+  },
+  "title_en": "P2 S60: alternator bearings + PS pump seal",
+  "summary_en": "Alternator comes out upward after the fan; often replace the PS pump seal (major leak).",
+  "body_md_en": "## Summary\n\nAlternator and PS pump work on **S60 P2**.\n\n## Procedure\n\nBattery → fan → belt → PS pump → lift alternator out. PS seal — 4 Torx bolts.\n\n## Important\n\nBleed PS without air afterward."
 }

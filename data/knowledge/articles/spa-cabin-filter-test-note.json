@@ -2,7 +2,9 @@
   "slug": "spa-cabin-filter-test-note",
   "title": "SPA: угольный салонный — OEM 31407748 и подделки",
   "platform": "spa",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На SPA распространён OEM 31407748. Встречаются подделки без фирменной упаковки Netbox — смотрите коробку и ушки фильтра, не только цену.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nДля **SPA** (XC90/XC60 II/S90…) угольный салонный часто **31407748**. Аналог **MANN CUK34003**. На вторичке бывают подделки.\n\n## Практика\n\nСверяйте упаковку (Netbox у ориг. поставок), маркировку на ушках, плотность пакета. После установки — запахи с улицы как быстрый тест.\n\n## Важно\n\nПолка SPA partial. Выжимка по обсуждениям Drive2, сверяйте по VIN.",
@@ -13,5 +15,10 @@
       "site": "Drive2"
     }
   ],
-  "author": { "post_url": "https://www.drive2.ru/b/699574169850876864/" }
+  "author": {
+    "post_url": "https://www.drive2.ru/b/699574169850876864/"
+  },
+  "title_en": "SPA: charcoal cabin filter — OEM 31407748 and fakes",
+  "summary_en": "SPA often uses OEM 31407748. Counterfeits without Netbox packing — check box and filter tabs, not price alone.",
+  "body_md_en": "## Summary\n\n**SPA** charcoal cabin is often **31407748**. Cross **MANN CUK34003**. Fakes on secondary market.\n\n## Procedure\n\nCheck packaging (Netbox on OEM supply), tab markings, pack density. Outdoor odors after install are a quick test.\n\n## Important\n\nSPA shelf partial. Drive2 discussions — verify VIN."
 }

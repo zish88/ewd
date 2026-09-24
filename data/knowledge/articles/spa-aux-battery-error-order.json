@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/709375766256684366/"
-  }
+  },
+  "title_en": "SPA: 12V charging fault — AUX and main battery order",
+  "summary_en": "DTC B10A613 / “12V battery critical”: auxiliary battery dead. After replacement: disconnect AUX, then main in trunk; reconnect AUX → main.",
+  "body_md_en": "## Summary\n\nBattery connection order on **SPA** after AUX replacement.\n\n## Procedure\n\nPlugging in a new AUX alone often leaves the cluster message. You need a cycle with the main battery.\n\n## Important\n\nTest auxiliary voltage — “equipment won't power” = full failure."
 }

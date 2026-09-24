@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/691456475503018186/"
-  }
+  },
+  "title_en": "SPA V90 CC: main battery and Webasto refusal",
+  "summary_en": "Engine cranks, Webasto at −4 °C reports low charge. Replace main battery (OEM ref 31419211 / same form factor); don't forget vent plug.",
+  "body_md_en": "## Summary\n\nWebasto quits while start still works — typical main battery signal on **V90 CC**.\n\n## PN\n\n- OEM ref **31419211**\n- Same case/polarity as original\n\n## Important\n\nInstall vent plug/hose."
 }

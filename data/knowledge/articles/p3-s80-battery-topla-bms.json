@@ -18,5 +18,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/734559255457172503/"
-  }
+  },
+  "title_en": "P3 S80 II: Topla 100 Ah battery and BMS reset",
+  "summary_en": "S80 II after new battery (e.g. Topla 100 Ah): clear faults, reset BMS counter, let the car rest.",
+  "body_md_en": "## Summary\n\nMain battery on **S80 II** + mandatory **BMS reset**.\n\n## Procedure\n\nAuthor used Topla Energy ~100 Ah / 800 A; after install — fault clear and BMS reset.\n\n## Important\n\nBattery parameters must match CEM profile. Drive2 summary."
 }

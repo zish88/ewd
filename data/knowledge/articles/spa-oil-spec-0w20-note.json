@@ -1,0 +1,22 @@
+{
+  "slug": "spa-oil-spec-0w20-note",
+  "title": "SPA: масло 0W-20 — спецификация и интервал",
+  "platform": "spa",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Моторы SPA (бензин/мягкий гибрид) обычно требуют 0W-20 одобрения Volvo. Не лейте «просто синтетику 5W-30». Интервал — по сервисной кампании и рынку.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nНеправильная вязкость на SPA бьёт по масляному насосу и VVT.\n\n## Практика\n\n- Ищите масло с допуском **Volvo** (часто VCC RBS0-2AE / аналог в списках OEM).\n- Фильтр — только по EPC для вашего мотора.\n- Учёт расхода масла на новых моторах — норма в пределах допуска, не сразу «кольца».\n\n## Важно\n\nГибриды T8/T6 — те же правила по 12V и отдельный контур ОЖ инвертора.",
+  "links": [
+    {
+      "title": "Volvo Cars — fluids & Owner's Manual",
+      "url": "https://www.volvocars.com/intl/support/manuals/",
+      "site": "Volvo Manuals"
+    }
+  ],
+  "author": null,
+  "title_en": "SPA: 0W-20 oil — spec and interval",
+  "summary_en": "SPA petrol/mild hybrid engines usually need Volvo-approved 0W-20. Do not use “generic 5W-30”. Interval per campaigns and market.",
+  "body_md_en": "## Summary\n\nWrong viscosity on SPA hits oil pump and VVT.\n\n## Procedure\n\n- Oil with **Volvo** approval (often VCC RBS0-2AE / OEM lists).\n- Filter only from EPC for your engine.\n- Oil consumption within spec on new engines is normal — not instant “rings”.\n\n## Important\n\nT8/T6 hybrids — same 12V rules plus separate inverter cooling."
+}

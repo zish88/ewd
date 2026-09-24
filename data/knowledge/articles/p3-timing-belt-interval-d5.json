@@ -1,0 +1,22 @@
+{
+  "slug": "p3-timing-belt-interval-d5",
+  "title": "P3 D5: интервал ГРМ и помпа",
+  "platform": "p3",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На дизелях D5 P3 ремень ГРМ и помпу меняют комплектом по регламенту/пробегу. Не откладывайте: обрыв = клапаны. Сверяйте интервал по рынку и году.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nДизель **D5** на P3 — ременный привод ГРМ. Обрыв критичен.\n\n## Практика\n\n- Меняйте **ремень + ролики + помпу** одним комплектом.\n- Ориентир пробега/лет — в сервисной книжке вашего рынка (часто ~120–180 ткм / 8–10 лет).\n- После — проверка натяжения и течи помпы.\n\n## Важно\n\nТочный интервал и PN — VIDA/EPC по VIN, не «как у соседа».",
+  "links": [
+    {
+      "title": "Volvo Cars — owner support",
+      "url": "https://www.volvocars.com/intl/support/",
+      "site": "Volvo Support"
+    }
+  ],
+  "author": null,
+  "title_en": "P3 D5: timing belt interval and water pump",
+  "summary_en": "P3 D5: replace belt and pump as a kit on interval/mileage. Do not delay — snap = valves. Check interval for market and year.",
+  "body_md_en": "## Summary\n\n**D5** on P3 is timing belt driven. Failure is catastrophic.\n\n## Procedure\n\n- **Belt + rollers + pump** one kit.\n- Mileage/years per your market book (often ~120–180k km / 8–10 years).\n- After — tension and pump leak check.\n\n## Important\n\nExact interval and PN — VIDA/EPC by VIN."
+}

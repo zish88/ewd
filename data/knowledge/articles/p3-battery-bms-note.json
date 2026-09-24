@@ -17,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/653152514048274062/"
-  }
+  },
+  "title_en": "P3: battery and lying BMS on the cluster",
+  "summary_en": "XC70 III with an aged battery: BMS may show low charge with a healthy battery. Replace battery; reset sometimes helps.",
+  "body_md_en": "## Summary\n\n**P3** with Webasto: battery matters in winter. Low charge message ≠ dead cell.\n\n## Procedure\n\n1. Tester reading.\n2. Replace to size/cranking spec.\n3. Reset counter via diagnostics if needed.\n\n## Important\n\nPolarity and DIN size — VIN."
 }

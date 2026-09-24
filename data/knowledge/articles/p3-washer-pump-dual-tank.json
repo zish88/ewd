@@ -1,0 +1,22 @@
+{
+  "slug": "p3-washer-pump-dual-tank",
+  "title": "P3: омыватель фар/стекла — два насоса",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На XC60/XC70 P3 в бачке часто два насоса (стекло / фары). Не работает одно направление — проверяйте свой насос, реле и форсунки, не «весь бачок».",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nДва потребителя жидкости = два насоса или клапанная схема.\n\n## Чеклист\n\n1. Какой контур мёртв: лобовое или фары.\n2. Питание насоса при команде с подрулевого.\n3. Засор форсунок / обратный клапан.\n4. Уровень и замерзание летом «не то» — летняя/зимняя жидкость.\n\n## Важно\n\nСхему насосов смотрите в EWD (washer / CEM).",
+  "links": [
+    {
+      "title": "EWD — омыватель P3",
+      "url": "/",
+      "site": "EWD"
+    }
+  ],
+  "author": null,
+  "title_en": "P3: headlamp/windshield washer — two pumps",
+  "summary_en": "XC60/XC70 P3 often has two pumps (glass / headlamps). One circuit dead — check that pump, relay and jets, not the whole reservoir.",
+  "body_md_en": "## Summary\n\nTwo outlets = two pumps or valving.\n\n## Checklist\n\n1. Which circuit failed: windshield or headlamps.\n2. Pump power on stalk command.\n3. Clogged jets / check valve.\n4. Level and wrong summer fluid in winter.\n\n## Important\n\nWasher diagram in EWD (washer / CEM)."
+}

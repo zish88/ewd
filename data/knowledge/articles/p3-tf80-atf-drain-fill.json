@@ -1,0 +1,22 @@
+{
+  "slug": "p3-tf80-atf-drain-fill",
+  "title": "P3: АКПП TF-80 — частичная замена ATF",
+  "platform": "p3",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На многих P3 стоит Aisin TF-80SC. Частичная замена (слив/залив) безопаснее полной без аппарата; уровень — при рабочей температуре по процедуре.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\n«Вечная» ATF на практике стареет. На **TF-80** распространён drain & fill.\n\n## Практика\n\n1. Масло только с допуском под Aisin/Volvo для вашей коробки.\n2. Слив из поддона, замена фильтра по состоянию.\n3. Уровень — горячая процедура, не «на холодную по щупу» (щупа может не быть).\n4. Повтор через 1–2 ткм при сильном загрязнении.\n\n## Важно\n\nПерелив так же вреден, как недолив. Не ориентируйтесь на объём «как в интернете» без процедуры.",
+  "links": [
+    {
+      "title": "FCP Euro — TF-80SC service",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "P3: TF-80 automatic — partial ATF change",
+  "summary_en": "Many P3 use Aisin TF-80SC. Partial drain/fill is safer than full exchange without a machine; level at operating temperature per procedure.",
+  "body_md_en": "## Summary\n\n“Lifetime” ATF still ages. **TF-80** often gets drain & fill.\n\n## Procedure\n\n1. Fluid only with Aisin/Volvo approval for your box.\n2. Pan drain, filter as needed.\n3. Level — hot procedure, not cold dipstick (may have no stick).\n4. Repeat at 1–2k km if fluid was dirty.\n\n## Important\n\nOverfill hurts like underfill. Do not trust random internet volumes without the procedure."
+}

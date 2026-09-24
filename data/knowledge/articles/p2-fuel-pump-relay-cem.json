@@ -1,0 +1,22 @@
+{
+  "slug": "p2-fuel-pump-relay-cem",
+  "title": "P2: нет давления топлива — реле и CEM",
+  "platform": "p2",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На S60/V70 P2 «не заводится, нет давления» часто реле бензонасоса или команда от CEM/ECM. Слушайте щелчок реле, проверяйте питание насоса до замены бака.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nТопливный насос на P2 управляется через реле/CEM. «Пустой» бак по симптомам ≠ мёртвый насос.\n\n## Чеклист\n\n1. Давление на рампе / слух насоса при включении зажигания.\n2. Реле насоса и предохранитель.\n3. Питание на разъёме насоса.\n4. Коды ECM (топливо / immobilizer).\n\n## Важно\n\nИммобилайзер тоже режет насос — не пропускайте ключ/антенну.",
+  "links": [
+    {
+      "title": "Volvo Forums — P2 no-start fuel",
+      "url": "https://www.volvoforums.org.uk/",
+      "site": "Volvo Forums"
+    }
+  ],
+  "author": null,
+  "title_en": "P2: no fuel pressure — relay and CEM",
+  "summary_en": "S60/V70 P2 no-start/no pressure is often fuel pump relay or CEM/ECM command. Listen for relay click, check pump power before dropping the tank.",
+  "body_md_en": "## Summary\n\nP2 fuel pump is controlled via relay/CEM. “Empty tank” symptoms ≠ dead pump.\n\n## Checklist\n\n1. Rail pressure / pump prime on key-on.\n2. Pump relay and fuse.\n3. Power at pump connector.\n4. ECM codes (fuel / immobilizer).\n\n## Important\n\nImmobilizer also cuts the pump — do not skip key/antenna."
+}

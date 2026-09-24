@@ -1,0 +1,22 @@
+{
+  "slug": "p1-cam-seal-leak-850",
+  "title": "P1: течь масла у ГБЦ — сальники распредвала",
+  "platform": "p1",
+  "topics": [
+    "parts"
+  ],
+  "summary": "На 850/V70 whiteblock масляные пятна у клапанной крышки часто сальники распредвалов или прокладка крышки. Меняют при удобном доступе (ГРМ).",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nСтарение резины на **P1** — типичные наружные течи.\n\n## Практика\n\n1. Отмыть мотор и локализовать источник.\n2. Не путать с масляным фильтром/радиатором.\n3. Сальники распредвала удобно совмещать с ГРМ.\n4. Момент шкивов — по мануалу, не «от руки».\n\n## Важно\n\nСильная течь на ремень ГРМ = срочно, не ждать ТО.",
+  "links": [
+    {
+      "title": "FCP Euro — 850 cam seal",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "P1: head-area oil leak — camshaft seals",
+  "summary_en": "850/V70 whiteblock oil at the valve cover is often cam seals or cover gasket. Replace when timing work allows access.",
+  "body_md_en": "## Summary\n\nAging rubber on **P1** — typical external leaks.\n\n## Procedure\n\n1. Clean and locate the source.\n2. Do not confuse with oil filter/cooler.\n3. Cam seals are easiest with timing service.\n4. Pulley torque — manual spec, not by feel.\n\n## Important\n\nHeavy leak onto the timing belt = urgent, do not wait for service."
+}

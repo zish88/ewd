@@ -37,7 +37,7 @@ import { rootSurfaceForPath } from "./rootRoute.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
 import { realignCardEnrichment } from "./wireEnrichmentAlign.js";
-import { applySiteAppearance, siteDefaultTheme } from "./appearance.js";
+import { LangInlineControl, LangProvider, useUiLang } from "./i18n/LangProvider.js";
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -1656,6 +1656,8 @@ function migrateThemeId(raw: string | null): ThemeId {
 }
 
 function App() {
+  const { t, lang } = useUiLang();
+  void lang;
   const persisted0: PersistedFilters =
     typeof window !== "undefined"
       ? loadPersistedFilters()
@@ -3445,8 +3447,8 @@ function App() {
           disabled={vinLocked || !selectedYear}
           placeholder="Все"
           options={[
-            { value: "", label: "Все" },
-            ...available.transmissions.map((t) => ({ value: t.id, label: t.label })),
+            { value: "", label: t("filter.all") },
+            ...available.transmissions.map((tr) => ({ value: tr.id, label: tr.label })),
           ]}
           onChange={(nextValue) => {
             setVinLocked(false);
@@ -3466,7 +3468,7 @@ function App() {
           ariaLabel="Зона"
           value={selectedZone}
           options={[
-            { value: "all", label: "Все зоны" },
+            { value: "all", label: t("filter.allZones") },
             ...zones.map((z) => ({
               value: z.id,
               label: `${z.label}${z.count ? ` (${z.count})` : ""}`,
@@ -3606,7 +3608,7 @@ function App() {
           ariaLabel="Узел"
           value={selectedCode}
           placeholder="Узел…"
-          options={[{ value: "", label: "Узел…" }]}
+          options={[{ value: "", label: t("filter.nodePlaceholder") }]}
           groups={navGroups.map((g) => ({
             id: g.id,
             label: g.label,
@@ -3620,42 +3622,42 @@ function App() {
 
   /** Compact theme switch, styled like the brand wordmark and shared by mobile and desktop headers. */
   const themeInlineControl = (
-    <div className="app-bar__theme-inline" role="group" aria-label="Тема">
-      {THEMES.map((t) => (
+    <div className="app-bar__theme-inline" role="group" aria-label={t("nav.theme")}>
+      {THEMES.map((th) => (
         <button
-          key={t.id}
+          key={th.id}
           type="button"
-          data-testid={`theme-inline-${t.id}`}
-          className={theme === t.id ? "app-bar__theme-inline-btn is-active" : "app-bar__theme-inline-btn"}
-          title={`Тема: ${t.label}`}
-          aria-pressed={theme === t.id}
-          onClick={() => setTheme(t.id)}
+          data-testid={`theme-inline-${th.id}`}
+          className={theme === th.id ? "app-bar__theme-inline-btn is-active" : "app-bar__theme-inline-btn"}
+          title={`${t("nav.theme")}: ${th.label}`}
+          aria-pressed={theme === th.id}
+          onClick={() => setTheme(th.id)}
         >
-          {t.label}
+          {th.label}
         </button>
       ))}
     </div>
   );
 
   const socialLinksControl = (
-    <div className="app-bar__ext-cluster" aria-label="Навигация и внешние ссылки">
+    <div className="app-bar__ext-cluster" aria-label={t("nav.knowledgeTitle")}>
       <a
         className="app-bar__kb-link"
         href="/knowledge"
-        title="База знаний по платформам Volvo"
-        aria-label="База знаний"
+        title={t("nav.knowledgeTitle")}
+        aria-label={t("nav.knowledge")}
         data-testid="nav-knowledge"
       >
-        База
+        {t("nav.knowledge")}
       </a>
-      <nav className="app-bar__social-links" aria-label="Внешние ссылки">
+      <nav className="app-bar__social-links" aria-label={lang === "en" ? "External links" : "Внешние ссылки"}>
         <a
           className="app-bar__social-link"
           href="https://t.me/ewd_volvo_bot/ewd"
           target="_blank"
           rel="noopener noreferrer external"
-          title="Открыть Telegram-бот Volvo EWD"
-          aria-label="Telegram-бот Volvo EWD"
+          title={t("nav.telegram")}
+          aria-label={t("nav.telegram")}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M21.4 3.4 18.2 19c-.24 1.1-.88 1.37-1.78.85l-4.88-3.6-2.35 2.27c-.26.26-.48.48-.98.48l.35-4.97 9.05-8.18c.39-.35-.09-.55-.61-.2L5.82 12.7 1 11.2c-1.05-.33-1.07-1.05.22-1.56L20.05 2.4c.87-.32 1.63.2 1.35 1Z" />
@@ -3666,8 +3668,8 @@ function App() {
           href="https://www.drive2.ru/users/zish/"
           target="_blank"
           rel="noopener noreferrer external"
-          title="Профиль zish на Drive2"
-          aria-label="Профиль zish на Drive2"
+          title={t("nav.drive2")}
+          aria-label={t("nav.drive2")}
         >
           <span aria-hidden="true">D2</span>
         </a>
@@ -3902,7 +3904,7 @@ function App() {
           }}
         >
           <span className="mobile-filters-toggle__icon" aria-hidden="true">☰</span>
-          <span className="mobile-filters-toggle__label">Меню</span>
+          <span className="mobile-filters-toggle__label">{t("nav.menu")}</span>
           {filterActiveCount > 0 ? (
             <span className="mobile-filters-toggle__badge" data-testid="filters-active-count">
               {filterActiveCount}
@@ -3911,6 +3913,7 @@ function App() {
         </button>
         <div className="app-bar__brand-group shrink-0">
           <span className="font-semibold text-[var(--accent)] tracking-wide app-bar__brand">Volvo EWD</span>
+          <LangInlineControl />
           {themeInlineControl}
           {socialLinksControl}
         </div>
@@ -3932,13 +3935,13 @@ function App() {
                     aria-expanded={filtersPopoverOpen}
                     aria-controls="desktop-filters-popover-panel"
                     aria-haspopup="dialog"
-                    title={filtersPopoverOpen ? "Закрыть" : "VIN, DTC, уведомления"}
+                    title={filtersPopoverOpen ? t("nav.extrasClose") : t("nav.extrasOpen")}
                     onClick={() => {
                       if (filtersPopoverOpen) setFiltersPopoverOpen(false);
                       else openDesktopFiltersPopover();
                     }}
                   >
-                    Доп. {filtersPopoverOpen ? "▴" : "▾"}
+                    {t("nav.extras")} {filtersPopoverOpen ? "▴" : "▾"}
                   </button>
                 </div>
                 {!desktopFiltersCollapsed ? vehicleQuickFields : null}
@@ -4117,9 +4120,11 @@ function App() {
                 ) : null}
               </div>
               <p className="text-sm text-[var(--text-main)] mt-1 leading-snug">
-                {row.title_ru || row.title_en || "—"}
+                {lang === "en"
+                  ? row.title_en || row.title_ru || "—"
+                  : row.title_ru || row.title_en || "—"}
               </p>
-              {row.title_ru && row.title_en ? (
+              {lang === "ru" && row.title_ru && row.title_en ? (
                 <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{row.title_en}</p>
               ) : null}
               <div className="mt-2 flex items-center gap-2">
@@ -4174,8 +4179,12 @@ function App() {
                               </span>
                             ) : null}
                           </div>
-                          <p className="mt-1 text-[var(--text-main)]">{entry.title_ru || entry.title_en || "—"}</p>
-                          {entry.title_ru && entry.title_en ? (
+                          <p className="mt-1 text-[var(--text-main)]">
+                            {lang === "en"
+                              ? entry.title_en || entry.title_ru || "—"
+                              : entry.title_ru || entry.title_en || "—"}
+                          </p>
+                          {lang === "ru" && entry.title_ru && entry.title_en ? (
                             <p className="mt-1 text-[var(--text-muted)]">{entry.title_en}</p>
                           ) : null}
                         </div>
@@ -5107,6 +5116,14 @@ function Root() {
   return <App />;
 }
 
+function RootWithLang() {
+  return (
+    <LangProvider>
+      <Root />
+    </LangProvider>
+  );
+}
+
 async function startClient() {
   const surface = rootSurfaceForPath(window.location.pathname);
   if (surface !== "admin" && surface !== "knowledge") {
@@ -5115,7 +5132,7 @@ async function startClient() {
     void bootstrapTelegramIdentity();
   }
 
-  createRoot(document.getElementById("root")!).render(<Root />);
+  createRoot(document.getElementById("root")!).render(<RootWithLang />);
 
   if (import.meta.env.PROD && "serviceWorker" in navigator && !isTelegramMiniApp()) {
     window.addEventListener("load", () => {

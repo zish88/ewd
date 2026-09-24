@@ -1,0 +1,22 @@
+{
+  "slug": "cma-cabin-filter-access-xc40",
+  "title": "CMA XC40: где салонный фильтр",
+  "platform": "cma",
+  "topics": [
+    "parts"
+  ],
+  "summary": "Салонный фильтр XC40 — за перчаточным ящиком или в кожухе климат-системы (зависит от года). Ставьте по стрелке потока; угольный вариант плотнее.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nЗамена фильтра — базовое ТО CMA, но доступ отличается по годам.\n\n## Практика\n\n1. Сверить расположение по руководству для вашего МГ.\n2. Не рвать уплотнения крышки канала.\n3. Стрелка потока — к вентилятору/по кузову как на старом.\n\n## Важно\n\nPN фильтра и длина пакета — только EPC.",
+  "links": [
+    {
+      "title": "FCP Euro — XC40 cabin filter",
+      "url": "https://www.fcpeuro.com/",
+      "site": "FCP Euro"
+    }
+  ],
+  "author": null,
+  "title_en": "CMA XC40: cabin filter location",
+  "summary_en": "XC40 cabin filter is behind the glove box or in the HVAC housing (year-dependent). Install to the airflow arrow; charcoal packs are denser.",
+  "body_md_en": "## Summary\n\nFilter replacement is basic CMA maintenance, but access varies by year.\n\n## Procedure\n\n1. Confirm location in the manual for your model year.\n2. Do not tear the duct cover seals.\n3. Airflow arrow — toward the blower / same as the old filter.\n\n## Important\n\nFilter PN and pack length — EPC only."
+}

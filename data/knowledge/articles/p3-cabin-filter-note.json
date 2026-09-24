@@ -2,7 +2,9 @@
   "slug": "p3-cabin-filter-note",
   "title": "P3: салонный фильтр под бардачком",
   "platform": "p3",
-  "topics": ["parts"],
+  "topics": [
+    "parts"
+  ],
   "summary": "На XC60/S60/V60 P3 фильтр под бардачком: Torx на накладке, крышка канала, элемент гнётся «гармошкой». Ставьте по стрелке потока.",
   "updated": "2026-09-23",
   "body_md": "## Суть\n\nНа **P3** (в т.ч. XC60 I) замена салонного фильтра — расходник своими руками: доступ **под бардачком**, без разбора половины торпедо.\n\n## Практика\n\n1. Снять нижнюю накладку (обычно Torx).\n2. Открыть крышку канала фильтра.\n3. Вынуть старый элемент, сгибая по направлению к сиденью пассажира.\n4. Новый — по стрелке потока воздуха.\n\n## Партномера\n\nБерите OEM/аналог строго по **VIN/EPC** (разные годы — разные длины пакета). Угольный плотнее обычного пылевого.\n\n## Важно\n\nВыжимка по опыту бортжурнала. Это не схема климат-системы — схемы в навигаторе EWD.",
@@ -15,5 +17,8 @@
   ],
   "author": {
     "post_url": "https://www.drive2.ru/l/472249316174463230/"
-  }
+  },
+  "title_en": "P3: cabin filter under glove box",
+  "summary_en": "XC60/S60/V60 P3: filter under glove box — Torx trim, duct cover, fold element out. Airflow arrow.",
+  "body_md_en": "## Summary\n\n**P3** (incl. XC60 I) cabin filter is DIY: **under glove box**, not half the dash.\n\n## Procedure\n\n1. Lower trim (usually Torx).\n2. Open duct cover.\n3. Remove old element, folding toward passenger seat.\n4. New filter — airflow arrow.\n\n## Part numbers\n\nOEM/cross strictly by **VIN/EPC** (length varies by year). Charcoal is denser than dust-only.\n\n## Important\n\nOwner log, not HVAC wiring — diagrams in EWD navigator."
 }

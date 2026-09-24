@@ -1,0 +1,22 @@
+{
+  "slug": "p3-dim-pixel-fail-note",
+  "title": "P3: приборка DIM — пиксели и «пропадание» экрана",
+  "platform": "p3",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На S60/V60/XC60/XC70 P3 у DIM часто выгорают пиксели или пропадает связь по LIN. Сначала кабель и питание, потом ремонт платы / замена с кодированием.",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\n**DIM** (комбинация приборов) на P3 стареет: тёмные полосы, «пустой» экран, потеря CAN/LIN.\n\n## Практика\n\n1. Проверить разъём за панелью и целостность жгута.\n2. Питание/массы DIM по схеме.\n3. Ремонт пайки (типовые ремкомплекты) vs новый/б/у блок — у б/у нужна привязка.\n\n## Важно\n\nНе путать с отказом CEM: если живы другие узлы, а молчит только приборка — смотрите DIM.",
+  "links": [
+    {
+      "title": "IPD — Volvo instrument cluster parts",
+      "url": "https://www.ipdusa.com/",
+      "site": "IPD"
+    }
+  ],
+  "author": null,
+  "title_en": "P3: DIM cluster — pixels and blank display",
+  "summary_en": "S60/V60/XC60/XC70 P3 DIM loses pixels or LIN link. Cable and power first, then board repair / replacement with coding.",
+  "body_md_en": "## Summary\n\n**DIM** on P3 ages: dark segments, blank screen, lost CAN/LIN.\n\n## Procedure\n\n1. Connector behind cluster and harness integrity.\n2. DIM power/grounds per diagram.\n3. Board repair (common kits) vs new/used — used needs pairing.\n\n## Important\n\nNot CEM failure if other modules are alive and only the cluster is dark."
+}

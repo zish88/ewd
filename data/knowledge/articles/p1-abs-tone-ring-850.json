@@ -1,0 +1,22 @@
+{
+  "slug": "p1-abs-tone-ring-850",
+  "title": "P1 850/V70: ABS и зубчатое кольцо",
+  "platform": "p1",
+  "topics": [
+    "electrical"
+  ],
+  "summary": "На 850/раннем V70 ошибки ABS часто из-за трещины tone ring на ШРУСе или грязи на датчике. Меняйте кольцо/датчик стороны по коду, не «весь ABS».",
+  "updated": "2026-09-24",
+  "body_md": "## Суть\n\nABS на **P1** чувствителен к механике кольца и зазору датчика.\n\n## Чеклист\n\n1. Код — какое колесо.\n2. Осмотр кольца на ШРУСе (трещины, смещение).\n3. Жгут датчика на излом у стойки.\n4. Зазор и загрязнение наконечника датчика.\n\n## Важно\n\nПосле замены кольца иногда нужен короткий тест-драйв для сброса прерывистых кодов.",
+  "links": [
+    {
+      "title": "Swedespeed — 850 ABS tone ring",
+      "url": "https://www.swedespeed.com/",
+      "site": "Swedespeed"
+    }
+  ],
+  "author": null,
+  "title_en": "P1 850/V70: ABS and tone ring",
+  "summary_en": "850/early V70 ABS faults are often a cracked tone ring on the CV joint or dirty sensor. Replace ring/sensor for the flagged wheel, not the whole ABS unit.",
+  "body_md_en": "## Summary\n\n**P1** ABS is sensitive to ring mechanics and sensor gap.\n\n## Checklist\n\n1. Code — which wheel.\n2. Inspect ring on CV joint (cracks, displacement).\n3. Sensor harness at the strut kink.\n4. Gap and debris on the sensor tip.\n\n## Important\n\nAfter ring replacement a short test drive sometimes clears intermittent codes."
+}
