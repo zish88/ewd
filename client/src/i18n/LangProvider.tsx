@@ -11,6 +11,7 @@ import {
 import {
   applyDocumentLang,
   detectInitialUiLang,
+  readStoredUiLang,
   writeStoredUiLang,
   type UiLang,
 } from "./lang.js";
@@ -24,6 +25,17 @@ type LangCtx = {
 
 const Ctx = createContext<LangCtx | null>(null);
 
+function syncLangQuery(lang: UiLang): void {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("lang") === lang) return;
+    url.searchParams.set("lang", lang);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<UiLang>(() => detectInitialUiLang());
 
@@ -31,17 +43,18 @@ export function LangProvider({ children }: { children: ReactNode }) {
     applyDocumentLang(lang);
   }, [lang]);
 
+  // First visit: persist browser-detected lang + reflect in URL (manual toggle already does both).
+  useEffect(() => {
+    if (readStoredUiLang()) return;
+    writeStoredUiLang(lang);
+    syncLangQuery(lang);
+  }, [lang]);
+
   const setLang = useCallback((next: UiLang) => {
     setLangState(next);
     writeStoredUiLang(next);
     applyDocumentLang(next);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("lang", next);
-      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-    } catch {
-      /* ignore */
-    }
+    syncLangQuery(next);
   }, []);
 
   const t = useCallback((key: string, vars?: Record<string, string | number>) => translate(lang, key, vars), [lang]);

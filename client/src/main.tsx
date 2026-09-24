@@ -1657,7 +1657,16 @@ function migrateThemeId(raw: string | null): ThemeId {
 
 function App() {
   const { t, lang } = useUiLang();
-  void lang;
+  function zoneUiLabel(id: string, fallback?: string): string {
+    const key = `zone.${id}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+    return fallback || id;
+  }
+  function transmissionUiLabel(label: string): string {
+    if (lang !== "en") return label;
+    return label.replace(/\(АКПП\)/gi, "(AT)").replace(/\(МКПП\)/gi, "(MT)");
+  }
   const persisted0: PersistedFilters =
     typeof window !== "undefined"
       ? loadPersistedFilters()
@@ -1893,9 +1902,96 @@ function App() {
     () => new Set(navGroups.flatMap((g) => g.items.map((i) => i.code))),
     [navGroups],
   );
-  const zoneLabelById = useMemo(
-    () => new Map(zones.map((z) => [z.id, z.label])),
-    [zones],
+  const zoneLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const z of zones) m.set(z.id, zoneUiLabel(z.id, z.label));
+    return m;
+  }, [zones, lang, t]);
+
+  const vehicleQuickFields = (
+    <>
+      <div className="app-bar__quick-field">
+        <span>{t("filter.model")}</span>
+        <ModernSelect
+          testId="vehicle-model"
+          ariaLabel={t("filter.model")}
+          value={selectedModel}
+          disabled={vinLocked}
+          placeholder={t("filter.dash")}
+          options={[
+            { value: "", label: t("filter.dash") },
+            ...available.models.map((x) => ({ value: x, label: x })),
+          ]}
+          onChange={(nextValue) => {
+            setVinLocked(false);
+            setSelectedModel(nextValue);
+            setSelectedYear("");
+            setSelectedEngine("");
+            setSelectedTransmission("");
+          }}
+        />
+      </div>
+      <div className="app-bar__quick-field">
+        <span>{t("filter.year")}</span>
+        <ModernSelect
+          testId="vehicle-year"
+          ariaLabel={t("filter.year")}
+          value={selectedYear}
+          disabled={vinLocked || !selectedModel}
+          placeholder={t("filter.dash")}
+          options={[
+            { value: "", label: t("filter.dash") },
+            ...available.years.map((x) => ({ value: x, label: x })),
+          ]}
+          onChange={(nextValue) => {
+            setVinLocked(false);
+            setSelectedYear(nextValue);
+            setSelectedEngine("");
+            setSelectedTransmission("");
+          }}
+        />
+      </div>
+      <div className="app-bar__quick-field">
+        <span>{t("filter.engineShort")}</span>
+        <ModernSelect
+          testId="vehicle-engine"
+          ariaLabel={t("filter.engine")}
+          value={selectedEngine}
+          disabled={vinLocked || !selectedYear}
+          placeholder={t("filter.dash")}
+          options={[
+            { value: "", label: t("filter.dash") },
+            ...available.engineOptions.map((x) => ({ value: x.id, label: x.label })),
+          ]}
+          onChange={(nextValue) => {
+            setVinLocked(false);
+            setSelectedEngine(nextValue);
+            setSelectedTransmission("");
+          }}
+        />
+      </div>
+      <div className="app-bar__quick-field">
+        <span>{t("filter.transmission")}</span>
+        <ModernSelect
+          testId="vehicle-transmission"
+          ariaLabel={t("filter.transmissionAria")}
+          value={selectedTransmission}
+          disabled={vinLocked || !selectedYear}
+          placeholder={t("filter.all")}
+          options={[
+            { value: "", label: t("filter.all") },
+            ...available.transmissions.map((tr) => ({
+              value: tr.id,
+              label: transmissionUiLabel(tr.label),
+            })),
+          ]}
+          onChange={(nextValue) => {
+            setVinLocked(false);
+            setSelectedTransmission(nextValue);
+          }}
+        />
+      </div>
+    </>
   );
   /** Search always spans the whole catalog, so a query never dead-ends on the zone filter. */
   const nodeSearchResults = useMemo(() => {
@@ -3343,7 +3439,7 @@ function App() {
 
   const zoneSummaryLabel =
     selectedZone && selectedZone !== "all"
-      ? zones.find((z) => z.id === selectedZone)?.label || selectedZone
+      ? zoneUiLabel(selectedZone, zones.find((z) => z.id === selectedZone)?.label || selectedZone)
       : "";
   const filterActiveCount = [
     selectedModel,
@@ -3382,102 +3478,19 @@ function App() {
     setVehicleConfigured(false);
   };
 
-  const vehicleQuickFields = (
-    <>
-      <div className="app-bar__quick-field">
-        <span>Модель</span>
-        <ModernSelect
-          testId="vehicle-model"
-          ariaLabel="Модель"
-          value={selectedModel}
-          disabled={vinLocked}
-          placeholder="—"
-          options={[
-            { value: "", label: "—" },
-            ...available.models.map((x) => ({ value: x, label: x })),
-          ]}
-          onChange={(nextValue) => {
-            setVinLocked(false);
-            setSelectedModel(nextValue);
-            setSelectedYear("");
-            setSelectedEngine("");
-            setSelectedTransmission("");
-          }}
-        />
-      </div>
-      <div className="app-bar__quick-field">
-        <span>Год</span>
-        <ModernSelect
-          testId="vehicle-year"
-          ariaLabel="Год"
-          value={selectedYear}
-          disabled={vinLocked || !selectedModel}
-          placeholder="—"
-          options={[
-            { value: "", label: "—" },
-            ...available.years.map((x) => ({ value: x, label: x })),
-          ]}
-          onChange={(nextValue) => {
-            setVinLocked(false);
-            setSelectedYear(nextValue);
-            setSelectedEngine("");
-            setSelectedTransmission("");
-          }}
-        />
-      </div>
-      <div className="app-bar__quick-field">
-        <span>Двиг.</span>
-        <ModernSelect
-          testId="vehicle-engine"
-          ariaLabel="Двигатель"
-          value={selectedEngine}
-          disabled={vinLocked || !selectedYear}
-          placeholder="—"
-          options={[
-            { value: "", label: "—" },
-            ...available.engineOptions.map((x) => ({ value: x.id, label: x.label })),
-          ]}
-          onChange={(nextValue) => {
-            setVinLocked(false);
-            setSelectedEngine(nextValue);
-            setSelectedTransmission("");
-          }}
-        />
-      </div>
-      <div className="app-bar__quick-field">
-        <span>КПП</span>
-        <ModernSelect
-          testId="vehicle-transmission"
-          ariaLabel="Коробка передач"
-          value={selectedTransmission}
-          disabled={vinLocked || !selectedYear}
-          placeholder="Все"
-          options={[
-            { value: "", label: t("filter.all") },
-            ...available.transmissions.map((tr) => ({ value: tr.id, label: tr.label })),
-          ]}
-          onChange={(nextValue) => {
-            setVinLocked(false);
-            setSelectedTransmission(nextValue);
-          }}
-        />
-      </div>
-    </>
-  );
-
   const navQuickFields = features.navBrowse ? (
     <>
       <div className="app-bar__quick-field app-bar__quick-field--grow">
-        <span>Зона</span>
+        <span>{t("filter.zone")}</span>
         <ModernSelect
           testId="nav-zone"
-          ariaLabel="Зона"
+          ariaLabel={t("filter.zone")}
           value={selectedZone}
           options={[
             { value: "all", label: t("filter.allZones") },
             ...zones.map((z) => ({
               value: z.id,
-              label: `${z.label}${z.count ? ` (${z.count})` : ""}`,
+              label: `${zoneUiLabel(z.id, z.label)}${z.count ? ` (${z.count})` : ""}`,
             })),
           ]}
           onChange={(nextValue) => {
@@ -3495,7 +3508,7 @@ function App() {
         />
       </div>
       <div className="app-bar__quick-field app-bar__quick-field--grow app-bar__quick-field--search">
-        <span>Поиск</span>
+        <span>{t("filter.search")}</span>
         <div className="app-bar__node-search">
           <input
             data-testid="nav-component-search"
@@ -3505,7 +3518,7 @@ function App() {
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="название, зона, PN…"
+            placeholder={t("filter.searchPlaceholder")}
             value={nodeQueryDraft}
             onChange={(e) => setNodeQueryDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -3520,8 +3533,8 @@ function App() {
               type="button"
               data-testid="nav-component-search-clear"
               className="app-bar__node-search-clear"
-              title="Сбросить поиск"
-              aria-label="Сбросить поиск"
+              title={t("filter.searchClear")}
+              aria-label={t("filter.searchClear")}
               onClick={clearNodeSearch}
             >
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
@@ -3539,8 +3552,8 @@ function App() {
             type="button"
             data-testid="nav-component-search-btn"
             className="app-bar__node-search-btn"
-            title="Найти"
-            aria-label="Найти узел"
+            title={t("filter.searchFind")}
+            aria-label={t("filter.searchFindNode")}
             onClick={applyNodeSearch}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false">
@@ -3559,15 +3572,15 @@ function App() {
               <div className="node-search-results__head">
                 <span>
                   {nodeSearchResults.length
-                    ? `Найдено: ${nodeSearchResults.length}`
-                    : "Ничего не найдено"}
+                    ? t("filter.searchFound", { n: nodeSearchResults.length })
+                    : t("filter.searchEmpty")}
                 </span>
                 <button
                   type="button"
                   className="node-search-results__close"
                   onClick={clearNodeSearch}
                 >
-                  Закрыть
+                  {t("filter.searchClose")}
                 </button>
               </div>
               {nodeSearchResults.length ? (
@@ -3590,7 +3603,7 @@ function App() {
                           <span className="node-search-results__label">{it.label}</span>
                           {outside ? (
                             <span className="node-search-results__zone">
-                              {zoneLabelById.get(it.home_zone || "") || "другая зона"}
+                              {zoneLabelById.get(it.home_zone || "") || t("filter.otherZone")}
                             </span>
                           ) : null}
                         </button>
@@ -3599,21 +3612,19 @@ function App() {
                   })}
                 </ul>
               ) : (
-                <p className="node-search-results__empty">
-                  Попробуйте часть названия, зону («двери», «крыша», «сиденья») или номер детали.
-                </p>
+                <p className="node-search-results__empty">{t("filter.searchHint")}</p>
               )}
             </div>
           ) : null}
         </div>
       </div>
       <div className="app-bar__quick-field app-bar__quick-field--wide">
-        <span>Узел</span>
+        <span>{t("filter.node")}</span>
         <ModernSelect
           testId="nav-component"
-          ariaLabel="Узел"
+          ariaLabel={t("filter.node")}
           value={selectedCode}
-          placeholder="Узел…"
+          placeholder={t("filter.nodePlaceholder")}
           options={[{ value: "", label: t("filter.nodePlaceholder") }]}
           groups={navGroups.map((g) => ({
             id: g.id,
