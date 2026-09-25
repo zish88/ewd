@@ -1,0 +1,27 @@
+{
+  "maxPublishedArticles": 400,
+  "maxPerPlatform": 80,
+  "maxPendingDrafts": 40,
+  "maxNewDraftsPerRun": 10,
+  "maxRawCacheMb": 200,
+  "maxHtmlBytesPerUrl": 1500000,
+  "maxBodyMdChars": 4000,
+  "maxSummaryChars": 280,
+  "minSecondsBetweenFetchHost": 4,
+  "fetchTimeoutMs": 15000,
+  "maxRetries": 3,
+  "allowHosts": [
+    "www.drive2.ru",
+    "drive2.ru",
+    "www.swedespeed.com",
+    "swedespeed.com",
+    "www.volvoforums.org.uk",
+    "volvoforums.org.uk",
+    "www.volvocars.com",
+    "volvocars.com",
+    "www.ipdusa.com",
+    "ipdusa.com",
+    "www.fcpeuro.com",
+    "fcpeuro.com"
+  ]
+}

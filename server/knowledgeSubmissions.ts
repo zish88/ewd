@@ -261,3 +261,15 @@ export function approveKbSubmission(id: number, note = ""): KbSubmission | null 
 
   return getKbSubmission(id);
 }
+
+/** Tag a pending submission as collector-origin (for admin UI). */
+export function tagKbSubmissionCollector(id: number): void {
+  const d = openDb();
+  d.prepare(
+    `UPDATE kb_submissions SET admin_note =
+       CASE WHEN admin_note = '' OR admin_note IS NULL THEN 'collector:'
+            WHEN admin_note LIKE 'collector:%' THEN admin_note
+            ELSE 'collector: ' || admin_note END
+     WHERE id=?`,
+  ).run(id);
+}

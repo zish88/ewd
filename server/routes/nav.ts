@@ -565,6 +565,8 @@ function rowToNavCard(
       function_text,
     },
     nameByCode,
+    undefined,
+    lang,
   );
   if (enrichment) (out as any).enrichment = enrichment;
   out.score = calculateDataScore(out);

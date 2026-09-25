@@ -110,6 +110,15 @@ data/ewd/_vea/
 data/ewd/pin_wire_index.json
 data/ewd/global_signal_index.json
 data/wiring.capital.sqlite
+data/knowledge-collector.sqlite
+data/knowledge-collector.sqlite-*
+data/knowledge-collector-cache/
+data/knowledge-comments.sqlite
+data/knowledge-comments.sqlite-*
+data/knowledge-likes.sqlite
+data/knowledge-likes.sqlite-*
+data/knowledge-submissions.sqlite
+data/knowledge-submissions.sqlite-*
 
 # Smoke / local bundles / Python cache
 scripts/_*-smoke*

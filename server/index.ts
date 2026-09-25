@@ -32,6 +32,7 @@ import { ensureVisitsStore, recordVisit } from "./visits.js";
 import { ensureKnowledgeSubmissionsStore } from "./knowledgeSubmissions.js";
 import { ensureKnowledgeLikesStore } from "./knowledgeLikes.js";
 import { ensureKnowledgeCommentsStore } from "./knowledgeComments.js";
+import { ensureKnowledgeCollectorStore } from "./knowledgeCollector.js";
 import {
   applyAllCorrections,
   ensureAdminCorrectionsStore,
@@ -47,6 +48,7 @@ ensureVisitsStore();
 ensureKnowledgeSubmissionsStore();
 ensureKnowledgeCommentsStore();
 ensureKnowledgeLikesStore();
+ensureKnowledgeCollectorStore();
 ensurePushStore();
 ensureAdminCorrectionsStore();
 // Re-apply durable admin edits after fixdb / fresh wiring.sqlite from git

@@ -53,6 +53,39 @@ export const WIRE_COLOR_RU: Record<string, string> = {
   Y: "Желтый",
 };
 
+export const WIRE_COLOR_EN: Record<string, string> = {
+  BK: "Black",
+  SB: "Black",
+  BN: "Brown",
+  BU: "Blue",
+  BL: "Blue",
+  GN: "Green",
+  GY: "Grey",
+  GR: "Grey",
+  LGN: "Light green",
+  OG: "Orange",
+  OR: "Orange",
+  PK: "Pink",
+  P: "Pink",
+  RD: "Red",
+  R: "Red",
+  VT: "Violet",
+  VO: "Violet",
+  WH: "White",
+  W: "White",
+  YE: "Yellow",
+  Y: "Yellow",
+};
+
+/** Human wire-color label for UI (RU names or EN names). */
+export function wireColorLabel(code: string | undefined | null, lang: "ru" | "en" = "ru"): string {
+  const raw = normalizeWireColorKey(code);
+  if (!raw || raw === "—") return "—";
+  const map = lang === "en" ? WIRE_COLOR_EN : WIRE_COLOR_RU;
+  const names = raw.split("-").filter(Boolean).map((part) => map[part] || part);
+  return names.join("-") || raw;
+}
+
 export function normalizeWireColorKey(raw: string | undefined | null): string {
   return String(raw || "")
     .toUpperCase()

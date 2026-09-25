@@ -36,6 +36,14 @@ import {
   rejectKbSubmission,
 } from "../knowledgeSubmissions.js";
 import { deleteKbComment, listKbCommentsAdmin } from "../knowledgeComments.js";
+import {
+  addCollectorSeed,
+  addCollectorSeedsBatch,
+  ensureKnowledgeCollectorStore,
+  getCollectorStatus,
+  runKnowledgeCollector,
+  vacuumCollectorCache,
+} from "../knowledgeCollector.js";
 
 type TicketRow = {
   id: number;
@@ -543,6 +551,89 @@ export function createAdminRouter(db: Database.Database) {
       return;
     }
     res.json({ ok: true });
+  });
+
+  router.get("/knowledge/collector/status", requireAdmin, (_req, res) => {
+    ensureKnowledgeCollectorStore();
+    res.json({ ok: true, ...getCollectorStatus() });
+  });
+
+  router.post("/knowledge/collector/seeds", requireAdmin, (req, res) => {
+    ensureKnowledgeCollectorStore();
+    const b = (req.body || {}) as {
+      url?: string;
+      urls?: string[];
+      text?: string;
+      platform?: string;
+      topic?: string;
+    };
+    const text = String(b.text || "").trim();
+    const urls = Array.isArray(b.urls) ? b.urls.map(String) : [];
+    const single = String(b.url || "").trim();
+    if (text || urls.length > 0 || (single && /[\n\s,]/.test(single))) {
+      const batch = addCollectorSeedsBatch({
+        text: text || single,
+        urls: urls.length ? urls : undefined,
+        platform: String(b.platform || "p3"),
+        topic: String(b.topic || "parts"),
+      });
+      res.status(batch.added > 0 ? 201 : 400).json(batch);
+      return;
+    }
+    const result = addCollectorSeed({
+      url: single,
+      platform: String(b.platform || ""),
+      topic: String(b.topic || "parts"),
+    });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.status(201).json(result);
+  });
+
+  router.post("/knowledge/collector/run", requireAdmin, async (req, res) => {
+    ensureKnowledgeCollectorStore();
+    const b = (req.body || {}) as { mode?: string; maxNew?: number };
+    const mode = b.mode === "online" || b.mode === "dry-run" ? b.mode : "offline";
+    try {
+      const report = await runKnowledgeCollector({
+        mode,
+        maxNew: Number(b.maxNew) || undefined,
+      });
+      res.json({ ok: true, report, status: getCollectorStatus() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e instanceof Error ? e.message : "run failed" });
+    }
+  });
+
+  router.post("/knowledge/collector/vacuum", requireAdmin, (_req, res) => {
+    ensureKnowledgeCollectorStore();
+    res.json(vacuumCollectorCache());
+  });
+
+  router.post("/knowledge/submissions/batch-approve", requireAdmin, (req, res) => {
+    const ids = Array.isArray((req.body as { ids?: unknown })?.ids)
+      ? ((req.body as { ids: unknown[] }).ids as unknown[])
+          .map((x) => Number(x))
+          .filter((n) => Number.isFinite(n))
+      : [];
+    if (ids.length === 0) {
+      res.status(400).json({ ok: false, error: "Укажите ids[]" });
+      return;
+    }
+    const approved: number[] = [];
+    const failed: Array<{ id: number; error: string }> = [];
+    for (const id of ids.slice(0, 40)) {
+      try {
+        const row = approveKbSubmission(id, "batch");
+        if (row?.status === "approved") approved.push(id);
+        else failed.push({ id, error: "not pending" });
+      } catch (e) {
+        failed.push({ id, error: e instanceof Error ? e.message : "error" });
+      }
+    }
+    res.json({ ok: true, approved, failed });
   });
 
   return router;

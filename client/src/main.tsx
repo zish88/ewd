@@ -5,7 +5,7 @@ import { EmptyStateHero } from "./EmptyStateHero.js";
 import { InstallAppBanner } from "./InstallAppBanner.js";
 import { SvgDiagramViewer } from "./SvgDiagramViewer.js";
 import { SvgPanZoomHost } from "./SvgPanZoomHost.js";
-import { WIRE_COLOR_HEX, WIRE_COLOR_RU, normalizeWireColorKey } from "./wireColors.js";
+import { WIRE_COLOR_HEX, normalizeWireColorKey, wireColorLabel } from "./wireColors.js";
 import {
   cardMatchesWireColorFilter,
   collectUniqueWireColors,
@@ -37,6 +37,7 @@ import { rootSurfaceForPath } from "./rootRoute.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
 import { trackVisitOnce } from "./visitBeacon.js";
 import { realignCardEnrichment } from "./wireEnrichmentAlign.js";
+import { applySiteAppearance, siteDefaultTheme } from "./appearance.js";
 import { LangInlineControl, LangProvider, useUiLang } from "./i18n/LangProvider.js";
 import {
   disablePushNotifications,
@@ -46,7 +47,6 @@ import {
 } from "./pushSubscribe.js";
 import {
   humanizeOptionExpression,
-  optionApplicabilityLabel,
   optionApplicabilityStatus,
 } from "./optionExpressionHumanize.js";
 import {
@@ -212,10 +212,15 @@ function schemeConfidenceForDiagram(d: {
   return "none";
 }
 
-function schemeConfidenceLabel(c: SchemeConfidence | undefined, wireFocus = false): string {
-  if (c === "wire-owned") return wireFocus ? "провод" : "узел";
-  if (c === "pin-only") return "только контакт";
-  if (c === "text-only") return "текст";
+function schemeConfidenceLabel(
+  c: SchemeConfidence | undefined,
+  wireFocus = false,
+  t?: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  const tr = t || ((k: string) => k);
+  if (c === "wire-owned") return wireFocus ? tr("node.confWire") : tr("node.confNode");
+  if (c === "pin-only") return tr("node.confPinOnly");
+  if (c === "text-only") return tr("node.confText");
   return "";
 }
 
@@ -429,11 +434,10 @@ type FilterAvailable = {
 };
 const colors = WIRE_COLOR_HEX;
 /** RD-GY ??? ????????????????-?????????? (RD-GY)?? */
-function decodeWireColor(colorCode: string | undefined | null): string {
+function decodeWireColor(colorCode: string | undefined | null, lang: "ru" | "en" = "ru"): string {
   const raw = normalizeWireColorKey(colorCode);
-  if (!raw || raw === "???") return "???";
-  const names = raw.split("-").filter(Boolean).map((part) => WIRE_COLOR_RU[part] || part);
-  return `${names.join("-")} (${raw})`;
+  if (!raw || raw === "—" || raw === "???") return "—";
+  return `${wireColorLabel(raw, lang)} (${raw})`;
 }
 function wireStyle(color: string) {
   const [a, b] = normalizeWireColorKey(color).split("-");
@@ -661,14 +665,17 @@ function hasCardParts(parts?: CardParts | null): boolean {
   return hasLegacyCardParts(parts) || hasRepairCatalog(parts?.repair);
 }
 
-function confidenceBadge(c: RepairConfidence): { label: string; className: string; title: string } {
+function confidenceBadge(
+  c: RepairConfidence,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): { label: string; className: string; title: string } {
   if (c === "exact")
-    return { label: "", className: "repair-dot repair-dot--exact", title: "отлично" };
+    return { label: "", className: "repair-dot repair-dot--exact", title: t("repair.confExact") };
   if (c === "compatible")
-    return { label: "", className: "repair-dot repair-dot--compatible", title: "необходимо сверить" };
+    return { label: "", className: "repair-dot repair-dot--compatible", title: t("repair.confCompatible") };
   if (c === "reference")
-    return { label: "", className: "repair-dot repair-dot--reference", title: "справочно" };
-  return { label: "", className: "repair-dot repair-dot--unknown", title: "данных нет" };
+    return { label: "", className: "repair-dot repair-dot--reference", title: t("repair.confReference") };
+  return { label: "", className: "repair-dot repair-dot--unknown", title: t("repair.confUnknown") };
 }
 
 function RepairPartRow({
@@ -682,7 +689,8 @@ function RepairPartRow({
   setNotice: (v: string) => void;
   onOpenPart: (part: RepairPart, roleLabel: string) => void;
 }) {
-  const badge = confidenceBadge(part.confidence);
+  const { t } = useUiLang();
+  const badge = confidenceBadge(part.confidence, t);
   return (
     <li className="repair-part-row">
       <div className="repair-part-row__top">
@@ -691,17 +699,17 @@ function RepairPartRow({
         <button
           type="button"
           className="repair-part-row__pn font-mono"
-          title="Показать иллюстрацию EPC"
+          title={t("repair.showEpc")}
           onClick={() => onOpenPart(part, roleLabel)}
         >
           {part.part_number}
-          {part.image_url ? <span className="repair-part-row__has-img" title="Есть иллюстрация" /> : null}
+          {part.image_url ? <span className="repair-part-row__has-img" title={t("repair.hasImage")} /> : null}
         </button>
         <button
           type="button"
           className="parts-catalog__copy"
-          title="Скопировать"
-          aria-label={`Скопировать ${part.part_number}`}
+          title={t("repair.copy")}
+          aria-label={`${t("repair.copy")} ${part.part_number}`}
           onClick={() => void copyPartNumber(part.part_number, setNotice)}
         >
           <CopyIcon />
@@ -745,7 +753,8 @@ function PartNumberPopover({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const badge = confidenceBadge(part.confidence);
+  const { t } = useUiLang();
+  const badge = confidenceBadge(part.confidence, t);
   const img = part.image_url || null;
 
   return (
@@ -848,10 +857,10 @@ function PartNumberPopover({
             className="part-popover__btn"
             onClick={() => void copyPartNumber(part.part_number, setNotice)}
           >
-            Скопировать
+            {t("repair.copy")}
           </button>
           <button type="button" className="part-popover__btn part-popover__btn--primary" onClick={onClose}>
-            Закрыть
+            {t("repair.close")}
           </button>
         </div>
       </div>
@@ -868,25 +877,31 @@ function RepairCatalogBlock({
   testId: string;
   setNotice: (v: string) => void;
 }) {
+  const { t, lang } = useUiLang();
   const [openPart, setOpenPart] = useState<{ part: RepairPart; roleLabel: string } | null>(null);
   if (!hasRepairCatalog(repair)) return null;
   const r = repair!;
   const statusBadge = confidenceBadge(
     r.status === "exact" ? "exact" : r.status === "compatible" ? "compatible" : "unknown",
+    t,
   );
+  const summaryText =
+    lang === "en"
+      ? String((r as { summary_en?: string }).summary_en || r.summary_ru || "").trim()
+      : String(r.summary_ru || "").trim();
   return (
     <>
       <details className="repair-catalog" data-testid={testId}>
         <summary className="repair-catalog__summary">
-          Ремонт разъёма
+          {t("repair.title")}
           <span className={statusBadge.className} title={statusBadge.title} aria-label={statusBadge.title} />
         </summary>
-        <p className="repair-catalog__summary-text">{r.summary_ru}</p>
+        {summaryText ? <p className="repair-catalog__summary-text">{summaryText}</p> : null}
         <ul className="parts-catalog parts-catalog--repair">
           {r.housing ? (
             <RepairPartRow
               part={r.housing}
-              roleLabel="Корпус"
+              roleLabel={t("repair.housing")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
@@ -894,7 +909,7 @@ function RepairCatalogBlock({
           {r.mate ? (
             <RepairPartRow
               part={r.mate}
-              roleLabel="Ответная"
+              roleLabel={t("repair.mate")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
@@ -902,63 +917,63 @@ function RepairCatalogBlock({
           {r.device ? (
             <RepairPartRow
               part={r.device}
-              roleLabel="Деталь"
+              roleLabel={t("repair.device")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
           ) : null}
-          {(r.terminals || []).map((t) => (
+          {(r.terminals || []).map((term) => (
             <RepairPartRow
-              key={`t-${t.part_number}-${t.confidence}`}
-              part={t}
-              roleLabel="Клемма"
+              key={`t-${term.part_number}-${term.confidence}`}
+              part={term}
+              roleLabel={t("repair.terminal")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
           ))}
-          {(r.seals || []).map((t) => (
+          {(r.seals || []).map((seal) => (
             <RepairPartRow
-              key={`s-${t.part_number}`}
-              part={t}
-              roleLabel="Уплотнение"
+              key={`s-${seal.part_number}`}
+              part={seal}
+              roleLabel={t("repair.seal")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
           ))}
-          {(r.pigtails || []).map((t) => (
+          {(r.pigtails || []).map((pg) => (
             <RepairPartRow
-              key={`p-${t.part_number}`}
-              part={t}
-              roleLabel="Пигтейл"
+              key={`p-${pg.part_number}`}
+              part={pg}
+              roleLabel={t("repair.pigtail")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
           ))}
-          {(r.tools || []).map((t) => (
+          {(r.tools || []).map((tool) => (
             <RepairPartRow
-              key={`tool-${t.part_number}`}
-              part={t}
-              roleLabel={t.role === "tool_kit" ? "Комплект" : "Инструмент"}
+              key={`tool-${tool.part_number}`}
+              part={tool}
+              roleLabel={tool.role === "tool_kit" ? t("repair.toolKit") : t("repair.tool")}
               setNotice={setNotice}
               onOpenPart={(part, roleLabel) => setOpenPart({ part, roleLabel })}
             />
           ))}
         </ul>
         <p className="repair-catalog__hint">
-          Нажмите партномер — чертёж EPC для этого кода. Увеличивайте в окне (+/− / колёсико).
+          {t("repair.hint")}
         </p>
         <p className="repair-catalog__legend" aria-label="Обозначения">
           <span className="repair-catalog__legend-item">
             <span className="repair-dot repair-dot--exact" aria-hidden />
-            отлично
+            {t("repair.confExact")}
           </span>
           <span className="repair-catalog__legend-item">
             <span className="repair-dot repair-dot--compatible" aria-hidden />
-            необходимо сверить
+            {t("repair.confCompatible")}
           </span>
           <span className="repair-catalog__legend-item">
             <span className="repair-dot repair-dot--reference" aria-hidden />
-            справочно
+            {t("repair.confReference")}
           </span>
         </p>
       </details>
@@ -990,6 +1005,7 @@ function PartsCatalogList({
   /** Card mode: collapsed PN badge + expand (full list on node banner). */
   compact?: boolean;
 }) {
+  const { t, lang } = useUiLang();
   const [open, setOpen] = useState(!compact);
   if (!hasLegacyCardParts(parts)) return null;
   const primary = parts.housing || parts.mate || parts.device || "";
@@ -1036,14 +1052,14 @@ function PartsCatalogList({
       <ul className={className} data-testid={testId}>
         {parts.device ? (
           <li className="parts-catalog__chip">
-            <span className="parts-catalog__role">Деталь</span>
+            <span className="parts-catalog__role">{t("parts.device")}</span>
             <span className="parts-catalog__pn-row">
               <span className="parts-catalog__pn font-mono">{parts.device}</span>
               <button
                 type="button"
                 className="parts-catalog__copy"
-                title="Скопировать"
-                aria-label={`Скопировать ${parts.device}`}
+                title={t("repair.copy")}
+                aria-label={`${t("repair.copy")} ${parts.device}`}
                 onClick={() => void copyPartNumber(parts.device!, setNotice)}
               >
                 <CopyIcon />
@@ -1053,14 +1069,14 @@ function PartsCatalogList({
         ) : null}
         {parts.housing ? (
           <li className="parts-catalog__chip">
-            <span className="parts-catalog__role">Корпус</span>
+            <span className="parts-catalog__role">{t("parts.housing")}</span>
             <span className="parts-catalog__pn-row">
               <span className="parts-catalog__pn font-mono">{parts.housing}</span>
               <button
                 type="button"
                 className="parts-catalog__copy"
-                title="Скопировать"
-                aria-label={`Скопировать ${parts.housing}`}
+                title={t("repair.copy")}
+                aria-label={`${t("repair.copy")} ${parts.housing}`}
                 onClick={() => void copyPartNumber(parts.housing!, setNotice)}
               >
                 <CopyIcon />
@@ -1070,14 +1086,14 @@ function PartsCatalogList({
         ) : null}
         {parts.mate ? (
           <li className="parts-catalog__chip">
-            <span className="parts-catalog__role">Ответная</span>
+            <span className="parts-catalog__role">{t("parts.mate")}</span>
             <span className="parts-catalog__pn-row">
               <span className="parts-catalog__pn font-mono">{parts.mate}</span>
               <button
                 type="button"
                 className="parts-catalog__copy"
-                title="Скопировать"
-                aria-label={`Скопировать ${parts.mate}`}
+                title={t("repair.copy")}
+                aria-label={`${t("repair.copy")} ${parts.mate}`}
                 onClick={() => void copyPartNumber(parts.mate!, setNotice)}
               >
                 <CopyIcon />
@@ -1085,22 +1101,26 @@ function PartsCatalogList({
             </span>
           </li>
         ) : null}
-        {(parts.terminals || []).map((t) => (
-          <li key={t.part_number} className="parts-catalog__chip">
-            <span className="parts-catalog__role">Клемма</span>
+        {(parts.terminals || []).map((term) => (
+          <li key={term.part_number} className="parts-catalog__chip">
+            <span className="parts-catalog__role">{t("repair.terminal")}</span>
             <span className="parts-catalog__pn-row">
-              <span className="parts-catalog__pn font-mono">{t.part_number}</span>
+              <span className="parts-catalog__pn font-mono">{term.part_number}</span>
               <button
                 type="button"
                 className="parts-catalog__copy"
-                title="Скопировать"
-                aria-label={`Скопировать ${t.part_number}`}
-                onClick={() => void copyPartNumber(t.part_number, setNotice)}
+                title={t("repair.copy")}
+                aria-label={`${t("repair.copy")} ${term.part_number}`}
+                onClick={() => void copyPartNumber(term.part_number, setNotice)}
               >
                 <CopyIcon />
               </button>
             </span>
-            {t.name_ru ? <span className="parts-catalog__name">{t.name_ru}</span> : null}
+            {term.name_en || term.name_ru ? (
+              <span className="parts-catalog__name">
+                {lang === "en" ? term.name_en || term.name_ru : term.name_ru || term.name_en}
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -1116,6 +1136,7 @@ function WireApplicabilityDetails({
   expr: string;
   optionTokens?: string[];
 }) {
+  const { t, lang } = useUiLang();
   const [opened, setOpened] = useState(false);
   const human = opened ? humanizeOptionExpression(expr) : null;
   const status = opened ? optionApplicabilityStatus(expr, optionTokens) : "unknown";
@@ -1126,8 +1147,16 @@ function WireApplicabilityDetails({
         ? "wire-applicability__status--mismatch"
         : "wire-applicability__status--unknown";
   const conditionText = human
-    ? human.textRuLabeled || human.textRu || expr
+    ? lang === "en"
+      ? human.textRu || expr
+      : human.textRuLabeled || human.textRu || expr
     : "";
+  const statusLabel =
+    status === "match"
+      ? t("card.applicabilityMatch")
+      : status === "mismatch"
+        ? t("card.applicabilityMismatch")
+        : t("card.applicabilityUnknown");
   return (
     <details
       className="wire-applicability"
@@ -1138,29 +1167,29 @@ function WireApplicabilityDetails({
       }}
     >
       <summary className="wire-applicability__summary">
-        Не на всех комплектациях данного авто
+        {t("card.applicabilitySummary")}
       </summary>
       {opened && human ? (
         <div className="wire-applicability__body">
           <p className="wire-applicability__why">
-            Этот провод ставят только при такой комплектации — иначе его в жгуте может не быть.
+            {t("card.applicabilityWhy")}
           </p>
           <div className="wire-applicability__line">
-            <span className="text-[var(--text-muted)]">Условие:</span>{" "}
+            <span className="text-[var(--text-muted)]">{t("card.applicabilityCondition")}</span>{" "}
             <span>{conditionText}</span>
           </div>
           <div className={`wire-applicability__status ${statusClass}`}>
-            {optionApplicabilityLabel(status)}
+            {statusLabel}
           </div>
           <details className="wire-applicability__raw">
-            <summary>Коды с схемы</summary>
+            <summary>{t("card.applicabilityRaw")}</summary>
             <code>{human.textRu || expr}</code>
             {human.raw && human.raw !== human.textRu ? (
               <code className="wire-applicability__raw-capital">{human.raw}</code>
             ) : null}
           </details>
           <p className="wire-applicability__gap-note">
-            На схеме линия может «прерываться» текстом условий — это не обрыв провода в машине.
+            {t("card.applicabilityGap")}
           </p>
         </div>
       ) : null}
@@ -1168,37 +1197,56 @@ function WireApplicabilityDetails({
   );
 }
 
-function renderWireCard(
-  item: Result,
-  index: number,
-  canShowOnDiagram: boolean,
-  schemeInfo: CardSchemeInfo,
-  selectedCode: string,
-  setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null) => void,
-  selectedPinState: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null,
-  onOpenDiagram: (searchCode: string, preferredUid?: string, wire?: WireFocus, card?: Result) => void,
-  setCapitalPanel: (v: CapitalPanel | null) => void,
-  setActiveSvg: (v: ActiveSvg | null) => void,
-  setNotice: (v: string) => void,
-  setEditingItem: (v: any) => void,
+function WireCard({
+  item,
+  index,
+  canShowOnDiagram,
+  schemeInfo,
+  selectedCode,
+  setSelectedPinState,
+  selectedPinState,
+  onOpenDiagram,
+  setCapitalPanel,
+  setActiveSvg,
+  setNotice,
+  setEditingItem,
   suggestionsEnabled = true,
+  cardContext,
+}: {
+  item: Result;
+  index: number;
+  canShowOnDiagram: boolean;
+  schemeInfo: CardSchemeInfo;
+  selectedCode: string;
+  setSelectedPinState: (v: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null) => void;
+  selectedPinState: { id: string | number; code: string; color: string; pin: string; wireUid?: string } | null;
+  onOpenDiagram: (searchCode: string, preferredUid?: string, wire?: WireFocus, card?: Result) => void;
+  setCapitalPanel: (v: CapitalPanel | null) => void;
+  setActiveSvg: (v: ActiveSvg | null) => void;
+  setNotice: (v: string) => void;
+  setEditingItem: (v: any) => void;
+  suggestionsEnabled?: boolean;
   cardContext?: {
     zone: string;
     code: string;
     model: string;
     year: string;
     engine: string;
-    /** Vehicle optionTokens (VIN/фильтры) — для статуса применимости. */
     optionTokens?: string[];
-  },
-) {
+  };
+}) {
+  const { t, lang } = useUiLang();
   const itemId = item.id || `search-${index}`;
   const isThis = selectedPinState?.id === itemId;
-  const wireRu = item.wire_color_ru || decodeWireColor(item.wire_color).replace(/\s*\([^)]*\)\s*$/, "") || "—";
+  const wireRu =
+    (lang === "en"
+      ? wireColorLabel(item.wire_color, "en")
+      : item.wire_color_ru || wireColorLabel(item.wire_color, "ru")) ||
+    "—";
   const wireCode = item.wire_color && item.wire_color !== "—" ? item.wire_color : "—";
   const openDiagram = () => {
     if (!canShowOnDiagram) {
-      setNotice("Графическая схема EWD для этого провода недоступна. Откройте «Разъём» (FaceView).");
+      setNotice(t("card.noDiagram"));
       return;
     }
     const code = String(selectedCode || item.search_target || item.from_node || "").trim();
@@ -1332,7 +1380,7 @@ function renderWireCard(
   const faceCode = String(item.subject_code || selectedCode || item.from_node || "").trim();
   const openFaceView = () => {
     if (!faceCode) {
-      setNotice("Нет кода разъёма для FaceView.");
+      setNotice(t("card.noFaceCode"));
       return;
     }
     setActiveSvg(null);
@@ -1344,7 +1392,7 @@ function renderWireCard(
   };
   const openLocation = () => {
     if (!faceCode) {
-      setNotice("Нет кода для Location View.");
+      setNotice(t("card.noLocationCode"));
       return;
     }
     setActiveSvg(null);
@@ -1359,7 +1407,7 @@ function renderWireCard(
     ownerTitle ||
     item.card_title ||
     item.system_name ||
-    (titleFocus.pin ? `${titleFocus.code}:${titleFocus.pin}` : "Контакт");
+    (titleFocus.pin ? `${titleFocus.code}:${titleFocus.pin}` : t("card.contact"));
   const steering = item.steering_side === "LHD" || item.steering_side === "RHD" ? item.steering_side : "";
   const fromLabel =
     (item.from_detail && String(item.from_detail).trim()) ||
@@ -1398,8 +1446,8 @@ function renderWireCard(
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           {schemeExact ? (
-            <span className="wire-scheme-badge" title="Провод подтверждён на схеме">
-              ● на схеме
+            <span className="wire-scheme-badge" title={t("card.onSchemeTitle")}>
+              ● {t("card.onScheme")}
             </span>
           ) : null}
           {steering ? (
@@ -1425,15 +1473,15 @@ function renderWireCard(
       </div>
       <div className="result-card__body grid grid-cols-1 gap-1.5 text-xs font-mono text-[var(--text-main)] bg-[var(--input-bg)] border border-[var(--border-color)] rounded-md p-2.5">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-[var(--text-muted)] font-sans">Откуда</span>
+          <span className="text-[var(--text-muted)] font-sans">{t("card.from")}</span>
           <span className="ewd-data font-bold whitespace-pre-wrap break-words text-[var(--text-main)]">{fromLabel}</span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-[var(--text-muted)] font-sans">Куда</span>
+          <span className="text-[var(--text-muted)] font-sans">{t("card.to")}</span>
           <span className="ewd-data font-bold whitespace-pre-wrap break-words text-[var(--text-main)]">{toLabel}</span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-[var(--text-muted)] font-sans">Провод</span>
+          <span className="text-[var(--text-muted)] font-sans">{t("card.wire")}</span>
           <span
             className="ewd-wire-badge px-1.5 py-0.5 rounded border border-[var(--border-color)] font-bold font-sans"
             style={wireCode !== "—" ? getColorStyle(wireCode) : undefined}
@@ -1447,7 +1495,7 @@ function renderWireCard(
           ) : null}
         </div>
       </div>
-      {enrich?.from_to_plain_ru ? (
+      {enrich?.from_to_plain_ru && !(lang === "en" && /[а-яё]/i.test(enrich.from_to_plain_ru)) ? (
         <p className="wire-enrichment-plain" data-testid="wire-enrichment-plain">
           {enrich.from_to_plain_ru}
         </p>
@@ -1459,14 +1507,14 @@ function renderWireCard(
           data-testid="wire-context-notice"
         >
           {schemeInfo.status === "no-sheet" ? (
-            <span>Точная схема этого провода не подтверждена. Листы узла могут не содержать провод.</span>
+            <span>{t("card.schemeNoSheet")}</span>
           ) : (
-            <span>Нет идентификатора провода: схема будет подобрана по контакту и цвету.</span>
+            <span>{t("card.schemeMissingId")}</span>
           )}
           {schemeInfo.nearestPeer ? (
             <span className="wire-context-notice__peer">
-              Ближайшая связь: <strong>{schemeInfo.nearestPeer.code}</strong>
-              {schemeInfo.nearestPeer.pin ? ` · контакт ${schemeInfo.nearestPeer.pin}` : ""}
+              {t("card.nearestLink")} <strong>{schemeInfo.nearestPeer.code}</strong>
+              {schemeInfo.nearestPeer.pin ? ` · ${t("card.pinSuffix", { pin: schemeInfo.nearestPeer.pin })}` : ""}
             </span>
           ) : null}
         </div>
@@ -1478,17 +1526,17 @@ function renderWireCard(
       />
       {hasDetails ? (
         <details className="wire-card-details">
-          <summary className="wire-card-details__summary">Подробнее</summary>
+          <summary className="wire-card-details__summary">{t("card.more")}</summary>
           <div className="wire-card-details__body">
-            {enrich?.role_ru ? (
+            {enrich?.role_ru && !(lang === "en" && /[а-яё]/i.test(enrich.role_ru)) ? (
               <div className="wire-card-details__row" data-testid="wire-enrichment-role">
-                <span>Узел</span>
+                <span>{t("card.role")}</span>
                 <strong>{enrich.role_ru}</strong>
               </div>
             ) : null}
-            {enrich?.purpose_ru ? (
+            {enrich?.purpose_ru && !(lang === "en" && /[а-яё]/i.test(enrich.purpose_ru)) ? (
               <div className="wire-card-details__row" data-testid="wire-enrichment-purpose">
-                <span>Зачем</span>
+                <span>{t("card.purpose")}</span>
                 <strong>{enrich.purpose_ru}</strong>
               </div>
             ) : null}
@@ -1497,7 +1545,7 @@ function renderWireCard(
             ) : null}
             {item.function_text ? (
               <div className="wire-card-details__row">
-                <span>Цепь</span>
+                <span>{t("card.circuit")}</span>
                 <strong className="ewd-data font-mono">{item.function_text}</strong>
               </div>
             ) : null}
@@ -1515,18 +1563,18 @@ function renderWireCard(
               >
                 {schemeInfo.status === "exact-one" ? (
                   <span>
-                    Провод подтверждён на схеме:{" "}
+                    {t("card.schemeExactOne")}{" "}
                     <strong>{schemeInfo.exactSheets[0]?.systemName || schemeInfo.exactSheets[0]?.title}</strong>.
                   </span>
                 ) : (
                   <span>
-                    Провод подтверждён на {schemeInfo.exactSheets.length} схемах — будет выбрана наиболее точная.
+                    {t("card.schemeExactMany", { n: schemeInfo.exactSheets.length })}
                   </span>
                 )}
                 {schemeInfo.nearestPeer ? (
                   <span className="wire-context-notice__peer">
-                    Ближайшая связь: <strong>{schemeInfo.nearestPeer.code}</strong>
-                    {schemeInfo.nearestPeer.pin ? ` · контакт ${schemeInfo.nearestPeer.pin}` : ""}
+                    {t("card.nearestLink")} <strong>{schemeInfo.nearestPeer.code}</strong>
+                    {schemeInfo.nearestPeer.pin ? ` · ${t("card.pinSuffix", { pin: schemeInfo.nearestPeer.pin })}` : ""}
                   </span>
                 ) : null}
               </div>
@@ -1550,8 +1598,8 @@ function renderWireCard(
             onClick={openDiagram}
             className="md-btn md-btn--filled card-actions__btn card-actions__btn--primary flex-1 text-xs"
           >
-            <span className="card-actions__label-full">Показать на схеме</span>
-            <span className="card-actions__label-short">Схема</span>
+            <span className="card-actions__label-full">{t("card.showOnDiagram")}</span>
+            <span className="card-actions__label-short">{t("card.showOnDiagramShort")}</span>
           </button>
         ) : null}
         <button
@@ -1560,7 +1608,7 @@ function renderWireCard(
           onClick={openFaceView}
           className={`md-btn md-btn--tonal card-actions__btn text-xs ${canShowOnDiagram ? "" : "flex-1"}`}
         >
-          Разъём
+          {t("card.connector")}
         </button>
         <button
           type="button"
@@ -1568,15 +1616,15 @@ function renderWireCard(
           onClick={openLocation}
           className="md-btn md-btn--tonal card-actions__btn text-xs"
         >
-          <span className="card-actions__label-full">Расположение</span>
-          <span className="card-actions__label-short">Место</span>
+          <span className="card-actions__label-full">{t("card.location")}</span>
+          <span className="card-actions__label-short">{t("card.locationShort")}</span>
         </button>
         {suggestionsEnabled ? (
           <button
             type="button"
             data-testid="suggest-edit"
-            title="Предложить исправление"
-            aria-label="Предложить исправление"
+            title={t("card.suggestEdit")}
+            aria-label={t("card.suggestEdit")}
             onClick={() =>
               setEditingItem({
                 ...item,
@@ -2578,11 +2626,11 @@ function App() {
     if (q.length < 2) {
       setMode("dtc");
       setDtcResults([]);
-      setDtcNotice("Результатов нет");
+      setDtcNotice(t("dtc.noResults"));
       return;
     }
     setDtcLoading(true);
-    setDtcNotice("Ищем…");
+    setDtcNotice(t("dtc.searching"));
     setMode("dtc");
     setOwnerWires([]);
     setTransitWires([]);
@@ -2593,7 +2641,7 @@ function App() {
       const data = await fetch(`/api/dtc/search?q=${encodeURIComponent(q)}&limit=50`).then((r) => r.json());
       if (!data.available) {
         setDtcResults([]);
-        setDtcNotice("Словарь DTC недоступен на сервере.");
+        setDtcNotice(t("dtc.unavailable"));
         return;
       }
       const results = Array.isArray(data.results) ? (data.results as DtcHit[]) : [];
@@ -2601,10 +2649,10 @@ function App() {
       setDtcOpenCode("");
       setDtcDetailsByCode({});
       setDtcDetailsLoadingCode("");
-      setDtcNotice(results.length ? `Найдено: ${results.length}` : "Результатов нет");
+      setDtcNotice(results.length ? t("dtc.found", { n: results.length }) : t("dtc.noResults"));
     } catch {
       setDtcResults([]);
-      setDtcNotice("Ошибка запроса DTC.");
+      setDtcNotice(t("dtc.requestErr"));
     } finally {
       setDtcLoading(false);
     }
@@ -2626,24 +2674,24 @@ function App() {
       setFiltersPopoverOpen(false);
     };
     if (vin.length !== 17) {
-      setVinNotice("VIN должен быть 17 символов.");
+      setVinNotice(t("vin.need17"));
       closeFilters();
       return;
     }
-    setVinNotice("Декодируем VIN…");
+    setVinNotice(t("vin.decoding"));
     try {
       const data = await fetch(`/api/vin/decode?vin=${encodeURIComponent(vin)}`).then((r) => r.json());
       closeFilters();
       if (!data.ok) {
         const detail = typeof data.error === "string" && data.error.trim() ? ` ${data.error.trim()}` : "";
-        setVinNotice(`Результатов нет.${detail}`);
+        setVinNotice(`${t("dtc.noResults")}.${detail}`);
         setVinLocked(false);
         return;
       }
       const model = String(data.model || "").trim();
       const year = String(data.year || "").trim();
       if (!model || !year) {
-        setVinNotice("Результатов нет");
+        setVinNotice(t("dtc.noResults"));
         setVinLocked(false);
         return;
       }
@@ -2656,10 +2704,10 @@ function App() {
       setVinNotice(
         `VIN → ${model} · ${year} · ${data.engine || "—"} · ${data.transmission || "—"}${notes}`,
       );
-      setNotice(`Конфигурация по VIN зафиксирована. Пакет EWD: ${data.ewdPackageHint || "39363002"}`);
+      setNotice(t("vin.locked", { hint: data.ewdPackageHint || "39363002" }));
     } catch {
       closeFilters();
-      setVinNotice("Результатов нет. Ошибка запроса декодера VIN.");
+      setVinNotice(t("vin.decodeFail"));
       setVinLocked(false);
     }
   }
@@ -3254,7 +3302,7 @@ function App() {
     setActiveSvg(null);
     setSelectedPinState(null);
     setLoading(true);
-    setNotice(`Загружаем ${code}…`);
+    setNotice(t("node.noticeLoading", { code }));
     try {
       const params = new URLSearchParams({ code, lang });
       if (useZone && useZone !== "all") params.set("zone", useZone);
@@ -3405,14 +3453,18 @@ function App() {
       const nameRu = String(infoSource.name_ru || "").trim();
       const codeLabel = nameRu ? `${code} — ${nameRu}` : code;
       if (zoneEmptyFallback) {
-        setNotice(
-          `Нет контактов в выбранной зоне для ${codeLabel}. Есть данные вне зоны — нажмите «Показать во всех зонах».`,
-        );
+        setNotice(t("node.noticeZoneEmpty", { label: codeLabel }));
       } else {
         setNotice(
           n || ewdDiags.length
-            ? `${codeLabel}: ${nodeViableDiags.length || ewdDiags.length} схем с проводом · ${ewdDiags.length} листов · ${ownerRaw.length} своих · ${transitRaw.length} транзитных`
-            : `Для ${codeLabel} ничего не найдено`,
+            ? t("node.noticeSummary", {
+                label: codeLabel,
+                wire: nodeViableDiags.length || ewdDiags.length,
+                sheets: ewdDiags.length,
+                owner: ownerRaw.length,
+                transit: transitRaw.length,
+              })
+            : t("node.noticeEmpty", { label: codeLabel }),
         );
       }
     } catch {
@@ -3423,7 +3475,7 @@ function App() {
       setEwdObjectIds([]);
       setEwdSheetUids(new Set());
       setNodeInfo(null);
-      setNotice("Ошибка загрузки контактов");
+      setNotice(t("node.noticeLoadErr"));
     } finally {
       if (isCurrentAttempt()) setLoading(false);
     }
@@ -3753,7 +3805,7 @@ function App() {
           data-testid="vehicle-vin"
           className="app-input rounded px-1.5 py-1 font-mono tracking-wider flex-1 min-w-0"
           maxLength={17}
-          placeholder="17 символов"
+          placeholder={t("vin.placeholder")}
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -3773,7 +3825,7 @@ function App() {
           className="md-btn md-btn--tonal text-[11px] px-2 py-1 shrink-0"
           onClick={() => void applyVin()}
         >
-          По VIN
+          {t("vin.decode")}
         </button>
       </div>
       {(vinInput || vinLocked) ? (
@@ -3784,9 +3836,9 @@ function App() {
             className="md-btn md-btn--text text-[11px] px-2 py-1 shrink-0"
             onClick={clearVin}
           >
-            Сброс VIN
+            {t("vin.clear")}
           </button>
-          {vinLocked ? <span className="md-chip shrink-0" data-testid="vin-chip">из VIN</span> : null}
+          {vinLocked ? <span className="md-chip shrink-0" data-testid="vin-chip">{t("vin.chip")}</span> : null}
         </div>
       ) : null}
     </div>
@@ -3794,12 +3846,12 @@ function App() {
 
   const dtcControls = features.dtcSearch ? (
     <section className="app-card rounded-lg border p-2.5 space-y-2 shadow-sm" data-testid="dtc-search">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Коды ошибок DTC / OBD</h2>
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">{t("dtc.title")}</h2>
       <div className="flex flex-nowrap items-center gap-2 min-w-0">
         <input
           data-testid="dtc-query"
           className="app-input rounded px-2 py-1.5 text-xs font-mono flex-1 min-w-0"
-          placeholder="ABS-0010, CEM-1A05, P0563, датчик колеса…"
+          placeholder={t("dtc.placeholder")}
           value={dtcQuery}
           onChange={(e) => setDtcQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -3813,7 +3865,7 @@ function App() {
           onClick={() => void searchDtc()}
           disabled={dtcLoading}
         >
-          {dtcLoading ? "…" : "Найти"}
+          {dtcLoading ? "…" : t("dtc.find")}
         </button>
         <button
           type="button"
@@ -3822,7 +3874,7 @@ function App() {
           onClick={clearDtc}
           disabled={!dtcQuery && !dtcResults.length && mode !== "dtc"}
         >
-          Сброс
+          {t("dtc.reset")}
         </button>
       </div>
       {dtcNotice ? (
@@ -4055,7 +4107,7 @@ function App() {
       <button
         type="button"
         className="filters-sheet__backdrop"
-        aria-label="Закрыть фильтры"
+        aria-label={t("extras.closeFilters")}
         tabIndex={filtersSheetOpen ? 0 : -1}
         onClick={closeFiltersSheet}
       />
@@ -4080,12 +4132,12 @@ function App() {
           onTouchStart={onSheetSwipeStart}
           onTouchEnd={onSheetSwipeEnd}
         >
-          <h2 id="filters-sheet-title" className="filters-sheet__title">Параметры поиска</h2>
+          <h2 id="filters-sheet-title" className="filters-sheet__title">{t("extras.searchParams")}</h2>
           <button
             type="button"
             className="md-btn md-btn--text filters-sheet__close"
             data-testid="filters-sheet-close"
-            aria-label="Закрыть"
+            aria-label={t("common.close")}
             onClick={closeFiltersSheet}
           >
             ✕
@@ -4104,7 +4156,7 @@ function App() {
             data-testid="filters-sheet-reset"
             onClick={resetFiltersSheet}
           >
-            Сбросить
+            {t("extras.resetFilters")}
           </button>
           <button
             type="button"
@@ -4112,7 +4164,7 @@ function App() {
             data-testid="filters-sheet-apply"
             onClick={closeFiltersSheet}
           >
-            Применить
+            {t("extras.applyFilters")}
           </button>
         </div>
       </div>
@@ -4121,8 +4173,8 @@ function App() {
     {mode === "dtc" ? (
       <section data-testid="dtc-results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
         <div className="mb-1 flex justify-between shrink-0 text-xs">
-          <p className="text-[var(--text-muted)]">{dtcLoading ? "Ищем…" : dtcNotice}</p>
-          <button type="button" className="md-btn md-btn--text text-[var(--text-muted)]" onClick={clearDtc}>Очистить</button>
+          <p className="text-[var(--text-muted)]">{dtcLoading ? t("dtc.searching") : dtcNotice}</p>
+          <button type="button" className="md-btn md-btn--text text-[var(--text-muted)]" onClick={clearDtc}>{t("dtc.clear")}</button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-4" data-mobile-scroll>
           {dtcResults.map((row) => (
@@ -4215,21 +4267,21 @@ function App() {
                       ))}
                     </div>
                   ) : dtcDetailsLoadingCode === row.code ? null : (
-                    <p className="text-[var(--text-muted)]">Детали вариантов недоступны.</p>
+                    <p className="text-[var(--text-muted)]">{t("dtc.detailsUnavailable")}</p>
                   )}
                 </div>
               ) : null}
             </article>
           ))}
           {!dtcLoading && !dtcResults.length ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-8">Результатов нет</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-8">{t("dtc.noResults")}</p>
           ) : null}
         </div>
       </section>
     ) : mode ? <section data-testid="results-panel" className="h-full mx-auto max-w-7xl px-3 py-2 flex flex-col min-h-0">
       <div className="results-notice-row mb-1 flex justify-between shrink-0 text-xs">
         <p data-testid="results-notice" className="text-[var(--text-muted)] truncate">{loading ? notice || "Загрузка…" : notice}</p>
-        <button type="button" data-testid="clear-results" className="text-[var(--text-muted)] hover:text-[var(--text-main)] shrink-0" onClick={clear}>Очистить</button>
+        <button type="button" data-testid="clear-results" className="text-[var(--text-muted)] hover:text-[var(--text-main)] shrink-0" onClick={clear}>{t("common.clear")}</button>
       </div>
       <div className="mobile-browse-bar" data-testid="mobile-browse-bar">
         <div
@@ -4283,7 +4335,7 @@ function App() {
           type="button"
           className="mobile-tools-btn md-btn md-btn--text"
           data-testid="mobile-clear-results"
-          aria-label="Очистить"
+          aria-label={t("common.clear")}
           onClick={clear}
         >
           ✕
@@ -4315,12 +4367,12 @@ function App() {
       >
         <summary className="mobile-node-tools__summary">
           <span className="mobile-node-tools__summary-title">
-            {selectedCode ? `${selectedCode} · цвета и схемы` : "Параметры узла"}
+            {selectedCode ? t("node.toolsTitle", { code: selectedCode }) : t("node.toolsFallback")}
           </span>
           <button
             type="button"
             className="mobile-node-tools__summary-close"
-            aria-label="Закрыть"
+            aria-label={t("node.toolsClose")}
             onClick={(e) => {
               e.preventDefault();
               setToolsSheetOpen(false);
@@ -4332,7 +4384,7 @@ function App() {
         <button
           type="button"
           className="mobile-node-tools__backdrop"
-          aria-label="Закрыть параметры узла"
+          aria-label={t("node.toolsCloseAria")}
           tabIndex={toolsSheetOpen ? 0 : -1}
           onClick={() => setToolsSheetOpen(false)}
         />
@@ -4347,14 +4399,14 @@ function App() {
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
             <span>
-              Контакты: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.owner}</span>
+              {t("node.contacts")} <span className="text-[var(--text-main)]">{nodeInfo.pin_count.owner}</span>
               {import.meta.env.DEV && nodeInfo.pin_count.transit ? (
-                <> · транзит: <span className="text-[var(--text-main)]">{nodeInfo.pin_count.transit}</span></>
+                <> · {t("node.transit")} <span className="text-[var(--text-main)]">{nodeInfo.pin_count.transit}</span></>
               ) : null}
             </span>
             {nodeInfo.wire_gauges.length ? (
               <span>
-                Сечения:{" "}
+                {t("node.gauges")}{" "}
                 <span className="font-mono text-[var(--text-main)]">
                   {nodeInfo.wire_gauges.map((g) => `${g} мм²`).join(", ")}
                 </span>
@@ -4383,7 +4435,7 @@ function App() {
               className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 mt-1"
               onClick={() => void loadWires(nodeInfo.code, selectedZone, { ignoreZone: true })}
             >
-              Показать во всех зонах
+              {t("node.showAllZones")}
             </button>
           ) : null}
         </aside>
@@ -4391,7 +4443,7 @@ function App() {
       <div data-testid="wires-block" className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2 cards-chrome__actions">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] cards-chrome__heading">
-            Спецификация контактов и цепей
+            {t("node.specHeading")}
           </h2>
           <div className="cards-chrome__controls">
           {ewdSystems.length > 0 ? (
@@ -4403,14 +4455,14 @@ function App() {
                 aria-expanded={systemsOpen}
                 onClick={() => setSystemsOpen((v) => !v)}
               >
-                Системы ({ewdSystems.length})
+                {t("node.systems", { n: ewdSystems.length })}
               </button>
               {systemsOpen ? (
                 <div
                   data-testid="systems-tree-menu"
                   className="diagram-picker__menu"
                   role="listbox"
-                  aria-label="Системы EWD (LogicDesign)"
+                  aria-label={t("node.systemsAria")}
                 >
                   {ewdSystems.slice(0, 40).map((s) => (
                     <button
@@ -4484,8 +4536,8 @@ function App() {
                     >
                       <span className="diagram-picker__item-title">{s.name || s.systemUid}</span>
                       <span className="diagram-picker__item-meta">
-                        {s.zone || "—"} · листов {s.diagramCount ?? (s.diagramUids || []).length}
-                        {s.wireOwned ? " · провод" : " · текст"}
+                        {s.zone || "—"} · {t("node.sheetsMeta", { n: s.diagramCount ?? (s.diagramUids || []).length })}
+                        {s.wireOwned ? ` · ${t("node.wireMeta")}` : ` · ${t("node.textMeta")}`}
                       </span>
                     </button>
                   ))}
@@ -4504,10 +4556,10 @@ function App() {
                 onClick={() => setDiagramPickerOpen((v) => !v)}
               >
                 {cardViableDiagrams.length > 0 && !showAllNodeDiagrams
-                  ? `🗺️ Схемы провода (${cardViableDiagrams.length})`
+                  ? `🗺️ ${t("node.wireDiagrams", { n: cardViableDiagrams.length })}`
                   : focusedWireUid && ewdDiagrams.some((d) => diagramContainsWireUid(d, focusedWireUid))
-                    ? `🗺️ Схемы провода (${ewdDiagrams.filter((d) => diagramContainsWireUid(d, focusedWireUid)).length})`
-                    : `🗺️ Схемы узла (${ewdDiagrams.length})`}
+                    ? `🗺️ ${t("node.wireDiagrams", { n: ewdDiagrams.filter((d) => diagramContainsWireUid(d, focusedWireUid)).length })}`
+                    : `🗺️ ${t("node.nodeDiagrams", { n: ewdDiagrams.length })}`}
               </button>
               {diagramPickerOpen ? (
                 <div
@@ -4525,13 +4577,13 @@ function App() {
                     >
                       <span className="diagram-picker__title">
                         {showAllNodeDiagrams
-                          ? `Только по этой цепи (${cardViableDiagrams.length})`
-                          : `Все листы узла (${ewdDiagrams.length})`}
+                          ? t("node.onlyThisCircuit", { n: cardViableDiagrams.length })
+                          : t("node.allNodeSheets", { n: ewdDiagrams.length })}
                       </span>
                     </button>
                   ) : null}
                   <p className="diagram-picker__section-label">
-                    {showAllNodeDiagrams ? "Все схемы узла" : "Схемы выбранного провода"}
+                    {showAllNodeDiagrams ? t("node.allNodeSchemes") : t("node.selectedWireSchemes")}
                   </p>
                   {rankedDiagrams.map(({ diagram: d, score }) => {
                     const systemLabel = String(d.systemName || "").trim();
@@ -4547,8 +4599,8 @@ function App() {
                     const pinOnly = confidence === "pin-only";
                     const confLabel =
                       showAllNodeDiagrams && focusedWireUid && confidence !== "wire-owned"
-                        ? "не этот провод"
-                        : schemeConfidenceLabel(confidence, Boolean(focusedWireUid));
+                        ? t("node.notThisWire")
+                        : schemeConfidenceLabel(confidence, Boolean(focusedWireUid), t);
                     const isBest =
                       !!bestUid &&
                       d.diagramUid === bestUid &&
@@ -4592,11 +4644,11 @@ function App() {
                       >
                         <span className="diagram-picker__title">{label || d.diagramUid}</span>
                         {isBest ? (
-                          <span className="diagram-picker__badge">лучшая</span>
+                          <span className="diagram-picker__badge">{t("node.best")}</span>
                         ) : confLabel ? (
                           <span className="diagram-picker__badge">{confLabel}</span>
                         ) : isOpen ? (
-                          <span className="diagram-picker__badge">открыта</span>
+                          <span className="diagram-picker__badge">{t("node.open")}</span>
                         ) : null}
                       </button>
                     );
@@ -4608,7 +4660,7 @@ function App() {
           </div>
           {!focusedWireUid || showAllNodeDiagrams ? (
             <p className="diagram-picker__helper cards-chrome__helper" role="status">
-              Схемы узла — общий контекст. Наличие выбранного провода подтверждает только раздел «Схемы провода».
+              {t("node.helper")}
             </p>
           ) : null}
         </div>
@@ -4617,17 +4669,17 @@ function App() {
             data-testid="wire-color-filter"
             className="wire-color-filter"
             role="toolbar"
-            aria-label="Фильтр карточек по цвету провода из списка контактов"
+            aria-label={t("node.colorFilterAria")}
           >
             <p
               className="w-full basis-full text-[10px] leading-snug text-[var(--text-muted)] mb-1"
               data-testid="wire-color-provenance-note"
             >
               {capitalPanel?.kind === "location"
-                ? "Цвета из карточек контактов — не из карты расположения. Это фильтр списка слева, не провода на схеме."
+                ? t("node.colorNoteLocation")
                 : activeSvg
-                  ? "Цвета фильтруют список контактов слева (не легенда открытой схемы)."
-                  : "Цвета = фильтр карточек контактов. Схема ещё не открыта — это не провода текущего листа."}
+                  ? t("node.colorNoteOpen")
+                  : t("node.colorNoteClosed")}
             </p>
             <button
               type="button"
@@ -4636,7 +4688,7 @@ function App() {
               aria-pressed={!wireColorFilter}
               onClick={() => applyWireColorFilter(null)}
             >
-              Все цвета
+              {t("node.allColors")}
             </button>
             {availableWireColors.map((code) => {
               const active = normalizeWireColorKey(wireColorFilter || "") === code;
@@ -4666,18 +4718,54 @@ function App() {
         className="cards-column__scroll flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-y-contain space-y-2 pr-0.5 pb-[max(0.5rem,var(--safe-bottom))]"
       >
         {filteredOwnerWires.length > 0 ? (
-          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Свои контакты разъёма</p>
+          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{t("node.ownerContacts")}</p>
         ) : null}
         {filteredOwnerWires.map((item, index) => {
           const key = String(item.id || `idx-${index}`);
-          return renderWireCard(item, index, cardCanShowOnDiagram(item), schemeInfoByCardKey.get(key) || cardSchemeInfo(item, selectedCode, ewdDiagrams), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx);
+          return (
+            <WireCard
+              key={String(item.id || `idx-${index}`)}
+              item={item}
+              index={index}
+              canShowOnDiagram={cardCanShowOnDiagram(item)}
+              schemeInfo={schemeInfoByCardKey.get(key) || cardSchemeInfo(item, selectedCode, ewdDiagrams)}
+              selectedCode={selectedCode}
+              setSelectedPinState={setSelectedPinState}
+              selectedPinState={selectedPinState}
+              onOpenDiagram={openEwdDiagram}
+              setCapitalPanel={setCapitalPanel}
+              setActiveSvg={setActiveSvg}
+              setNotice={setNotice}
+              setEditingItem={setEditingItem}
+              suggestionsEnabled={features.suggestions}
+              cardContext={cardCtx}
+            />
+          );
         })}
         {filteredTransitWires.length > 0 ? (
-          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">Транзитные связи</p>
+          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide mt-2">{t("node.transitLinks")}</p>
         ) : null}
         {filteredTransitWires.map((item, index) => {
           const key = String(item.id || `idx-${index + 10000}`);
-          return renderWireCard(item, index + 10000, cardCanShowOnDiagram(item), schemeInfoByCardKey.get(key) || cardSchemeInfo(item, selectedCode, ewdDiagrams), selectedCode, setSelectedPinState, selectedPinState, openEwdDiagram, setCapitalPanel, setActiveSvg, setNotice, setEditingItem, features.suggestions, cardCtx);
+          return (
+            <WireCard
+              key={String(item.id || `idx-${index + 10000}`)}
+              item={item}
+              index={index + 10000}
+              canShowOnDiagram={cardCanShowOnDiagram(item)}
+              schemeInfo={schemeInfoByCardKey.get(key) || cardSchemeInfo(item, selectedCode, ewdDiagrams)}
+              selectedCode={selectedCode}
+              setSelectedPinState={setSelectedPinState}
+              selectedPinState={selectedPinState}
+              onOpenDiagram={openEwdDiagram}
+              setCapitalPanel={setCapitalPanel}
+              setActiveSvg={setActiveSvg}
+              setNotice={setNotice}
+              setEditingItem={setEditingItem}
+              suggestionsEnabled={features.suggestions}
+              cardContext={cardCtx}
+            />
+          );
         })}
         {!ownerWires.length && !transitWires.length ? (
           <p className="text-xs text-[var(--text-muted)]">Контактных строк для этого узла нет.</p>
@@ -4706,7 +4794,7 @@ function App() {
               >
                 {activeSvg.systemName || activeSvg.title || `${activeSvg.diagramUid.slice(0, 18)}…`}
               </span>
-              {schemeConfidenceLabel(activeSvg.confidence) ? (
+              {schemeConfidenceLabel(activeSvg.confidence, false, t) ? (
                 <span
                   data-testid="svg-diagram-confidence"
                   className="diagram-picker__badge shrink-0"
@@ -4718,7 +4806,7 @@ function App() {
                         : "Лист найден по тексту/системе, без wireHits"
                   }
                 >
-                  {schemeConfidenceLabel(activeSvg.confidence)}
+                  {schemeConfidenceLabel(activeSvg.confidence, false, t)}
                 </span>
               ) : null}
               {traceInfo && traceInfo.siblingCount > 0 ? (
@@ -4906,7 +4994,7 @@ function App() {
             <button
               type="button"
               className="desktop-filters-scrim"
-              aria-label="Закрыть фильтры"
+              aria-label={t("extras.closeFilters")}
               data-testid="desktop-filters-scrim"
               onClick={() => setFiltersPopoverOpen(false)}
             />
@@ -4915,20 +5003,20 @@ function App() {
               className="desktop-filters-window"
               role="dialog"
               aria-modal="true"
-              aria-label="Параметры поиска"
+              aria-label={t("extras.searchParams")}
               data-testid="desktop-filters-popover"
               style={{ top: filtersPopoverPos.top, left: filtersPopoverPos.left }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="desktop-filters-window__header">
-                <span className="desktop-filters-window__title">VIN · DTC</span>
+                <span className="desktop-filters-window__title">{t("extras.vinDtc")}</span>
                 <button
                   type="button"
                   className="md-btn md-btn--text text-[12px] px-2 py-1"
                   data-testid="desktop-filters-close"
                   onClick={() => setFiltersPopoverOpen(false)}
                 >
-                  Закрыть
+                  {t("common.close")}
                 </button>
               </div>
               <div className="desktop-filters-window__body app-panel__filters flex flex-col gap-2">

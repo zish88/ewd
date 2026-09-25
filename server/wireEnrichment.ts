@@ -66,13 +66,16 @@ function sideLabel(p: ParsedDetail): string {
   return `${p.code}:${p.pin}`;
 }
 
+export type EnrichmentLang = "ru" | "en";
+
 /**
- * Человеческое «от … к …» только из фактов карточки.
+ * Человеческое «от … к …» / «From … to …» только из фактов карточки.
  * high — оба конца с именем; medium — хотя бы один с именем; иначе null.
  */
 export function buildFromToPlainRu(
   fromDetail: string | null | undefined,
   toDetail: string | null | undefined,
+  lang: EnrichmentLang = "ru",
 ): { text: string; confidence: EnrichmentConfidence; sources: string[] } | null {
   const from = parseEnrichmentDetail(fromDetail);
   const to = parseEnrichmentDetail(toDetail);
@@ -80,8 +83,12 @@ export function buildFromToPlainRu(
   const named = (from.name ? 1 : 0) + (to.name ? 1 : 0);
   if (named === 0) return null;
   const confidence: EnrichmentConfidence = named === 2 ? "high" : "medium";
+  const text =
+    lang === "en"
+      ? `From ${sideLabel(from)} to ${sideLabel(to)}`
+      : `От ${sideLabel(from)} к ${sideLabel(to)}`;
   return {
-    text: `От ${sideLabel(from)} к ${sideLabel(to)}`,
+    text,
     confidence,
     sources: ["from_detail", "to_detail", "rules-from-to"],
   };
@@ -103,11 +110,29 @@ export function buildPurposeRu(parts: {
   fromDetail?: string | null;
   toDetail?: string | null;
   functionText?: string | null;
+  lang?: EnrichmentLang;
 }): { text: string; confidence: EnrichmentConfidence; sources: string[] } | null {
+  const lang: EnrichmentLang = parts.lang === "en" ? "en" : "ru";
   const ft = String(parts.functionText || "")
     .replace(/\s+/g, " ")
     .trim();
-  if (ft.length >= 8 && /[а-яё]/i.test(ft) && !/^[A-Z0-9_./\-]+$/.test(ft)) {
+  // RU function_text only when UI is Russian; EN mode skips Cyrillic paste.
+  if (
+    lang === "ru" &&
+    ft.length >= 8 &&
+    /[а-яё]/i.test(ft) &&
+    !/^[A-Z0-9_./\-]+$/.test(ft)
+  ) {
+    const text = ft.length > 160 ? `${ft.slice(0, 157)}…` : ft;
+    return { text, confidence: "high", sources: ["function_text"] };
+  }
+  if (
+    lang === "en" &&
+    ft.length >= 8 &&
+    /[a-z]/i.test(ft) &&
+    !/[а-яё]/i.test(ft) &&
+    !/^[A-Z0-9_./\-]+$/.test(ft)
+  ) {
     const text = ft.length > 160 ? `${ft.slice(0, 157)}…` : ft;
     return { text, confidence: "high", sources: ["function_text"] };
   }
@@ -117,7 +142,10 @@ export function buildPurposeRu(parts: {
   if (!from || !to) return null;
 
   if (from.name && to.name) {
-    const text = `Соединяет ${softDecap(from.name)} с ${softDecap(to.name)}`;
+    const text =
+      lang === "en"
+        ? `Connects ${softDecap(from.name)} to ${softDecap(to.name)}`
+        : `Соединяет ${softDecap(from.name)} с ${softDecap(to.name)}`;
     return {
       text: text.length > 180 ? `${text.slice(0, 177)}…` : text,
       confidence: "high",
@@ -126,14 +154,20 @@ export function buildPurposeRu(parts: {
   }
   if (from.name) {
     return {
-      text: `Связь от ${softDecap(from.name)} к ${to.code}:${to.pin}`,
+      text:
+        lang === "en"
+          ? `Link from ${softDecap(from.name)} to ${to.code}:${to.pin}`
+          : `Связь от ${softDecap(from.name)} к ${to.code}:${to.pin}`,
       confidence: "medium",
       sources: ["from_detail", "rules-purpose"],
     };
   }
   if (to.name) {
     return {
-      text: `Связь от ${from.code}:${from.pin} к ${softDecap(to.name)}`,
+      text:
+        lang === "en"
+          ? `Link from ${from.code}:${from.pin} to ${softDecap(to.name)}`
+          : `Связь от ${from.code}:${from.pin} к ${softDecap(to.name)}`,
       confidence: "medium",
       sources: ["to_detail", "rules-purpose"],
     };
@@ -220,33 +254,35 @@ export function cardEnrichmentFromFacts(
   },
   nameByCode?: Map<string, string> | null,
   fileCache?: WireEnrichmentCache | null,
+  lang: EnrichmentLang = "ru",
 ): CardEnrichment | null {
   const cache = fileCache === undefined ? loadWireEnrichmentCache() : fileCache;
   const out: CardEnrichment = { sources: [] };
+  const useRuCache = lang !== "en";
 
   const code =
     String(card.component_code || card.subject_code || card.from_node || "").trim() ||
     "";
-  if (code && cache?.components?.[code]?.role_ru) {
+  if (useRuCache && code && cache?.components?.[code]?.role_ru) {
     out.role_ru = cache.components[code].role_ru;
     out.confidence = cache.components[code].confidence;
     out.sources = [...(out.sources || []), ...(cache.components[code].sources || [])];
   } else if (code && nameByCode?.get(code)) {
     out.role_ru = String(nameByCode.get(code)).trim();
     out.confidence = "high";
-    out.sources = [...(out.sources || []), "components.name_ru"];
+    out.sources = [...(out.sources || []), "components.name"];
   }
 
   const wKey = wireEnrichmentKey(card);
   const cachedWire = cache?.wires?.[wKey];
 
   // Plain всегда из текущих from/to карточки — совпадает с «Откуда/Куда» в UI.
-  const livePlain = buildFromToPlainRu(card.from_detail, card.to_detail);
+  const livePlain = buildFromToPlainRu(card.from_detail, card.to_detail, lang);
   if (livePlain) {
     out.from_to_plain_ru = livePlain.text;
     out.confidence = livePlain.confidence;
     out.sources = [...(out.sources || []), ...livePlain.sources];
-  } else if (cachedWire?.from_to_plain_ru) {
+  } else if (useRuCache && cachedWire?.from_to_plain_ru) {
     out.from_to_plain_ru = cachedWire.from_to_plain_ru;
     out.confidence = cachedWire.confidence || out.confidence;
     out.sources = [...(out.sources || []), ...(cachedWire.sources || [])];
@@ -256,12 +292,13 @@ export function cardEnrichmentFromFacts(
     fromDetail: card.from_detail,
     toDetail: card.to_detail,
     functionText: card.function_text,
+    lang,
   });
   if (livePurpose) {
     out.purpose_ru = livePurpose.text;
     out.sources = [...(out.sources || []), ...livePurpose.sources];
     if (!out.confidence) out.confidence = livePurpose.confidence;
-  } else if (cachedWire?.purpose_ru) {
+  } else if (useRuCache && cachedWire?.purpose_ru) {
     out.purpose_ru = cachedWire.purpose_ru;
     out.sources = [...(out.sources || []), ...(cachedWire.sources || [])];
   }
