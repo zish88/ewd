@@ -414,6 +414,10 @@ function sanitizeDiagramPageNumber(
   return 0;
 }
 
+function maybeLocalizeEngineering(text: string, lang: NavLang): string {
+  return lang === "en" ? text : localizeEngineeringText(text);
+}
+
 function rowToNavCard(
   row: any,
   selectedCode: string,
@@ -423,6 +427,7 @@ function rowToNavCard(
   allowedDiagramPages?: Set<number>,
   fallbackDiagramPage?: number,
   nameByCode?: Map<string, string>,
+  lang: NavLang = "ru",
 ) {
   const from_node = row.from_code || "—";
   const to_node = row.to_code || "—";
@@ -442,15 +447,18 @@ function rowToNavCard(
   );
   const page_number = diagram > 0 ? diagram : pinout;
   const from_detail = enrichDetailWithName(
-    localizeEngineeringText(String(row.from_detail || "").trim()),
+    maybeLocalizeEngineering(String(row.from_detail || "").trim(), lang),
     nameByCode,
   );
   const to_detail = enrichDetailWithName(
-    localizeEngineeringText(String(row.to_detail || "").trim()),
+    maybeLocalizeEngineering(String(row.to_detail || "").trim(), lang),
     nameByCode,
   );
-  const description = localizeEngineeringText(pickDescription(row));
-  const function_text = localizeEngineeringText(String(row.function_text || "").trim() || description);
+  const description = maybeLocalizeEngineering(pickDescription(row), lang);
+  const function_text = maybeLocalizeEngineering(
+    String(row.function_text || "").trim() || description,
+    lang,
+  );
   const harness_left = String(row.harness_left || "").trim();
   const harness_right = String(row.harness_right || "").trim();
   const sel = selectedCode.trim();
@@ -461,22 +469,26 @@ function rowToNavCard(
     const faceColor = normalizeColor(String(face?.color || ""));
     if (faceColor) color = faceColor;
   }
-  const colorRu = color !== "—" ? wireColorRu(color) : "—";
+  // EN: keep Volvo color codes (RD-BK); RU: human labels.
+  const colorRu = color !== "—" ? (lang === "en" ? color : wireColorRu(color)) : "—";
   let card_title = "";
   if (matchRole === "transit" && sel && subject && subject !== sel) {
     const viaLabel = subjectName ? `${subject} — ${subjectName}` : subject;
-    card_title = `${sel} · через ${viaLabel}${pin !== "—" ? `, контакт ${pin}` : ""}`;
+    card_title =
+      lang === "en"
+        ? `${sel} · via ${viaLabel}${pin !== "—" ? `, pin ${pin}` : ""}`
+        : `${sel} · через ${viaLabel}${pin !== "—" ? `, контакт ${pin}` : ""}`;
   } else if (matchRole === "owner" && (sel || subject)) {
     // Owner header = selected cavity (e.g. 74/508:10), not peer contact
     const ownerCode = sel || subject;
-    card_title =
-      pin !== "—"
-        ? `${ownerCode}:${pin}`
-        : subjectName
-          ? `${ownerCode} — ${subjectName}`
-          : `Разъем ${ownerCode}`;
-  }
-  const part_number =
+    if (pin !== "—") {
+      card_title = `${ownerCode}:${pin}`;
+    } else if (subjectName) {
+      card_title = `${ownerCode} — ${subjectName}`;
+    } else {
+      card_title = lang === "en" ? `Connector ${ownerCode}` : `Разъем ${ownerCode}`;
+    }
+  }  const part_number =
     (sel && partByCode.get(sel)) ||
     (subject && partByCode.get(subject)) ||
     (via_node !== "—" && partByCode.get(via_node)) ||
@@ -565,11 +577,70 @@ function componentGroup(code: string): "modules" | "connectors" | "other" {
   return "other";
 }
 
+type NavLang = "ru" | "en";
+
+function parseNavLang(raw: unknown): NavLang {
+  return String(raw || "")
+    .trim()
+    .toLowerCase() === "en"
+    ? "en"
+    : "ru";
+}
+
+const NAV_GROUP_LABELS: Record<NavLang, Record<"modules" | "connectors" | "other", string>> = {
+  ru: {
+    modules: "Блоки управления",
+    connectors: "Промежуточные разъёмы",
+    other: "Прочее",
+  },
+  en: {
+    modules: "Control modules",
+    connectors: "Intermediate connectors",
+    other: "Other",
+  },
+};
+
+const ZONE_LABELS_EN: Record<ZoneId, string> = {
+  front_doors: "Front doors",
+  rear_doors: "Rear doors",
+  front_bumper: "Front bumper",
+  rear_bumper: "Rear bumper",
+  trunk: "Trunk / tailgate",
+  engine: "Engine bay",
+  dashboard: "Dash / cabin",
+  floor: "Floor / tunnel",
+  roof: "Roof",
+  seats: "Seats",
+  other: "Other",
+};
+
+function zoneLabelForLang(id: ZoneId, lang: NavLang): string {
+  return lang === "en" ? ZONE_LABELS_EN[id] : ZONE_LABELS[id];
+}
+
+function componentDisplayName(
+  c: {
+    name_ru: string;
+    description_ru: string;
+    description_en: string;
+  },
+  lang: NavLang,
+): string {
+  if (lang === "en") {
+    const en = String(c.description_en || "").trim();
+    if (en) return en;
+    // Fallback: keep RU rather than empty; avoid EN→RU glossary mangling.
+    return String(c.name_ru || c.description_ru || "").trim();
+  }
+  return localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
+}
+
 type NavGroupPayload = { id: "modules" | "connectors" | "other"; label: string; items: NavListItem[] };
 
 function buildNavComponentPayload(
   db: Database.Database,
   zone: string,
+  lang: NavLang = "ru",
 ): { zone: string; groups: NavGroupPayload[] } {
   const wireRows = db
       .prepare(
@@ -760,7 +831,7 @@ function buildNavComponentPayload(
   for (const c of [...byCode.values()].sort((a, b) =>
     a.component_code.localeCompare(b.component_code, undefined, { numeric: true }),
   )) {
-    const desc = localizeEngineeringText(c.name_ru || c.description_ru || c.description_en || "");
+    const desc = componentDisplayName(c, lang);
     const devicePn = devicePartForCode(c.component_code);
     const jsonConn = loadConnectorParts().connectors?.[c.component_code];
     const housingPn =
@@ -807,10 +878,11 @@ function buildNavComponentPayload(
 
   return {
     zone: zone || "all",
+    lang,
     groups: [
-      { id: "modules", label: "Блоки управления", items: groups.modules },
-      { id: "connectors", label: "Промежуточные разъёмы", items: groups.connectors },
-      { id: "other", label: "Прочее", items: groups.other },
+      { id: "modules", label: NAV_GROUP_LABELS[lang].modules, items: groups.modules },
+      { id: "connectors", label: NAV_GROUP_LABELS[lang].connectors, items: groups.connectors },
+      { id: "other", label: NAV_GROUP_LABELS[lang].other, items: groups.other },
     ],
   };
 }
@@ -818,24 +890,27 @@ function buildNavComponentPayload(
 export function createNavRouter(db: Database.Database) {
   const router = Router();
 
-  router.get("/zones", (_req, res) => {
+  router.get("/zones", (req, res) => {
+    const lang = parseNavLang(req.query.lang);
     const zones = (Object.keys(ZONE_LABELS) as ZoneId[]).map((id) => {
-      const payload = buildNavComponentPayload(db, id);
+      const payload = buildNavComponentPayload(db, id, lang);
       const count = payload.groups.reduce((n, g) => n + g.items.length, 0);
-      return { id, label: ZONE_LABELS[id], count };
+      return { id, label: zoneLabelForLang(id, lang), count };
     });
-    res.json({ zones });
+    res.json({ zones, lang });
   });
 
   router.get("/components", (req, res) => {
     const zone = String(req.query.zone || "").trim();
-    res.json(buildNavComponentPayload(db, zone));
+    const lang = parseNavLang(req.query.lang);
+    res.json(buildNavComponentPayload(db, zone, lang));
   });
 
   router.get("/wires", (req, res) => {
     const code = String(req.query.code || "").trim();
     const zone = String(req.query.zone || "").trim();
     const systemHint = String(req.query.system || req.query.systemName || "").trim();
+    const lang = parseNavLang(req.query.lang);
     if (!code) {
       res.status(400).json({ error: "code required", results: [], owner_wires: [], transit_wires: [], diagrams: [] });
       return;
@@ -887,6 +962,8 @@ export function createNavRouter(db: Database.Database) {
         `SELECT component_code, IFNULL(part_number,'') AS part_number,
                 IFNULL(part_number_mate,'') AS part_number_mate,
                 IFNULL(name_ru,'') AS name_ru,
+                IFNULL(description_en,'') AS description_en,
+                IFNULL(description_ru,'') AS description_ru,
                 IFNULL(home_zone,'') AS home_zone
          FROM components`,
       )
@@ -895,6 +972,8 @@ export function createNavRouter(db: Database.Database) {
       part_number: string;
       part_number_mate: string;
       name_ru: string;
+      description_en: string;
+      description_ru: string;
       home_zone: string;
     }>;
     const partByCode = new Map(
@@ -905,7 +984,12 @@ export function createNavRouter(db: Database.Database) {
     );
     mergeConnectorPartsMaps(partByCode, mateByCode);
     const nameByCode = new Map(
-      partRows.filter((r) => r.name_ru).map((r) => [r.component_code, r.name_ru]),
+      partRows
+        .map((r) => {
+          const name = componentDisplayName(r, lang);
+          return name ? ([r.component_code, name] as const) : null;
+        })
+        .filter((x): x is readonly [string, string] => Boolean(x)),
     );
     const selectedComp = partRows.find((r) => r.component_code === code);
     const homeZoneOfCode =
@@ -1042,6 +1126,7 @@ export function createNavRouter(db: Database.Database) {
             allowedDiagramPages,
             fallbackDiagramPage,
             nameByCode,
+            lang,
           ),
         ),
     );
@@ -1058,6 +1143,7 @@ export function createNavRouter(db: Database.Database) {
             allowedDiagramPages,
             fallbackDiagramPage,
             nameByCode,
+            lang,
           ),
         ),
     );

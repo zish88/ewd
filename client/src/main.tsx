@@ -2262,22 +2262,27 @@ function App() {
   }, [filtersHydrated, selectedModel, selectedYear, selectedEngine, selectedTransmission]);
 
   useEffect(() => {
-    fetch("/api/nav/zones").then(r => r.json()).then(data => setZones(Array.isArray(data.zones) ? data.zones : [])).catch(() => setZones([]));
-    fetch("/api/nav/components")
+    const qs = new URLSearchParams({ lang });
+    fetch(`/api/nav/zones?${qs}`)
+      .then((r) => r.json())
+      .then((data) => setZones(Array.isArray(data.zones) ? data.zones : []))
+      .catch(() => setZones([]));
+    fetch(`/api/nav/components?${qs}`)
       .then((r) => r.json())
       .then((data) => setNavAllGroups(Array.isArray(data.groups) ? data.groups : []))
       .catch(() => setNavAllGroups([]));
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
-    const q = selectedZone && selectedZone !== "all" ? `?zone=${encodeURIComponent(selectedZone)}` : "";
-    fetch(`/api/nav/components${q}`)
-      .then(r => r.json())
-      .then(data => setNavGroups(Array.isArray(data.groups) ? data.groups : []))
+    const qs = new URLSearchParams({ lang });
+    if (selectedZone && selectedZone !== "all") qs.set("zone", selectedZone);
+    fetch(`/api/nav/components?${qs}`)
+      .then((r) => r.json())
+      .then((data) => setNavGroups(Array.isArray(data.groups) ? data.groups : []))
       .catch(() => setNavGroups([]));
     setNodeQuery("");
     setNodeQueryDraft("");
-  }, [selectedZone]);
+  }, [selectedZone, lang]);
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include" })
@@ -2348,8 +2353,8 @@ function App() {
 
   useEffect(() => {
     if (selectedCode && selectedModel && selectedYear) void loadWires(selectedCode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync list when code/vehicle/zone change
-  }, [selectedCode, selectedModel, selectedYear, selectedZone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync list when code/vehicle/zone/lang change
+  }, [selectedCode, selectedModel, selectedYear, selectedZone, lang]);
 
   useEffect(() => {
     const wid = deepWireIdRef.current;
@@ -3251,7 +3256,7 @@ function App() {
     setLoading(true);
     setNotice(`Загружаем ${code}…`);
     try {
-      const params = new URLSearchParams({ code });
+      const params = new URLSearchParams({ code, lang });
       if (useZone && useZone !== "all") params.set("zone", useZone);
       // Physical nav zone scopes cards only. EWD sheet ownership is global for the wire.
       const ewdQs = new URLSearchParams({ code });
@@ -3268,7 +3273,9 @@ function App() {
       let infoSource = data;
       // Zone filter emptied results — offer / auto-check unscoped wires
       if (!ownerRaw.length && !transitRaw.length && useZone && useZone !== "all" && !opts?.ignoreZone) {
-        const unscoped = await fetch(`/api/nav/wires?code=${encodeURIComponent(code)}`).then((r) => r.json());
+        const unscoped = await fetch(
+          `/api/nav/wires?code=${encodeURIComponent(code)}&lang=${encodeURIComponent(lang)}`,
+        ).then((r) => r.json());
         if (!isCurrentAttempt()) return;
         const uOwner = Array.isArray(unscoped.owner_wires) ? unscoped.owner_wires : [];
         const uTransit = Array.isArray(unscoped.transit_wires) ? unscoped.transit_wires : [];
