@@ -159,6 +159,7 @@ function TreeBranch({
 export function ServicePage() {
   const { t, lang } = useUiLang();
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [featureOff, setFeatureOff] = useState(false);
   const [statusNote, setStatusNote] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [yearsByModel, setYearsByModel] = useState<Record<string, string[]>>({});
@@ -179,10 +180,25 @@ export function ServicePage() {
 
   useEffect(() => {
     let alive = true;
+    fetch("/api/site-status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return;
+        if (d?.features?.serviceBrowser === false) {
+          setFeatureOff(true);
+          setAvailable(false);
+        }
+      })
+      .catch(() => {});
     fetch("/api/service/status")
       .then((r) => r.json())
       .then((d) => {
         if (!alive) return;
+        if (d.enabled === false) {
+          setFeatureOff(true);
+          setAvailable(false);
+          return;
+        }
         setAvailable(Boolean(d.available));
         setStatusNote(
           d.available
@@ -362,7 +378,16 @@ export function ServicePage() {
         {t("service.disclaimer")}
       </p>
 
-      {available === false ? (
+      {featureOff ? (
+        <div className="max-w-xl mx-auto p-6 space-y-3 text-sm" data-testid="service-feature-off">
+          <p className="text-[var(--text-main)]">{t("service.featureOff")}</p>
+          <a href="/" className="text-[var(--accent)] hover:underline text-sm">
+            ← EWD
+          </a>
+        </div>
+      ) : null}
+
+      {!featureOff && available === false ? (
         <div className="max-w-xl mx-auto p-6 space-y-3 text-sm" data-testid="service-unavailable">
           <p className="text-[var(--text-main)]">{t("service.unavailable")}</p>
           <pre className="rounded-lg border border-[var(--border-color)] bg-[var(--input-bg)] p-3 text-[11px] overflow-auto">
@@ -371,7 +396,7 @@ export function ServicePage() {
         </div>
       ) : null}
 
-      {available ? (
+      {!featureOff && available ? (
         <div className="grid lg:grid-cols-[minmax(280px,360px)_1fr] gap-0 min-h-[calc(100vh-3.5rem)]">
           <aside className="border-r border-[var(--border-color)] bg-[var(--bg-card)] flex flex-col min-h-0">
             <div className="p-3 space-y-2 border-b border-[var(--border-color)] shrink-0">

@@ -14,16 +14,52 @@ import {
   listCachedGraphicCount,
   parseGraphicId,
 } from "../servicerepGraphics.js";
+import { readSiteSettings } from "../siteSettings.js";
 import { listModels, yearsForModel } from "../vehicleMatrix.js";
 
+function serviceFeatureEnabled(): boolean {
+  return readSiteSettings().features.serviceBrowser !== false;
+}
+
 /**
- * Local ServiceRep browser. Returns available:false when sqlite missing.
+ * ServiceRep browser. Returns available:false when sqlite missing or feature off.
  */
 export function createServiceRouter(): Router {
   const router = Router();
 
   router.get("/status", (_req, res) => {
-    res.json({ ok: true, ...getServiceStatus(), graphicCacheCount: listCachedGraphicCount() });
+    const enabled = serviceFeatureEnabled();
+    if (!enabled) {
+      res.json({
+        ok: true,
+        enabled: false,
+        available: false,
+        path: "",
+        docCount: 0,
+        htmlCount: 0,
+        treeCount: 0,
+        graphicCacheCount: 0,
+      });
+      return;
+    }
+    res.json({
+      ok: true,
+      enabled: true,
+      ...getServiceStatus(),
+      graphicCacheCount: listCachedGraphicCount(),
+    });
+  });
+
+  router.use((req, res, next) => {
+    if (req.path === "/status") {
+      next();
+      return;
+    }
+    if (!serviceFeatureEnabled()) {
+      res.status(403).json({ ok: false, error: "service_disabled", feature: "serviceBrowser" });
+      return;
+    }
+    next();
   });
 
   router.get("/filters", (_req, res) => {

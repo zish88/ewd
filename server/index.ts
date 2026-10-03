@@ -181,6 +181,10 @@ app.use("/api", (req, res, next) => {
     res.status(403).json({ error: "Скан OBD-адаптера отключён." });
     return;
   }
+  if (settings.features.serviceBrowser === false && path.startsWith("/service")) {
+    res.status(403).json({ error: "Раздел «Сервис» отключён.", feature: "serviceBrowser" });
+    return;
+  }
   next();
 });
 

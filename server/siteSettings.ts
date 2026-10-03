@@ -20,6 +20,8 @@ export type SiteFeatures = {
   kbComments: boolean;
   /** Fuse box layouts / function tables (local Capitals TwoD + FuseReport). Default off. */
   fusesBrowser: boolean;
+  /** ServiceRep manual browser (/service). Default on when DB present; admin can hide. */
+  serviceBrowser: boolean;
 };
 
 export type ThemeId = "charcoal" | "caspian" | "amber";
@@ -89,6 +91,7 @@ const DEFAULTS: SiteSettings = {
     obdAdapter: true,
     kbComments: true,
     fusesBrowser: false,
+    serviceBrowser: true,
   },
   appearance: structuredClone(DEFAULT_APPEARANCE),
 };

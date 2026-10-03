@@ -2092,6 +2092,7 @@ function App() {
     dtcSearch: true,
     obdAdapter: true,
     fusesBrowser: false,
+    serviceBrowser: true,
   });
   /** Mobile bottom-sheet for filters; desktop ignores (filters always inline). */
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
@@ -4020,7 +4021,7 @@ function App() {
       >
         {t("nav.knowledge")}
       </a>
-      {serviceAvailable ? (
+      {serviceAvailable && features.serviceBrowser ? (
         <a
           className="app-bar__kb-link"
           href="/service"

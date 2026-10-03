@@ -19,6 +19,7 @@ type Features = {
   obdAdapter: boolean;
   kbComments: boolean;
   fusesBrowser: boolean;
+  serviceBrowser: boolean;
 };
 
 type Settings = {
@@ -136,6 +137,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   obdAdapter: "Скан с адаптера OBD (ESP32) — сейчас не влияет: кнопка временно снята с сайта, тест на вкладке OBD",
   kbComments: "Комментарии в базе знаний",
   fusesBrowser: "Предохранители (схемы блоков EWD) — кнопка над карточками",
+  serviceBrowser: "Сервис (процедуры снятия/замены) — кнопка «Сервис» в шапке",
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
@@ -360,6 +362,7 @@ export function AdminPage() {
       obdAdapter: d.features?.obdAdapter !== false,
       kbComments: d.features?.kbComments !== false,
       fusesBrowser: d.features?.fusesBrowser === true,
+      serviceBrowser: d.features?.serviceBrowser !== false,
     };
     setSettings(d);
     setDraftSettings(d);
