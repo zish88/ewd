@@ -3,48 +3,52 @@
 ## What is confirmed now
 
 - `scripts/extract_vida_dtc.py` already pulls DTC titles from `dbo.IE` + `dbo.IETitle`.
-- The extractor is scoped to `fkInformationQualifier = 20`, which is labeled in code as `Diagnostic Trouble Codes and Associated Procedures`.
-- The checked-in scan sample `data/vida_dtc_scan_sample.txt` contains the token `DTCApplScript`, so the DiagSWDL source almost certainly has deeper DTC applicability metadata beyond the short title rows.
+- The extractor is scoped to `fkInformationQualifier = 20`, which is labeled in VIDA as **«Диагностические коды неисправностей и связанные с ними процедуры»** (`06:02`).
+- **Probe completed 2026-07-27** — see feature SPEC: `docs/ai/features/vida-servicerep-dtc-graph/SPEC.md`.
 
-## New probe command
+## Probe results (short)
 
-Use the extractor in probe mode against the DiagSWDL MDF:
+### DiagSWDL
+
+- IQ20 IEs: **54 435**
+- `IEParentChildMap` from IQ20 parents: **75 755** edges (children often null-IQ procedure nodes)
+- `FirstTestgrpId` set on **9 202** IEs
+- `IEProfileMap` for IQ20: **~1.45M** rows (vehicle applicability)
+- `Script` / `ScriptContent`: scanner protocols, not human repair text
+
+### ServiceRep RU (`servicerep_ru-RU.MDF`, stage VIDA2013D)
+
+- **86 621** `Document` rows; `XmlContent` = **ZIP** of one `*_ru-RU.xml`
+- Qualifier 20 diagnostic docs: **19 160** (`condition` 10 224 + `test` 8 906)
+- Section outline via `DocumentLinkTitle`: e.g. «Проверка» 12 860, «Информация по поиску неисправности» 14 516, «Замена компонента» 3 895
+
+### Join (do not invent others)
+
+```
+IE (IQ=20, DTC title)
+  → IEParentChildMap → child IE
+  → Document.chronicleId = child.Id
+    OR Document.projectDocumentId = child.ProjectDocumentId
+```
+
+- Direct root IE → Document: **~12%**
+- Via children: **~86%** (sample 250)
+
+## Commands
 
 ```bash
 python scripts/extract_vida_dtc.py --probe-metadata --probe-only
+python scripts/_probe_servicerep.py
+python scripts/_probe_servicerep_deep.py
+python scripts/_probe_join_xml.py
+python scripts/_probe_child_join.py
 ```
 
-Optional output override:
-
-```bash
-python scripts/extract_vida_dtc.py --probe-metadata --probe-only --probe-out data/vida_dtc_metadata_probe.json
-```
-
-The probe writes a JSON report with:
-
-- `iq20_ie_count`: how many `IE` rows are under DTC qualifier `20`
-- `candidate_tables`: tables whose names or column names look related to DTC metadata
-- full column lists for each candidate table so the next pass can map joins instead of searching blind
-
-## What to look for in the probe
-
-Prioritize candidate tables/columns with these patterns:
-
-- `DTC`, `Appl`, `Script`
-- `Procedure`, `Check`, `Cause`, `Symptom`
-- `fkIE`, `fkInformationQualifier`
-- title/text tables adjacent to those entities
-
-## Recommended next pass
-
-1. Run the probe on the real DiagSWDL MDF and open `data/vida_dtc_metadata_probe.json`.
-2. Start from candidate tables that either reference `fkIE` directly or sit next to `DTCApplScript`.
-3. For one known multi-variant code such as `ECM-6661`, trace which `IE.Id` rows connect to applicability/procedure tables.
-4. Only after the join path is clear, extend `dtc.sqlite` with structured fields for procedures/applicability/causes.
+Reports under `data/reports/servicerep-*.json` and `data/vida_dtc_metadata_probe.json`.
 
 ## Already shipped in app layer (not MDF graph)
 
 - Detail API `/api/dtc/code/:code/details` exposes raw `dtc_entries` (true VIDA IE variants).
 - Exact OBD lookup falls back to `obd_code`.
 - UI «Подробнее» explains `вариантов: N` and surfaces `fault_state` parsed from titles.
-- Deeper procedures/applicability/causes remain blocked on the MDF probe above — do not invent joins without the probe report.
+- Deeper procedures: **SPEC written**, implementation not started — follow slices in the feature folder.

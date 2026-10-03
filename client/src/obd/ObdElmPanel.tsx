@@ -11,6 +11,7 @@ import { parseElmResponse } from "./elmParse.js";
 import { enrichScanViaApi } from "./enrichScan.js";
 import { ObdScanResults } from "./ObdScanResults.js";
 import type { ObdScanPayload } from "./types.js";
+import { isTelegramMiniApp } from "../telegram.js";
 
 type Props = {
   onUseDtcQuery?: (code: string) => void;
@@ -138,7 +139,11 @@ export function ObdElmPanel({ onUseDtcQuery }: Props) {
         <div className="space-y-2">
           <p className="text-[11px] text-[var(--text-muted)] leading-snug">
             Нужен BLE UART. Classic BT из браузера недоступен.
-            {!bleOk ? " Web Bluetooth здесь недоступен." : ""}
+            {!bleOk
+              ? isTelegramMiniApp()
+                ? " Telegram Mini App не даёт доступ к Web Bluetooth; используйте вставку ответа или обычный браузер."
+                : " Web Bluetooth здесь недоступен."
+              : ""}
             {bleLinked ? <span className="text-emerald-700"> Связь активна.</span> : null}
           </p>
           <div className="flex flex-wrap gap-1.5">

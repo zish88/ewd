@@ -3,6 +3,7 @@
  * Classic BT SPP is not supported by Web Bluetooth.
  * Session can stay open across UI minimize; disconnect on hard close.
  */
+import { isTelegramMiniApp } from "../telegram.js";
 
 const UART_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
 const UART_RX = "0000fff1-0000-1000-8000-00805f9b34fb";
@@ -38,7 +39,11 @@ type BleDevice = {
 };
 
 export function bleObdSupported(): boolean {
-  return typeof navigator !== "undefined" && Boolean((navigator as { bluetooth?: unknown }).bluetooth);
+  return (
+    !isTelegramMiniApp() &&
+    typeof navigator !== "undefined" &&
+    Boolean((navigator as { bluetooth?: unknown }).bluetooth)
+  );
 }
 
 function enc(s: string): Uint8Array {

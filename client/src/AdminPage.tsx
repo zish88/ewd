@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   applySiteAppearance,
   type SiteAppearance,
@@ -183,6 +183,50 @@ function formatVisitAt(isoLike: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function visitPathLabel(path: string): string {
+  const p = String(path || "/").trim() || "/";
+  if (p.startsWith("/.well-known/apple-app-site-association")) return "Apple Universal Links (AASA)";
+  if (p.startsWith("/.well-known/assetlinks.json")) return "Android App Links";
+  if (p.startsWith("/.well-known/")) return `well-known · ${p.slice("/.well-known/".length)}`;
+  return p;
+}
+
+function visitReferrerLabel(ref: string): { short: string; full: string } {
+  const full = String(ref || "").trim();
+  if (!full) return { short: "", full: "" };
+  try {
+    const u = new URL(full, "https://ewd-volvo.ru");
+    const host = u.host.replace(/^www\./, "");
+    const path = `${u.pathname}${u.search}` || "/";
+    if (path.startsWith("/.well-known/apple-app-site-association")) {
+      return { short: `${host} · Apple AASA`, full };
+    }
+    if (path.startsWith("/.well-known/assetlinks.json")) {
+      return { short: `${host} · Android App Links`, full };
+    }
+    if (path.length > 48) return { short: `${host}${path.slice(0, 40)}…`, full };
+    return { short: `${host}${path === "/" ? "" : path}`, full };
+  } catch {
+    return { short: full.length > 56 ? `${full.slice(0, 54)}…` : full, full };
+  }
+}
+
+function visitIsProbe(path: string, referrer: string): boolean {
+  const hay = `${path} ${referrer}`;
+  return /\/\.well-known\//i.test(hay);
+}
+
+function VisitMetaChip({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex max-w-full items-center rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-1.5 py-0.5 text-[10px] leading-tight text-[var(--text-muted)]"
+    >
+      {children}
+    </span>
+  );
 }
 
 function wireToForm(w: WireRow): WireForm {
@@ -1234,27 +1278,56 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                   {visits.recent.length === 0 ? (
                     <p className="text-sm text-[var(--text-muted)]">Пока нет записей.</p>
                   ) : (
-                    <ul className="max-h-56 md:max-h-80 overflow-y-auto divide-y divide-[var(--border-color)] text-sm">
+                    <ul className="max-h-[28rem] overflow-y-auto divide-y divide-[var(--border-color)]">
                       {visits.recent.map((v) => {
-                        const meta = [
-                          v.uaLabel,
-                          v.lang,
-                          v.country,
-                          v.timezone,
-                          v.screen,
-                          v.referrer ? `← ${v.referrer}` : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" · ");
+                        const pathRaw = v.path || "/";
+                        const pathNice = visitPathLabel(pathRaw);
+                        const ref = visitReferrerLabel(v.referrer || "");
+                        const probe = visitIsProbe(pathRaw, v.referrer || "");
+                        const uaParts = String(v.uaLabel || "")
+                          .split("·")
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        const browser = uaParts[0] || "";
+                        const os = uaParts[1] || "";
+                        const device = v.device || uaParts[2] || "";
                         return (
-                          <li key={v.id} className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-                            <span className="tabular-nums text-[var(--text-main)] shrink-0">{formatVisitAt(v.visitedAt)}</span>
-                            <span className="truncate text-[var(--text-muted)] text-xs min-w-0" title={meta || undefined}>
-                              {meta || "—"}
-                            </span>
-                            <span className="truncate text-[var(--text-muted)] font-mono text-xs shrink-0 sm:max-w-[8rem]">
-                              {v.path || "/"}
-                            </span>
+                          <li key={v.id} className="py-2.5 space-y-1.5">
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                              <span className="tabular-nums text-sm text-[var(--text-main)] shrink-0">
+                                {formatVisitAt(v.visitedAt)}
+                              </span>
+                              {probe ? (
+                                <VisitMetaChip title="Автопроверка App Links / Universal Links, не взлом">
+                                  автопроверка
+                                </VisitMetaChip>
+                              ) : null}
+                              <span
+                                className="min-w-0 flex-1 break-all font-mono text-xs text-[var(--accent)]"
+                                title={pathRaw}
+                              >
+                                {pathNice}
+                                {pathNice !== pathRaw ? (
+                                  <span className="ml-1 text-[10px] text-[var(--text-muted)] normal-case">
+                                    ({pathRaw})
+                                  </span>
+                                ) : null}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {browser ? <VisitMetaChip title="Браузер">{browser}</VisitMetaChip> : null}
+                              {os ? <VisitMetaChip title="ОС">{os}</VisitMetaChip> : null}
+                              {device ? <VisitMetaChip title="Устройство">{device}</VisitMetaChip> : null}
+                              {v.lang ? <VisitMetaChip title="Язык">{v.lang}</VisitMetaChip> : null}
+                              {v.country ? <VisitMetaChip title="Страна">{v.country}</VisitMetaChip> : null}
+                              {v.timezone ? <VisitMetaChip title="Часовой пояс">{v.timezone}</VisitMetaChip> : null}
+                              {v.screen ? <VisitMetaChip title="Экран">{v.screen}</VisitMetaChip> : null}
+                            </div>
+                            {ref.short ? (
+                              <div className="text-[11px] text-[var(--text-muted)] break-all" title={ref.full}>
+                                <span className="text-[var(--muted)]">откуда:</span> {ref.short}
+                              </div>
+                            ) : null}
                           </li>
                         );
                       })}
