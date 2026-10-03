@@ -32,6 +32,7 @@ import { ModernSelect } from "./ModernSelect.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
 import { KnowledgePage } from "./KnowledgePage.js";
+import { ServicePage } from "./ServicePage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { rootSurfaceForPath } from "./rootRoute.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
@@ -126,7 +127,9 @@ type CapitalPanel =
   | { kind: "faceview"; code: string; pin?: string }
   | { kind: "location"; code: string }
   | { kind: "report"; report: "fuse" | "inline" | "splice" | "grounds" }
-  | { kind: "intro"; slug: string };
+  | { kind: "intro"; slug: string }
+  | { kind: "fuses" }
+  | { kind: "fuseLayout"; code: string; file: string; label?: string };
 type SchemeConfidence = "wire-owned" | "pin-only" | "text-only" | "none";
 type EwdDiagram = {
   diagramUid: string;
@@ -236,23 +239,135 @@ function schemeConfidenceForFocusedWire(
   }
   return schemeConfidenceForDiagram(d);
 }
+type FuseFunctionRow = {
+  id: string;
+  altId?: string;
+  functionCode?: string;
+  functionName: string;
+  via?: string;
+  amps?: string;
+  vehicleHint?: string | null;
+};
+type FuseRelayRow = {
+  id: string;
+  name: string;
+  nameCode?: string;
+  vehicleHint?: string | null;
+};
+type FuseBoxInfo = {
+  code: string;
+  name: string;
+  thumbUrl?: string | null;
+  hasLocation?: boolean;
+  layouts: Array<{ file: string; label: string; url: string }>;
+  fuses?: FuseFunctionRow[];
+  relays?: FuseRelayRow[];
+};
+
+function FuseFunctionTable({
+  fuses,
+  relays,
+  t,
+}: {
+  fuses?: FuseFunctionRow[];
+  relays?: FuseRelayRow[];
+  t: (key: string) => string;
+}) {
+  const fuseRows = Array.isArray(fuses) ? fuses : [];
+  const relayRows = Array.isArray(relays) ? relays : [];
+  if (!fuseRows.length && !relayRows.length) return null;
+  const hasVia = fuseRows.some((r) => r.via);
+  return (
+    <div className="space-y-2" data-testid="fuse-function-table">
+      {fuseRows.length ? (
+        <div className="overflow-auto max-h-[40vh] rounded border border-[var(--border-color)]">
+          <table className="w-full text-[11px] border-collapse">
+            <thead className="sticky top-0 bg-[var(--input-bg)]">
+              <tr className="text-left text-[var(--text-muted)]">
+                <th className="p-1.5 border-b w-12">{t("fuse.col.no")}</th>
+                <th className="p-1.5 border-b">{t("fuse.col.function")}</th>
+                {hasVia ? <th className="p-1.5 border-b w-14">{t("fuse.col.via")}</th> : null}
+                <th className="p-1.5 border-b w-10 text-right">{t("fuse.col.amps")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fuseRows.map((row, i) => (
+                <tr key={`${row.id}-${row.functionCode || ""}-${i}`} className="border-b border-[var(--border-color)]/40">
+                  <td className="p-1.5 font-mono font-semibold align-top">{row.id}</td>
+                  <td className="p-1.5 align-top">
+                    <div className="text-[var(--text-main)] leading-snug">{row.functionName}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">
+                      {[row.functionCode, row.altId].filter(Boolean).join(" · ")}
+                      {row.vehicleHint ? ` · ${t("fuse.vehicleHint")} ${row.vehicleHint}` : ""}
+                    </div>
+                  </td>
+                  {hasVia ? <td className="p-1.5 align-top text-[var(--text-muted)]">{row.via || "—"}</td> : null}
+                  <td className="p-1.5 align-top text-right font-mono">{row.amps || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {relayRows.length ? (
+        <div className="overflow-auto max-h-[20vh] rounded border border-[var(--border-color)]">
+          <table className="w-full text-[11px] border-collapse">
+            <thead className="sticky top-0 bg-[var(--input-bg)]">
+              <tr className="text-left text-[var(--text-muted)]">
+                <th className="p-1.5 border-b w-12">{t("fuse.col.no")}</th>
+                <th className="p-1.5 border-b">{t("fuse.relays")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {relayRows.map((row, i) => (
+                <tr key={`${row.id}-${i}`} className="border-b border-[var(--border-color)]/40">
+                  <td className="p-1.5 font-mono font-semibold">{row.id}</td>
+                  <td className="p-1.5">
+                    <div>{row.name}</div>
+                    {row.vehicleHint ? (
+                      <div className="text-[10px] text-[var(--text-muted)]">
+                        {t("fuse.vehicleHint")} {row.vehicleHint}
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CapitalPanelViewer({
   panel,
   onClose,
   fullscreen = false,
   onEnterFullscreen,
+  titleOverride,
+  onNavigate,
+  vehicleModel,
+  uiLang = "ru",
 }: {
   panel: CapitalPanel;
   onClose: () => void;
   fullscreen?: boolean;
   onEnterFullscreen?: () => void;
+  titleOverride?: string;
+  onNavigate?: (next: CapitalPanel) => void;
+  vehicleModel?: string;
+  uiLang?: "ru" | "en";
 }) {
+  const { t } = useUiLang();
   const [html, setHtml] = useState("");
   const [svg, setSvg] = useState("");
   const [pins, setPins] = useState<Array<Record<string, unknown>>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [layoutFitToken, setLayoutFitToken] = useState(0);
+  const [fuseBoxes, setFuseBoxes] = useState<FuseBoxInfo[]>([]);
+  const [fuseBoxDetail, setFuseBoxDetail] = useState<FuseBoxInfo | null>(null);
   useEffect(() => {
     let alive = true;
     setLoading(true);
@@ -260,6 +375,8 @@ function CapitalPanelViewer({
     setHtml("");
     setSvg("");
     setPins([]);
+    setFuseBoxes([]);
+    setFuseBoxDetail(null);
     const run = async () => {
       try {
         if (panel.kind === "faceview") {
@@ -276,6 +393,28 @@ function CapitalPanelViewer({
           if (!alive) return;
           setSvg(String(data.svg || ""));
           if (!data.svg) setErr("Нет Location View для этого кода");
+        } else if (panel.kind === "fuseLayout") {
+          const qs = new URLSearchParams({ lang: uiLang, box: panel.code });
+          if (vehicleModel) qs.set("model", vehicleModel);
+          const [text, fuseData] = await Promise.all([
+            fetch(`/api/ewd/twod?file=${encodeURIComponent(panel.file)}`).then((r) => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              return r.text();
+            }),
+            fetch(`/api/ewd/fuses?${qs}`).then((r) => r.json()),
+          ]);
+          if (!alive) return;
+          setSvg(text);
+          const box = Array.isArray(fuseData.boxes) ? fuseData.boxes[0] : null;
+          setFuseBoxDetail(box || null);
+        } else if (panel.kind === "fuses") {
+          const qs = new URLSearchParams({ lang: uiLang });
+          if (vehicleModel) qs.set("model", vehicleModel);
+          const data = await fetch(`/api/ewd/fuses?${qs}`).then((r) => r.json());
+          if (!alive) return;
+          const boxes = Array.isArray(data.boxes) ? data.boxes : [];
+          setFuseBoxes(boxes);
+          if (!boxes.length) setErr("Нет схем предохранителей в пакете EWD");
         } else if (panel.kind === "report") {
           const text = await fetch(`/api/ewd/report/${panel.report}`).then((r) => r.text());
           if (!alive) return;
@@ -295,24 +434,44 @@ function CapitalPanelViewer({
     return () => {
       alive = false;
     };
-  }, [panel]);
+  }, [panel, vehicleModel, uiLang]);
   useEffect(() => {
     setLayoutFitToken((n) => n + 1);
   }, [fullscreen]);
 
   const title =
-    panel.kind === "faceview"
+    titleOverride ||
+    (panel.kind === "faceview"
       ? `Разъём ${panel.code}`
       : panel.kind === "location"
         ? `Расположение ${panel.code}`
-        : panel.kind === "report"
-          ? `Отчёт: ${panel.report}`
-          : "Справка";
+        : panel.kind === "fuses"
+          ? t("fuse.title")
+          : panel.kind === "fuseLayout"
+            ? `${panel.code}${panel.label ? ` · ${panel.label}` : ""}`
+            : panel.kind === "report"
+              ? `Отчёт: ${panel.report}`
+              : "Справка");
+  const showSvgHost = panel.kind === "location" || panel.kind === "fuseLayout";
   return (
     <div className="flex flex-col h-full min-h-0" data-testid="capital-panel">
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-[var(--border-color)] bg-[var(--input-bg)] text-xs shrink-0">
         <span className="font-semibold truncate">{title}</span>
         <div className="scheme-panel__header-actions">
+          {((panel.kind === "fuseLayout") ||
+            (panel.kind === "report" && panel.report === "fuse") ||
+            (panel.kind === "location" && /^15\//.test(panel.code))) &&
+          onNavigate ? (
+            <button
+              type="button"
+              className="scheme-panel__fs-btn"
+              data-testid="fuse-back-list"
+              title="К списку блоков"
+              onClick={() => onNavigate({ kind: "fuses" })}
+            >
+              ←
+            </button>
+          ) : null}
           {!fullscreen && onEnterFullscreen ? (
             <button
               type="button"
@@ -339,13 +498,80 @@ function CapitalPanelViewer({
       </div>
       <div
         className={`flex-1 min-h-0 bg-[var(--bg-card)] ${
-          panel.kind === "location" ? "overflow-hidden p-0" : "overflow-auto p-2"
+          showSvgHost ? "overflow-hidden p-0" : "overflow-auto p-2"
         }`}
       >
-        {panel.kind !== "location" && loading ? (
+        {!showSvgHost && loading ? (
           <p className="text-xs text-[var(--text-muted)] p-2">Загрузка…</p>
         ) : null}
-        {panel.kind !== "location" && err ? <p className="text-xs text-red-600 p-2">{err}</p> : null}
+        {!showSvgHost && err ? <p className="text-xs text-red-600 p-2">{err}</p> : null}
+        {panel.kind === "fuses" && fuseBoxes.length > 0 ? (
+          <div className="space-y-3 p-2" data-testid="fuse-box-list">
+            <p className="text-[11px] text-[var(--text-muted)]">{t("fuse.hint")}</p>
+            {onNavigate ? (
+              <button
+                type="button"
+                className="md-btn md-btn--text text-[11px] px-2 py-1"
+                data-testid="fuse-open-table-report"
+                onClick={() => onNavigate({ kind: "report", report: "fuse" })}
+              >
+                {t("fuse.rawTable")}
+              </button>
+            ) : null}
+            {fuseBoxes.map((box) => (
+              <div
+                key={box.code}
+                className="rounded-lg border border-[var(--border-color)] p-2.5 space-y-2"
+                data-testid="fuse-box-card"
+              >
+                <div className="flex flex-wrap items-start gap-2">
+                  {box.thumbUrl ? (
+                    <img
+                      src={box.thumbUrl}
+                      alt=""
+                      className="w-16 h-16 object-contain rounded border border-[var(--border-color)] bg-white"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono font-semibold text-sm text-[var(--accent)]">{box.code}</div>
+                    <div className="text-xs text-[var(--text-main)]">{box.name}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {box.layouts.map((lay) => (
+                    <button
+                      key={lay.file}
+                      type="button"
+                      className="md-btn md-btn--tonal text-[11px] px-2 py-1"
+                      data-testid="fuse-open-layout"
+                      onClick={() =>
+                        onNavigate?.({
+                          kind: "fuseLayout",
+                          code: box.code,
+                          file: lay.file,
+                          label: lay.label,
+                        })
+                      }
+                    >
+                      {lay.label || t("fuse.layout")}
+                    </button>
+                  ))}
+                  {box.hasLocation ? (
+                    <button
+                      type="button"
+                      className="md-btn md-btn--text text-[11px] px-2 py-1"
+                      data-testid="fuse-open-location"
+                      onClick={() => onNavigate?.({ kind: "location", code: box.code })}
+                    >
+                      {t("fuse.location")}
+                    </button>
+                  ) : null}
+                </div>
+                <FuseFunctionTable fuses={box.fuses} relays={box.relays} t={t} />
+              </div>
+            ))}
+          </div>
+        ) : null}
         {pins.length > 0 ? (
           <div className="mb-3 overflow-auto p-2">
             <table className="w-full text-[11px] font-mono border-collapse">
@@ -393,6 +619,26 @@ function CapitalPanelViewer({
                 fitToken={layoutFitToken || 1}
               />
             </div>
+          </div>
+        ) : null}
+        {panel.kind === "fuseLayout" ? (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-[1.2]">
+              <SvgPanZoomHost
+                testId="fuse-layout-svg-viewer"
+                markup={svg}
+                loading={loading}
+                error={err}
+                className="ewd-location-svg"
+                fitMode="contain"
+                fitToken={layoutFitToken || 1}
+              />
+            </div>
+            {fuseBoxDetail ? (
+              <div className="shrink-0 max-h-[42%] overflow-auto border-t border-[var(--border-color)] p-2 bg-[var(--bg-card)]">
+                <FuseFunctionTable fuses={fuseBoxDetail.fuses} relays={fuseBoxDetail.relays} t={t} />
+              </div>
+            ) : null}
           </div>
         ) : null}
         {html && !pins.length ? (
@@ -1807,6 +2053,8 @@ function App() {
   const [editing, setEditing] = useState<any>(null);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [capitalPanel, setCapitalPanel] = useState<CapitalPanel | null>(null);
+  const [fuseReportAvailable, setFuseReportAvailable] = useState(false);
+  const [serviceAvailable, setServiceAvailable] = useState(false);
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
   const [schemeFullscreen, setSchemeFullscreen] = useState(false);
   const showSeqRef = useRef(0);
@@ -1843,6 +2091,7 @@ function App() {
     navBrowse: true,
     dtcSearch: true,
     obdAdapter: true,
+    fusesBrowser: false,
   });
   /** Mobile bottom-sheet for filters; desktop ignores (filters always inline). */
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
@@ -2089,6 +2338,38 @@ function App() {
     filteredTransitWires.forEach((item, i) => add(item, i + 10000));
     return map;
   }, [filteredOwnerWires, filteredTransitWires, selectedCode, ewdDiagrams]);
+
+  useEffect(() => {
+    let alive = true;
+    const qs = new URLSearchParams({ lang });
+    if (selectedModel) qs.set("model", selectedModel);
+    fetch(`/api/ewd/fuses?${qs}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => {
+        if (alive) setFuseReportAvailable(Array.isArray(data?.boxes) && data.boxes.length > 0);
+      })
+      .catch(() => {
+        if (alive) setFuseReportAvailable(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selectedModel, lang]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/service/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setServiceAvailable(Boolean(d?.available));
+      })
+      .catch(() => {
+        if (alive) setServiceAvailable(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Drop selection / marker when the active card is hidden by the color filter
   useEffect(() => {
@@ -2656,6 +2937,19 @@ function App() {
     } finally {
       setDtcLoading(false);
     }
+  }
+
+  function openFuseReport() {
+    if (!requireVehicleMin()) return;
+    if (!features.fusesBrowser || !fuseReportAvailable) {
+      setNotice(t("fuse.unavailable"));
+      return;
+    }
+    setMode("search");
+    setActiveSvg(null);
+    setCapitalPanel({ kind: "fuses" });
+    setMobileView("scheme");
+    setToolsSheetOpen(false);
   }
 
   /** Minimum unlock: Model + Year. Engine / KPP are optional refinements. */
@@ -3726,6 +4020,17 @@ function App() {
       >
         {t("nav.knowledge")}
       </a>
+      {serviceAvailable ? (
+        <a
+          className="app-bar__kb-link"
+          href="/service"
+          title={t("nav.serviceTitle")}
+          aria-label={t("nav.service")}
+          data-testid="nav-service"
+        >
+          {t("nav.service")}
+        </a>
+      ) : null}
       <nav className="app-bar__social-links" aria-label={lang === "en" ? "External links" : "Внешние ссылки"}>
         <a
           className="app-bar__social-link"
@@ -4353,6 +4658,18 @@ function App() {
           mobileView === "scheme" && rightOpen ? " is-mobile-hidden" : ""
         }`}
       >
+      {selectedModel && selectedYear && fuseReportAvailable && features.fusesBrowser ? (
+        <div className="flex flex-wrap gap-2 px-0.5 pb-1 shrink-0" data-testid="fuse-report-bar">
+          <button
+            type="button"
+            data-testid="open-fuse-report"
+            className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
+            onClick={openFuseReport}
+          >
+            {t("fuse.button")}
+          </button>
+        </div>
+      ) : null}
       {/* Outside scrollport: mobile bottom-sheet uses position:fixed; fixed inside overflow
           creates a containing block and cards scroll through the sheet (overlap). */}
       <details
@@ -4970,6 +5287,10 @@ function App() {
             fullscreen={schemeFullscreen}
             onEnterFullscreen={enterSchemeFullscreen}
             onClose={closeCapitalPanel}
+            onNavigate={setCapitalPanel}
+            vehicleModel={selectedModel}
+            uiLang={lang}
+            titleOverride={capitalPanel.kind === "fuses" ? t("fuse.title") : undefined}
           />
         </div>
       )}
@@ -5225,6 +5546,7 @@ function Root() {
   const surface = rootSurfaceForPath(typeof window !== "undefined" ? window.location.pathname : "/");
   if (surface === "admin") return <AdminPage />;
   if (surface === "knowledge") return <KnowledgePage />;
+  if (surface === "service") return <ServicePage />;
   return <App />;
 }
 
@@ -5238,7 +5560,7 @@ function RootWithLang() {
 
 async function startClient() {
   const surface = rootSurfaceForPath(window.location.pathname);
-  if (surface !== "admin" && surface !== "knowledge") {
+  if (surface !== "admin" && surface !== "knowledge" && surface !== "service") {
     await loadTelegramWebAppSdk();
     initializeTelegramWebApp();
     void bootstrapTelegramIdentity();

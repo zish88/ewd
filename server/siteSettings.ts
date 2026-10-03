@@ -18,6 +18,8 @@ export type SiteFeatures = {
   obdAdapter: boolean;
   /** Anonymous comments under KB articles. */
   kbComments: boolean;
+  /** Fuse box layouts / function tables (local Capitals TwoD + FuseReport). Default off. */
+  fusesBrowser: boolean;
 };
 
 export type ThemeId = "charcoal" | "caspian" | "amber";
@@ -86,6 +88,7 @@ const DEFAULTS: SiteSettings = {
     dtcSearch: true,
     obdAdapter: true,
     kbComments: true,
+    fusesBrowser: false,
   },
   appearance: structuredClone(DEFAULT_APPEARANCE),
 };

@@ -18,6 +18,7 @@ type Features = {
   dtcSearch: boolean;
   obdAdapter: boolean;
   kbComments: boolean;
+  fusesBrowser: boolean;
 };
 
 type Settings = {
@@ -134,6 +135,7 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   dtcSearch: "Поиск DTC / OBD кодов",
   obdAdapter: "Скан с адаптера OBD (ESP32) — сейчас не влияет: кнопка временно снята с сайта, тест на вкладке OBD",
   kbComments: "Комментарии в базе знаний",
+  fusesBrowser: "Предохранители (схемы блоков EWD) — кнопка над карточками",
 };
 
 const ADMIN_UI_SESSION_KEY = "ewd_admin_ui";
@@ -357,6 +359,7 @@ export function AdminPage() {
       dtcSearch: d.features?.dtcSearch !== false,
       obdAdapter: d.features?.obdAdapter !== false,
       kbComments: d.features?.kbComments !== false,
+      fusesBrowser: d.features?.fusesBrowser === true,
     };
     setSettings(d);
     setDraftSettings(d);

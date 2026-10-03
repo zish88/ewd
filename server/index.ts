@@ -14,6 +14,7 @@ import { createDtcRouter } from "./routes/dtc.js";
 import { createObdRouter } from "./routes/obd.js";
 import { createPushRouter } from "./routes/push.js";
 import { createKnowledgeRouter } from "./routes/knowledge.js";
+import { createServiceRouter } from "./routes/service.js";
 import { createTelegramAuthRouter, telegramConfigured } from "./telegramAuth.js";
 import { dtcStats } from "./dtcDb.js";
 import { adminConfigured, isAdminRequest } from "./adminAuth.js";
@@ -143,6 +144,7 @@ app.use("/api", (req, res, next) => {
     path === "/platforms" ||
     path.startsWith("/platforms/") ||
     path.startsWith("/knowledge") ||
+    path.startsWith("/service") ||
     path.startsWith("/admin") ||
     path.startsWith("/push")
   ) {
@@ -192,6 +194,7 @@ app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());
 app.use("/api/obd", createObdRouter());
 app.use("/api/knowledge", createKnowledgeRouter());
+app.use("/api/service", createServiceRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));
 app.get("/api/health", (_req, res) => {

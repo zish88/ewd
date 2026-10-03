@@ -50,6 +50,9 @@ data/*.sqlite-*
 data/visits.sqlite
 data/push.sqlite
 data/push.sqlite-*
+data/servicerep.sqlite
+data/servicerep.sqlite-*
+data/servicerep-graphics/
 data/push-last-notified.json
 data/telegram.sqlite
 data/telegram.sqlite-*

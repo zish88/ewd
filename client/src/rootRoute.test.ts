@@ -12,6 +12,11 @@ test("/knowledge resolves to the knowledge surface", () => {
   assert.equal(rootSurfaceForPath("/knowledge/"), "knowledge");
 });
 
+test("/service resolves to the service surface", () => {
+  assert.equal(rootSurfaceForPath("/service"), "service");
+  assert.equal(rootSurfaceForPath("/service/"), "service");
+});
+
 test("other paths resolve to the public app", () => {
   assert.equal(rootSurfaceForPath("/"), "app");
   assert.equal(rootSurfaceForPath("/telegram"), "app");
