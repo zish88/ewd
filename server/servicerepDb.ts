@@ -50,6 +50,10 @@ let db: Database.Database | null = null;
 let dbPathOpened = "";
 let dbMtimeMs = 0;
 
+type StatusCache = { at: number; value: ServiceStatus };
+let statusCache: StatusCache | null = null;
+const STATUS_TTL_MS = 60_000;
+
 export function servicerepDbPath(): string {
   return resolve(process.env.SERVICEREP_DATABASE_PATH || join(ROOT, "data", "servicerep.sqlite"));
 }
@@ -85,23 +89,80 @@ export function openServicerepDb(): Database.Database | null {
   }
   db = new Database(path, { readonly: true, fileMustExist: true });
   db.pragma("query_only = ON");
+  // Low-RAM VPS: avoid full-table scans thrashing 1GB DB into swap.
+  try {
+    db.pragma("cache_size = -65536"); // ~64MB
+    db.pragma("temp_store = MEMORY");
+    db.pragma("mmap_size = 67108864"); // 64MB
+  } catch {
+    /* ignore */
+  }
   dbPathOpened = path;
   dbMtimeMs = mtimeMs;
+  statusCache = null;
   return db;
 }
 
+function metaMap(d: Database.Database): Map<string, string> {
+  try {
+    const rows = d.prepare(`SELECT key, value FROM meta`).all() as Array<{ key: string; value: string }>;
+    return new Map(rows.map((r) => [r.key, r.value]));
+  } catch {
+    return new Map();
+  }
+}
+
+/** Fast status for nav + Service page. Never COUNT(*) on documents (1GB HTML thrash). */
 export function getServiceStatus(): ServiceStatus {
   const path = servicerepDbPath();
+  const now = Date.now();
+  if (statusCache && now - statusCache.at < STATUS_TTL_MS && statusCache.value.path === path) {
+    return statusCache.value;
+  }
+  if (!existsSync(path)) {
+    const miss = { available: false, path, docCount: 0, htmlCount: 0, treeCount: 0 };
+    statusCache = { at: now, value: miss };
+    return miss;
+  }
+  let size = 0;
+  try {
+    size = statSync(path).size;
+  } catch {
+    size = 0;
+  }
+  if (size < 10_000) {
+    const miss = { available: false, path, docCount: 0, htmlCount: 0, treeCount: 0 };
+    statusCache = { at: now, value: miss };
+    return miss;
+  }
+
   const d = openServicerepDb();
   if (!d) {
-    return { available: false, path, docCount: 0, htmlCount: 0, treeCount: 0 };
+    const miss = { available: false, path, docCount: 0, htmlCount: 0, treeCount: 0 };
+    statusCache = { at: now, value: miss };
+    return miss;
   }
-  const docCount = Number(d.prepare(`SELECT COUNT(*) AS n FROM documents`).get()?.n || 0);
-  const htmlCount = Number(
-    d.prepare(`SELECT COUNT(*) AS n FROM documents WHERE has_html=1`).get()?.n || 0,
-  );
-  const treeCount = Number(d.prepare(`SELECT COUNT(*) AS n FROM tree_items`).get()?.n || 0);
-  return { available: true, path, docCount, htmlCount, treeCount };
+  const meta = metaMap(d);
+  const docCount = Number(meta.get("doc_count") || meta.get("html_extracted") || 0);
+  const htmlCount = Number(meta.get("html_extracted") || docCount || 0);
+  let treeCount = Number(meta.get("tree_count") || 0);
+  if (!treeCount) {
+    try {
+      // tree_items rows are small; COUNT here is cheap vs documents.html
+      treeCount = Number(d.prepare(`SELECT COUNT(*) AS n FROM tree_items`).get()?.n || 0);
+    } catch {
+      treeCount = 0;
+    }
+  }
+  const value: ServiceStatus = {
+    available: true,
+    path,
+    docCount: docCount || 1,
+    htmlCount: htmlCount || docCount || 1,
+    treeCount,
+  };
+  statusCache = { at: now, value };
+  return value;
 }
 
 function profileIdsForModel(d: Database.Database, model: string): string[] | null {
@@ -147,14 +208,14 @@ function treeProfileClause(
 ): { sql: string; params: unknown[] } {
   if (!profileFilter?.length) return { sql: "", params: [] };
   const ph = profileFilter.map(() => "?").join(",");
+  // All tree_items currently have profiles. IN-subquery uses idx on profile_id
+  // (much cheaper than per-row EXISTS over 1M+ tip rows on low-RAM hosts).
   return {
     sql: `
-      AND (
-        NOT EXISTS (SELECT 1 FROM tree_item_profiles tp WHERE tp.tree_item_id=${alias}.id)
-        OR EXISTS (
-          SELECT 1 FROM tree_item_profiles tp
-          WHERE tp.tree_item_id=${alias}.id AND tp.profile_id IN (${ph})
-        )
+      AND ${alias}.id IN (
+        SELECT DISTINCT tp.tree_item_id
+        FROM tree_item_profiles tp
+        WHERE tp.profile_id IN (${ph})
       )
     `,
     params: [...profileFilter],

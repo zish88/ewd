@@ -387,6 +387,9 @@ def init_sqlite(path: Path) -> sqlite3.Connection:
         );
         CREATE INDEX idx_tree_fg ON tree_items(fg1, fg2, fg3);
         CREATE INDEX idx_tree_title ON tree_items(title);
+        CREATE INDEX idx_tree_serv_fg ON tree_items(is_servinfo, fg1, fg2, fg3);
+        CREATE INDEX idx_tip_profile ON tree_item_profiles(profile_id);
+        CREATE INDEX idx_pv_model ON profile_vehicle(model);
         CREATE INDEX idx_doc_pdid ON documents(project_document_id);
         CREATE INDEX idx_doc_title ON documents(title);
         """
