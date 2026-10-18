@@ -15,11 +15,14 @@ if [ -f .env ]; then
 fi
 
 HEAD="$(git rev-parse --short=8 HEAD)"
-NOTES_GIT="$(python3 -c 'import json; print(json.load(open("client/public/deploy-notes.json",encoding="utf-8")).get("git",""))')"
+NOTES_GIT="$(python3 -c 'import json; print(json.load(open("client/public/deploy-notes.json",encoding="utf-8")).get("git",""))' 2>/dev/null || true)"
 echo "HEAD=$HEAD notes=$NOTES_GIT"
 if [ "$HEAD" != "$NOTES_GIT" ]; then
-  echo "ERROR: deploy-notes.git mismatch — stamp locally and scp first"
-  exit 1
+  echo "==> stamp deploy-notes on VPS (mismatch)"
+  node scripts/stamp-updating.mjs
+  HEAD="$(git rev-parse --short=8 HEAD)"
+  NOTES_GIT="$(python3 -c 'import json; print(json.load(open("client/public/deploy-notes.json",encoding="utf-8")).get("git",""))')"
+  echo "after stamp HEAD=$HEAD notes=$NOTES_GIT"
 fi
 
 if [ ! -f data/parts.sqlite ]; then
