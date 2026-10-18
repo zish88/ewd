@@ -18,11 +18,21 @@ HEAD="$(git rev-parse --short=8 HEAD)"
 NOTES_GIT="$(python3 -c 'import json; print(json.load(open("client/public/deploy-notes.json",encoding="utf-8")).get("git",""))' 2>/dev/null || true)"
 echo "HEAD=$HEAD notes=$NOTES_GIT"
 if [ "$HEAD" != "$NOTES_GIT" ]; then
-  echo "==> stamp deploy-notes on VPS (mismatch)"
-  node scripts/stamp-updating.mjs
-  HEAD="$(git rev-parse --short=8 HEAD)"
+  echo "==> align deploy-notes.git to HEAD ($HEAD) — host may have no node"
+  if command -v node >/dev/null 2>&1; then
+    node scripts/stamp-updating.mjs || true
+  fi
+  python3 - <<PY
+import json
+from pathlib import Path
+p = Path("client/public/deploy-notes.json")
+d = json.loads(p.read_text(encoding="utf-8"))
+d["git"] = "$HEAD"
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print("notes.git", d["git"])
+PY
   NOTES_GIT="$(python3 -c 'import json; print(json.load(open("client/public/deploy-notes.json",encoding="utf-8")).get("git",""))')"
-  echo "after stamp HEAD=$HEAD notes=$NOTES_GIT"
+  echo "after align HEAD=$HEAD notes=$NOTES_GIT"
 fi
 
 if [ ! -f data/parts.sqlite ]; then

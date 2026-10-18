@@ -11,6 +11,16 @@ scripts/_*-smoke*
 scripts/e2e-smoke-report.json
 data/*.sqlite
 data/*.sqlite-*
+data/parts-graphics
+data/parts-graphics.tgz
+data/reports
+data/vida_tmp
 data/pages
+data/*.tgz
+data/*.gz
+data/*.bak*
+data/*.ldf
+data/*.MDF
+data/*.mdf
 manual
 E:\\manual
