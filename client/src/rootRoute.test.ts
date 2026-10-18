@@ -7,9 +7,9 @@ test("/admin always resolves to the admin surface", () => {
   assert.equal(rootSurfaceForPath("/admin/"), "admin");
 });
 
-test("/knowledge resolves to the knowledge surface", () => {
-  assert.equal(rootSurfaceForPath("/knowledge"), "knowledge");
-  assert.equal(rootSurfaceForPath("/knowledge/"), "knowledge");
+test("/knowledge is retired and falls through to the app", () => {
+  assert.equal(rootSurfaceForPath("/knowledge"), "app");
+  assert.equal(rootSurfaceForPath("/knowledge/"), "app");
 });
 
 test("/service resolves to the service surface", () => {

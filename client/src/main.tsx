@@ -31,7 +31,6 @@ import { filterNavGroupsByQuery } from "./navComponentSearch.js";
 import { ModernSelect } from "./ModernSelect.js";
 import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
-import { KnowledgePage } from "./KnowledgePage.js";
 import { ServicePage } from "./ServicePage.js";
 import { PartsPage } from "./PartsPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
@@ -4028,16 +4027,7 @@ function App() {
   );
 
   const socialLinksControl = (
-    <div className="app-bar__ext-cluster" aria-label={t("nav.knowledgeTitle")}>
-      <a
-        className="app-bar__kb-link"
-        href="/knowledge"
-        title={t("nav.knowledgeTitle")}
-        aria-label={t("nav.knowledge")}
-        data-testid="nav-knowledge"
-      >
-        {t("nav.knowledge")}
-      </a>
+    <div className="app-bar__ext-cluster" aria-label={lang === "en" ? "Site sections" : "Разделы сайта"}>
       {serviceAvailable && features.serviceBrowser ? (
         <a
           className="app-bar__kb-link"
@@ -5574,7 +5564,6 @@ function SuggestEditModal({
 function Root() {
   const surface = rootSurfaceForPath(typeof window !== "undefined" ? window.location.pathname : "/");
   if (surface === "admin") return <AdminPage />;
-  if (surface === "knowledge") return <KnowledgePage />;
   if (surface === "service") return <ServicePage />;
   if (surface === "parts") return <PartsPage />;
   return <App />;
@@ -5590,7 +5579,7 @@ function RootWithLang() {
 
 async function startClient() {
   const surface = rootSurfaceForPath(window.location.pathname);
-  if (surface !== "admin" && surface !== "knowledge" && surface !== "service" && surface !== "parts") {
+  if (surface !== "admin" && surface !== "service" && surface !== "parts") {
     await loadTelegramWebAppSdk();
     initializeTelegramWebApp();
     void bootstrapTelegramIdentity();

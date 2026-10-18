@@ -16,8 +16,6 @@ export type SiteFeatures = {
   dtcSearch: boolean;
   /** Live ESP32 OBD gateway scan panel (enrich + UI). */
   obdAdapter: boolean;
-  /** Anonymous comments under KB articles. */
-  kbComments: boolean;
   /** Fuse box layouts / function tables (local Capitals TwoD + FuseReport). Default off. */
   fusesBrowser: boolean;
   /** ServiceRep manual browser (/service). Default on when DB present; admin can hide. */
@@ -89,7 +87,6 @@ const DEFAULTS: SiteSettings = {
     navBrowse: true,
     dtcSearch: true,
     obdAdapter: true,
-    kbComments: true,
     fusesBrowser: false,
     serviceBrowser: true,
   },

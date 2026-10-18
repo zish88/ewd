@@ -14,7 +14,6 @@ import { createAdminRouter } from "./routes/admin.js";
 import { createDtcRouter } from "./routes/dtc.js";
 import { createObdRouter } from "./routes/obd.js";
 import { createPushRouter } from "./routes/push.js";
-import { createKnowledgeRouter } from "./routes/knowledge.js";
 import { createServiceRouter } from "./routes/service.js";
 import { createTelegramAuthRouter, telegramConfigured } from "./telegramAuth.js";
 import { dtcStats } from "./dtcDb.js";
@@ -31,10 +30,6 @@ import {
 import { resolveFilters } from "./vehicleMatrix.js";
 import { decodeVolvoVin } from "./vinDecoder.js";
 import { ensureVisitsStore, recordVisit } from "./visits.js";
-import { ensureKnowledgeSubmissionsStore } from "./knowledgeSubmissions.js";
-import { ensureKnowledgeLikesStore } from "./knowledgeLikes.js";
-import { ensureKnowledgeCommentsStore } from "./knowledgeComments.js";
-import { ensureKnowledgeCollectorStore } from "./knowledgeCollector.js";
 import {
   applyAllCorrections,
   ensureAdminCorrectionsStore,
@@ -47,10 +42,6 @@ const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const db = openDatabase(process.env.DATABASE_PATH);
 ensureVisitsStore();
-ensureKnowledgeSubmissionsStore();
-ensureKnowledgeCommentsStore();
-ensureKnowledgeLikesStore();
-ensureKnowledgeCollectorStore();
 ensurePushStore();
 ensureAdminCorrectionsStore();
 // Re-apply durable admin edits after fixdb / fresh wiring.sqlite from git
@@ -144,7 +135,6 @@ app.use("/api", (req, res, next) => {
     path === "/visit" ||
     path === "/platforms" ||
     path.startsWith("/platforms/") ||
-    path.startsWith("/knowledge") ||
     path.startsWith("/service") ||
     path.startsWith("/parts-catalog") ||
     path.startsWith("/admin") ||
@@ -200,7 +190,6 @@ app.use("/api/ewd", createEwdRouter());
 app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());
 app.use("/api/obd", createObdRouter());
-app.use("/api/knowledge", createKnowledgeRouter());
 app.use("/api/service", createServiceRouter());
 app.use("/api/location", createLocationRouter(db));
 app.use("/api/overrides", createOverrideRouter(db));

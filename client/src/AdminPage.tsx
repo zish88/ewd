@@ -8,7 +8,7 @@ import {
 import { ObdAdapterPanel } from "./obd/ObdAdapterPanel.js";
 import { ObdElmPanel } from "./obd/ObdElmPanel.js";
 
-type AdminTab = "stats" | "settings" | "edits" | "obd" | "kb";
+type AdminTab = "stats" | "settings" | "edits" | "obd";
 
 type Features = {
   suggestions: boolean;
@@ -17,7 +17,6 @@ type Features = {
   navBrowse: boolean;
   dtcSearch: boolean;
   obdAdapter: boolean;
-  kbComments: boolean;
   fusesBrowser: boolean;
   serviceBrowser: boolean;
 };
@@ -135,7 +134,6 @@ const FEATURE_LABELS: Record<keyof Features, string> = {
   navBrowse: "Навигация по зонам и узлам",
   dtcSearch: "Поиск DTC / OBD кодов",
   obdAdapter: "Скан с адаптера OBD (ESP32) — сейчас не влияет: кнопка временно снята с сайта, тест на вкладке OBD",
-  kbComments: "Комментарии в базе знаний",
   fusesBrowser: "Предохранители (схемы блоков EWD) — кнопка над карточками",
   serviceBrowser: "Сервис (процедуры снятия/замены) — кнопка «Сервис» в шапке",
 };
@@ -145,12 +143,11 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "stats", label: "Статистика" },
   { key: "settings", label: "Настройки" },
   { key: "edits", label: "Правки" },
-  { key: "kb", label: "База знаний" },
   { key: "obd", label: "OBD" },
 ];
 
 function parseAdminTab(value: string | null): AdminTab {
-  return value === "settings" || value === "edits" || value === "obd" || value === "stats" || value === "kb"
+  return value === "settings" || value === "edits" || value === "obd" || value === "stats"
     ? value
     : "stats";
 }
@@ -292,53 +289,6 @@ export function AdminPage() {
     name_ru: "",
   });
   const [obdSubTab, setObdSubTab] = useState<"elm" | "esp">("elm");
-  const [kbSubs, setKbSubs] = useState<
-    Array<{
-      id: number;
-      created_at: string;
-      status: string;
-      kind: string;
-      platform: string;
-      topic: string;
-      title: string;
-      summary: string;
-      body_md: string;
-      source_url: string;
-      author_name: string;
-      published_slug: string;
-      admin_note?: string;
-    }>
-  >([]);
-  const [kbFilter, setKbFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
-  const [kbCounts, setKbCounts] = useState<Record<string, number>>({});
-  const [kbBusyId, setKbBusyId] = useState<number | null>(null);
-  const [kbSelected, setKbSelected] = useState<number[]>([]);
-  const [kbCollector, setKbCollector] = useState<{
-    publishedArticles: number;
-    pendingDrafts: number;
-    seeds: number;
-    cacheMb: number;
-    urls: { queued: number; done: number; error: number; skipped: number };
-    config: { maxNewDraftsPerRun: number; maxPendingDrafts: number; maxPublishedArticles: number };
-    seedsList: Array<{ id: number; url: string; platform: string; topic: string; status: string }>;
-    lastRun: { mode: string; report: Record<string, unknown> } | null;
-  } | null>(null);
-  const [kbSeedUrl, setKbSeedUrl] = useState("");
-  const [kbSeedMsg, setKbSeedMsg] = useState("");
-  const [kbSeedPlatform, setKbSeedPlatform] = useState("p3");
-  const [kbSeedTopic, setKbSeedTopic] = useState("parts");
-  const [kbCollectMode, setKbCollectMode] = useState<"online" | "offline" | "dry-run">("online");
-  const [kbCollectBusy, setKbCollectBusy] = useState(false);
-  const [kbComments, setKbComments] = useState<
-    Array<{
-      id: number;
-      created_at: string;
-      article_slug: string;
-      author_name: string;
-      body: string;
-    }>
-  >([]);
-  const [kbCommentBusyId, setKbCommentBusyId] = useState<number | null>(null);
 
   async function refreshMe() {
     const r = await fetch("/api/admin/me", { credentials: "include" });
@@ -360,7 +310,6 @@ export function AdminPage() {
       navBrowse: d.features?.navBrowse !== false,
       dtcSearch: d.features?.dtcSearch !== false,
       obdAdapter: d.features?.obdAdapter !== false,
-      kbComments: d.features?.kbComments !== false,
       fusesBrowser: d.features?.fusesBrowser === true,
       serviceBrowser: d.features?.serviceBrowser !== false,
     };
@@ -404,187 +353,13 @@ export function AdminPage() {
     });
   }
 
-  async function loadKbSubmissions(status: typeof kbFilter = kbFilter) {
-    const r = await fetch(`/api/admin/knowledge/submissions?status=${status}`, { credentials: "include" });
-    if (!r.ok) return;
-    const d = (await r.json()) as {
-      submissions?: typeof kbSubs;
-      counts?: Record<string, number>;
-    };
-    setKbSubs(Array.isArray(d.submissions) ? d.submissions : []);
-    setKbCounts(d.counts || {});
-    setKbSelected([]);
-  }
 
-  async function loadKbCollector() {
-    const r = await fetch("/api/admin/knowledge/collector/status", { credentials: "include" });
-    if (!r.ok) return;
-    const d = await r.json();
-    if (d?.ok) {
-      setKbCollector({
-        publishedArticles: Number(d.publishedArticles) || 0,
-        pendingDrafts: Number(d.pendingDrafts) || 0,
-        seeds: Number(d.seeds) || 0,
-        cacheMb: Number(d.cacheMb) || 0,
-        urls: d.urls || { queued: 0, done: 0, error: 0, skipped: 0 },
-        config: {
-          maxNewDraftsPerRun: Number(d.config?.maxNewDraftsPerRun) || 10,
-          maxPendingDrafts: Number(d.config?.maxPendingDrafts) || 40,
-          maxPublishedArticles: Number(d.config?.maxPublishedArticles) || 400,
-        },
-        seedsList: Array.isArray(d.seedsList) ? d.seedsList : [],
-        lastRun: d.lastRun || null,
-      });
-    }
-  }
 
-  async function addKbSeed() {
-    setKbSeedMsg("");
-    setNotice("");
-    const text = kbSeedUrl.trim();
-    if (!text) {
-      setKbSeedMsg("Вставьте одну или несколько ссылок (с новой строки).");
-      return;
-    }
-    try {
-      const r = await fetch("/api/admin/knowledge/collector/seeds", {
-        credentials: "include",
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          platform: kbSeedPlatform,
-          topic: kbSeedTopic,
-        }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok || d?.ok === false) {
-        const err =
-          d.error ||
-          (Array.isArray(d.failed) && d.failed[0]?.error) ||
-          `Ошибка ${r.status}`;
-        setKbSeedMsg(String(err));
-        setNotice(String(err));
-        return;
-      }
-      const added = Number(d.added ?? (d.seed ? 1 : 0));
-      const failedN = Array.isArray(d.failed) ? d.failed.length : 0;
-      const msg =
-        added > 0
-          ? `Добавлено seeds: ${added}${failedN ? `, ошибок: ${failedN}` : ""}`
-          : failedN
-            ? `Не добавлено. ${d.failed.map((f: { error: string }) => f.error).join("; ")}`
-            : "Нечего добавлять";
-      setKbSeedMsg(msg);
-      setNotice(msg);
-      if (added > 0) setKbSeedUrl("");
-      await loadKbCollector();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Сеть / JSON ошибка";
-      setKbSeedMsg(msg);
-      setNotice(msg);
-    }
-  }
 
-  async function runKbCollector() {
-    setKbCollectBusy(true);
-    setNotice("");
-    try {
-      const r = await fetch("/api/admin/knowledge/collector/run", {
-        credentials: "include",
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: kbCollectMode, maxNew: kbCollector?.config.maxNewDraftsPerRun || 10 }),
-      });
-      const d = await r.json();
-      if (!r.ok || !d?.ok) {
-        setNotice(d.error || "Сборщик не запустился");
-        return;
-      }
-      const rep = d.report || {};
-      setNotice(
-        `Сборщик (${rep.mode}): +${rep.created || 0} черновиков, skip ${rep.skipped || 0}, err ${rep.errors || 0}` +
-          (rep.quotaStop ? ` · стоп: ${rep.quotaStop}` : ""),
-      );
-      await loadKbCollector();
-      await loadKbSubmissions("pending");
-      setKbFilter("pending");
-    } finally {
-      setKbCollectBusy(false);
-    }
-  }
 
-  async function batchApproveKb() {
-    if (kbSelected.length === 0) return;
-    setNotice("");
-    const r = await fetch("/api/admin/knowledge/submissions/batch-approve", {
-      credentials: "include",
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: kbSelected }),
-    });
-    const d = await r.json();
-    if (!r.ok) {
-      setNotice(d.error || "Batch approve failed");
-      return;
-    }
-    setNotice(`Опубликовано: ${(d.approved || []).length}, ошибок: ${(d.failed || []).length}`);
-    await loadKbSubmissions();
-    await loadKbCollector();
-  }
 
-  async function moderateKb(id: number, action: "approve" | "reject") {
-    setKbBusyId(id);
-    setNotice("");
-    try {
-      const r = await fetch(`/api/admin/knowledge/submissions/${id}/${action}`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: "" }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        setNotice(d.error || "Ошибка модерации БЗ");
-        return;
-      }
-      setNotice(
-        action === "approve"
-          ? `Опубликовано: ${d.submission?.published_slug || `#${id}`}`
-          : `Отклонено #${id}`,
-      );
-      await loadKbSubmissions();
-    } finally {
-      setKbBusyId(null);
-    }
-  }
 
-  async function loadKbComments() {
-    const r = await fetch("/api/admin/knowledge/comments?limit=100", { credentials: "include" });
-    if (!r.ok) return;
-    const d = (await r.json()) as { comments?: typeof kbComments };
-    setKbComments(Array.isArray(d.comments) ? d.comments : []);
-  }
 
-  async function deleteKbComment(id: number) {
-    setKbCommentBusyId(id);
-    setNotice("");
-    try {
-      const r = await fetch(`/api/admin/knowledge/comments/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        setNotice(d.error || "Не удалось удалить комментарий");
-        return;
-      }
-      setKbComments((prev) => prev.filter((c) => c.id !== id));
-      setNotice(`Комментарий #${id} удалён`);
-    } finally {
-      setKbCommentBusyId(null);
-    }
-  }
 
   function flashEditBadge(tone: "ok" | "bad", text: string) {
     if (editBadgeTimer.current) clearTimeout(editBadgeTimer.current);
@@ -790,12 +565,6 @@ export function AdminPage() {
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, [activeTab]);
 
-  useEffect(() => {
-    if (!admin || activeTab !== "kb") return;
-    void loadKbSubmissions(kbFilter);
-    void loadKbComments();
-    void loadKbCollector();
-  }, [admin, activeTab, kbFilter]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -1780,289 +1549,6 @@ curl -s http://127.0.0.1:3000/api/health | head -c 400`}
                 <div className={obdSubTab === "esp" ? "" : "hidden"} aria-hidden={obdSubTab !== "esp"}>
                   <ObdAdapterPanel />
                 </div>
-              </section>
-            ) : null}
-
-            {activeTab === "kb" ? (
-              <section
-                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3"
-                data-testid="admin-kb-collector"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    Сборщик статей
-                  </h2>
-                  <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
-                    published {kbCollector?.publishedArticles ?? "…"}/{kbCollector?.config.maxPublishedArticles ?? 400} ·
-                    pending {kbCollector?.pendingDrafts ?? "…"}/{kbCollector?.config.maxPendingDrafts ?? 40} · cache{" "}
-                    {kbCollector?.cacheMb ?? 0} MB
-                  </span>
-                </div>
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  Вставьте одну или несколько ссылок (по строке). Можно с префиксом платформы:{" "}
-                  <code className="text-[10px]">p2 https://…</code>. Платформа «все» — одна ссылка уйдёт в очередь
-                  для p1–spa. Allowlist: Drive2, Swedespeed, Volvo Forums, Volvo Support, IPD, FCP. Затем «Запустить» →
-                  правьте черновики ниже → публикация вручную.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
-                  <textarea
-                    className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 text-sm min-h-[4.5rem] font-mono"
-                    placeholder={"https://www.drive2.ru/l/123\np2 https://www.drive2.ru/l/456\nspa|https://www.fcpeuro.com/..."}
-                    value={kbSeedUrl}
-                    onChange={(e) => setKbSeedUrl(e.target.value)}
-                    data-testid="admin-kb-seed-url"
-                  />
-                  <select
-                    className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 text-sm h-fit"
-                    value={kbSeedPlatform}
-                    onChange={(e) => setKbSeedPlatform(e.target.value)}
-                  >
-                    {["p1", "p2", "p3", "cma", "spa", "all"].map((p) => (
-                      <option key={p} value={p}>
-                        {p === "all" ? "все платформы" : p.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 text-sm h-fit"
-                    value={kbSeedTopic}
-                    onChange={(e) => setKbSeedTopic(e.target.value)}
-                  >
-                    {["parts", "electrical", "links"].map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5 h-fit"
-                    onClick={() => void addKbSeed()}
-                    data-testid="admin-kb-seed-add"
-                  >
-                    + Seed
-                  </button>
-                </div>
-                {kbSeedMsg ? (
-                  <p className="text-xs text-amber-800" data-testid="admin-kb-seed-msg">
-                    {kbSeedMsg}
-                  </p>
-                ) : null}
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    className="rounded border border-[var(--border-color)] bg-[var(--input-bg)] px-2 py-1.5 text-sm"
-                    value={kbCollectMode}
-                    onChange={(e) => setKbCollectMode(e.target.value as typeof kbCollectMode)}
-                  >
-                    <option value="online">online (скачать)</option>
-                    <option value="offline">offline (только кэш)</option>
-                    <option value="dry-run">dry-run</option>
-                  </select>
-                  <button
-                    type="button"
-                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                    disabled={kbCollectBusy}
-                    onClick={() => void runKbCollector()}
-                    data-testid="admin-kb-collector-run"
-                  >
-                    {kbCollectBusy ? "Собираю…" : "Запустить сборщик"}
-                  </button>
-                  <button
-                    type="button"
-                    className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
-                    onClick={() => void loadKbCollector()}
-                  >
-                    Обновить статус
-                  </button>
-                  <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
-                    очередь {kbCollector?.urls.queued ?? 0} · done {kbCollector?.urls.done ?? 0} · err{" "}
-                    {kbCollector?.urls.error ?? 0}
-                  </span>
-                </div>
-                {kbCollector?.seedsList?.length ? (
-                  <ul className="max-h-36 overflow-auto space-y-1 text-[11px] text-[var(--text-muted)]">
-                    {kbCollector.seedsList.slice(0, 12).map((s) => (
-                      <li key={s.id} className="truncate">
-                        <span className="uppercase text-[var(--text-main)]">{s.platform}</span> · {s.status} ·{" "}
-                        <a className="underline break-all" href={s.url} target="_blank" rel="noreferrer">
-                          {s.url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-[11px] text-[var(--text-muted)]">Seeds пока нет — добавьте ссылку выше.</p>
-                )}
-              </section>
-            ) : null}
-
-            {activeTab === "kb" ? (
-              <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3" data-testid="admin-kb">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    Заявки в базу знаний
-                  </h2>
-                  <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
-                    pending {kbCounts.pending || 0} · approved {kbCounts.approved || 0} · rejected{" "}
-                    {kbCounts.rejected || 0}
-                  </span>
-                </div>
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  Пользователи и сборщик кладут сюда черновики. Approve пишет статью в{" "}
-                  <code className="text-[10px]">data/knowledge/articles</code>.
-                </p>
-                <div className="flex flex-wrap gap-1 items-center">
-                  {(["pending", "approved", "rejected", "all"] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={`md-btn text-[11px] px-2.5 py-1.5 ${kbFilter === s ? "md-btn--filled" : "md-btn--tonal"}`}
-                      onClick={() => setKbFilter(s)}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                  {kbFilter === "pending" && kbSelected.length > 0 ? (
-                    <button
-                      type="button"
-                      className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white ml-auto"
-                      onClick={() => void batchApproveKb()}
-                      data-testid="admin-kb-batch-approve"
-                    >
-                      Опубликовать выбранные ({kbSelected.length})
-                    </button>
-                  ) : null}
-                </div>
-                {kbSubs.length === 0 ? (
-                  <p className="text-sm text-[var(--text-muted)]">Нет заявок в этом фильтре.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {kbSubs.map((s) => (
-                      <li
-                        key={s.id}
-                        className="rounded-lg border border-[var(--border-color)] p-3 space-y-2 text-sm"
-                      >
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <strong className="flex flex-wrap items-center gap-2">
-                            {s.status === "pending" ? (
-                              <input
-                                type="checkbox"
-                                checked={kbSelected.includes(s.id)}
-                                onChange={(e) => {
-                                  setKbSelected((prev) =>
-                                    e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id),
-                                  );
-                                }}
-                                aria-label={`Выбрать #${s.id}`}
-                              />
-                            ) : null}
-                            #{s.id} · {s.platform.toUpperCase()} · {s.kind}
-                            {s.author_name === "collector" || String(s.admin_note || "").startsWith("collector") ? (
-                              <span className="text-[10px] uppercase tracking-wide text-emerald-700">collector</span>
-                            ) : null}
-                          </strong>
-                          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{s.created_at}</span>
-                        </div>
-                        <div className="font-medium">{s.title}</div>
-                        {s.summary ? <p className="text-xs text-[var(--text-muted)]">{s.summary}</p> : null}
-                        {s.source_url ? (
-                          <a
-                            className="text-xs text-emerald-700 underline break-all"
-                            href={s.source_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {s.source_url}
-                          </a>
-                        ) : null}
-                        {s.body_md ? (
-                          <pre className="text-[11px] whitespace-pre-wrap max-h-40 overflow-auto bg-[var(--input-bg)] rounded p-2 border border-[var(--border-color)]">
-                            {s.body_md}
-                          </pre>
-                        ) : null}
-                        {s.published_slug ? (
-                          <p className="text-[11px] text-[var(--text-muted)]">
-                            slug: <code>{s.published_slug}</code>
-                          </p>
-                        ) : null}
-                        {s.status === "pending" ? (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <button
-                              type="button"
-                              disabled={kbBusyId === s.id}
-                              className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                              onClick={() => void moderateKb(s.id, "approve")}
-                            >
-                              Approve → опубликовать
-                            </button>
-                            <button
-                              type="button"
-                              disabled={kbBusyId === s.id}
-                              className="rounded border border-[var(--border-color)] px-3 py-1.5 text-xs disabled:opacity-50"
-                              onClick={() => void moderateKb(s.id, "reject")}
-                            >
-                              Отклонить
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{s.status}</p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ) : null}
-
-            {activeTab === "kb" ? (
-              <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3" data-testid="admin-kb-comments">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    Комментарии к статьям
-                  </h2>
-                  <button
-                    type="button"
-                    className="md-btn md-btn--tonal text-[11px] px-2.5 py-1.5"
-                    onClick={() => void loadKbComments()}
-                  >
-                    Обновить
-                  </button>
-                </div>
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  Без очереди: комментарий сразу публичный. Здесь только удаление спама. Глобальный вкл/выкл — в
-                  Настройках («Комментарии в базе знаний»).
-                </p>
-                {kbComments.length === 0 ? (
-                  <p className="text-sm text-[var(--text-muted)]">Пока нет комментариев.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {kbComments.map((c) => (
-                      <li
-                        key={c.id}
-                        className="rounded-lg border border-[var(--border-color)] p-3 space-y-1.5 text-sm"
-                      >
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <strong>
-                            #{c.id} · <code className="text-[11px]">{c.article_slug}</code>
-                          </strong>
-                          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{c.created_at}</span>
-                        </div>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          {c.author_name?.trim() ? c.author_name : "Аноним"}
-                        </div>
-                        <p className="text-xs whitespace-pre-wrap">{c.body}</p>
-                        <button
-                          type="button"
-                          disabled={kbCommentBusyId === c.id}
-                          className="rounded border border-[var(--border-color)] px-3 py-1.5 text-xs disabled:opacity-50"
-                          onClick={() => void deleteKbComment(c.id)}
-                        >
-                          Удалить
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </section>
             ) : null}
           </>
