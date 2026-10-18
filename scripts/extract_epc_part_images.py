@@ -53,6 +53,28 @@ def load_catalog_wiring_codes(catalog_path: Path) -> list[str]:
 
 
 def sniff_ext(blob: bytes, format_hint: str | None = None) -> str:
+    """Detect file extension from magic bytes; MIME hint is only a fallback."""
+    if not blob:
+        return "bin"
+    # Magic first — EPC AttachmentData.MIME is often wrong (GIF label on CGM blobs).
+    if blob[:8].startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if blob[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if blob[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if blob[:2] == b"BM":
+        return "bmp"
+    if blob[:4] in (b"II*\x00", b"MM\x00*"):
+        return "tif"
+    head = blob[:400].lstrip().lower()
+    if head.startswith(b"<?xml") or head.startswith(b"<svg"):
+        return "svg"
+    if blob[:4] == b"\x01\x00\x00\x00":
+        return "emf"
+    sample = blob[:512]
+    if b"GREXCHANGE" in sample or b".cgm" in sample.lower() or b"BEGMF" in sample:
+        return "cgm"
     hint = (format_hint or "").strip().lower()
     if hint:
         if "png" in hint:
@@ -60,6 +82,7 @@ def sniff_ext(blob: bytes, format_hint: str | None = None) -> str:
         if "jpg" in hint or "jpeg" in hint:
             return "jpg"
         if "gif" in hint:
+            # Hint alone is unreliable; only honor if we somehow skipped magic.
             return "gif"
         if "bmp" in hint:
             return "bmp"
@@ -73,23 +96,6 @@ def sniff_ext(blob: bytes, format_hint: str | None = None) -> str:
             return "wmf"
         if "cgm" in hint:
             return "cgm"
-    if not blob:
-        return "bin"
-    if blob[:8].startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if blob[:3] == b"\xff\xd8\xff":
-        return "jpg"
-    if blob[:6] in (b"GIF87a", b"GIF89a"):
-        return "gif"
-    if blob[:2] == b"BM":
-        return "bmp"
-    if blob[:4] in (b"II*\x00", b"MM\x00*"):
-        return "tif"
-    head = blob[:200].lstrip().lower()
-    if head.startswith(b"<?xml") or head.startswith(b"<svg"):
-        return "svg"
-    if blob[:4] == b"\x01\x00\x00\x00":
-        return "emf"
     return "bin"
 
 

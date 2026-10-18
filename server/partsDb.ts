@@ -3,8 +3,8 @@
  * Missing file ⇒ feature off.
  */
 import Database from "better-sqlite3";
-import { existsSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { basename, extname, join, resolve } from "node:path";
 import { listModels, yearsForModel } from "./vehicleMatrix.js";
 
 export type PartsFgNode = {
@@ -25,6 +25,23 @@ export type PartsPlate = {
   titleEn: string | null;
   graphicUrl: string | null;
   graphicMime: string | null;
+  graphicAvailable: boolean;
+};
+
+export type PartsPlatePart = {
+  hotspot: string | null;
+  pn: string | null;
+  titleRu: string | null;
+  titleEn: string | null;
+  qty: number | null;
+  unit: string | null;
+  seq: number;
+};
+
+export type PartsPlateDetail = {
+  plate: PartsPlate;
+  parts: PartsPlatePart[];
+  graphicUrl: string | null;
 };
 
 /** P3 ModelCid map (must match scripts/import_epc_parts.py). */
@@ -39,21 +56,136 @@ const MODEL_TO_CID: Record<string, number> = {
 
 let _db: Database.Database | null = null;
 let _dbPath: string | null = null;
+let _dbMtimeMs = 0;
 
 export function partsDbPath(): string {
   return resolve(process.env.PARTS_DB_PATH ?? join(process.cwd(), "data", "parts.sqlite"));
 }
 
+export function partsDataRoot(): string {
+  return resolve(process.env.PARTS_DATA_ROOT ?? join(process.cwd(), "data"));
+}
+
+export function partsGraphicsDir(): string {
+  return resolve(process.env.PARTS_GRAPHICS_DIR ?? join(partsDataRoot(), "parts-graphics"));
+}
+
+function graphicLooksRenderable(abs: string): boolean {
+  try {
+    if (!existsSync(abs) || statSync(abs).size < 32) return false;
+    const head = readFileSync(abs).subarray(0, 24);
+    const ext = extname(abs).toLowerCase();
+    if (ext === ".svg") {
+      const s = head.toString("utf8").toLowerCase();
+      return s.includes("svg") || s.includes("xml");
+    }
+    if (ext === ".png") return head[0] === 0x89 && head[1] === 0x50;
+    if (ext === ".jpg" || ext === ".jpeg") return head[0] === 0xff && head[1] === 0xd8;
+    if (ext === ".gif") {
+      const sig = head.toString("ascii", 0, 6);
+      return sig === "GIF87a" || sig === "GIF89a";
+    }
+    // CGM / unknown: not browser-renderable
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Resolve on-disk graphic for a plate; prefer SVG over CGM/JPEG. */
+export function resolvePlateGraphicPath(graphicFile: string | null | undefined): string | null {
+  const raw = String(graphicFile || "").trim().replace(/\\/g, "/");
+  if (!raw) return null;
+  const root = partsDataRoot();
+  const candidates: string[] = [];
+  if (raw.includes("/")) {
+    candidates.push(resolve(root, raw));
+  } else {
+    candidates.push(resolve(partsGraphicsDir(), raw));
+  }
+  const primary = candidates[0];
+  if (!primary) return null;
+  const ext = extname(primary).toLowerCase();
+  if (ext === ".cgm" || ext === ".bin" || ext === ".gif") {
+    const svg = join(partsGraphicsDir(), `${basename(primary, ext)}.svg`);
+    candidates.unshift(svg);
+  } else if (ext !== ".svg") {
+    const svg = join(partsGraphicsDir(), `${basename(primary, ext)}.svg`);
+    candidates.unshift(svg);
+  }
+  for (const p of candidates) {
+    if (graphicLooksRenderable(p)) return p;
+  }
+  return null;
+}
+
+function mimeForGraphicPath(abs: string): string {
+  const e = extname(abs).toLowerCase();
+  if (e === ".svg") return "image/svg+xml; charset=utf-8";
+  if (e === ".png") return "image/png";
+  if (e === ".jpg" || e === ".jpeg") return "image/jpeg";
+  if (e === ".gif") return "image/gif";
+  if (e === ".cgm") return "image/cgm";
+  return "application/octet-stream";
+}
+
+function plateHasGraphic(graphicFile: string | null): boolean {
+  return resolvePlateGraphicPath(graphicFile) != null;
+}
+
+function mapPlateRow(r: {
+  id: number;
+  fg_path: string;
+  title_ru: string | null;
+  title_en: string | null;
+  graphic_url: string | null;
+  graphic_mime: string | null;
+  graphic_file?: string | null;
+}): PartsPlate {
+  const graphicFile = r.graphic_file ?? null;
+  return {
+    id: r.id,
+    fgPath: r.fg_path,
+    titleRu: r.title_ru,
+    titleEn: r.title_en,
+    graphicUrl: r.graphic_url,
+    graphicMime: r.graphic_mime,
+    graphicAvailable: plateHasGraphic(graphicFile),
+  };
+}
+
 export function getPartsDb(): Database.Database | null {
   const path = partsDbPath();
   if (!existsSync(path)) {
+    if (_db) {
+      try {
+        _db.close();
+      } catch {
+        /* ignore */
+      }
+    }
     _db = null;
     _dbPath = null;
+    _dbMtimeMs = 0;
     return null;
   }
-  if (_db && _dbPath === path) return _db;
+  let mtimeMs = 0;
+  try {
+    mtimeMs = statSync(path).mtimeMs;
+  } catch {
+    /* ignore */
+  }
+  if (_db && _dbPath === path && mtimeMs === _dbMtimeMs) return _db;
+  if (_db) {
+    try {
+      _db.close();
+    } catch {
+      /* ignore */
+    }
+  }
   _db = new Database(path, { readonly: true, fileMustExist: true });
   _dbPath = path;
+  _dbMtimeMs = mtimeMs;
   return _db;
 }
 
@@ -182,7 +314,7 @@ export function listPartsTree(opts: {
       .all(parent) as typeof rows;
   }
 
-  return rows.map((r) => {
+  const nodes = rows.map((r) => {
     const node: PartsFgNode = {
       id: r.id,
       path: r.path,
@@ -207,6 +339,11 @@ export function listPartsTree(opts: {
     }
     return node;
   });
+  // Hide FG branches with no plates for the selected model (VIDA-like).
+  if (cid != null) {
+    return nodes.filter((n) => (n.plateCount ?? 0) > 0);
+  }
+  return nodes;
 }
 
 function normalizeFgPath(raw: string): string {
@@ -227,66 +364,144 @@ export function listPartsPlates(opts: {
   if (!fg) return [];
   const cid = modelCidFor(opts.model || "", opts.year);
 
-  if (cid == null) {
-    const rows = db
-      .prepare(
-        `SELECT id, fg_path, title_ru, title_en, graphic_url, graphic_mime
-         FROM plates
-         WHERE fg_path = ? OR fg_path LIKE ?
-         ORDER BY title_ru, title_en, id`,
-      )
-      .all(fg, `${fg}/%`) as Array<{
-      id: number;
-      fg_path: string;
-      title_ru: string | null;
-      title_en: string | null;
-      graphic_url: string | null;
-      graphic_mime: string | null;
-    }>;
-    return rows.map((r) => ({
-      id: r.id,
-      fgPath: r.fg_path,
-      titleRu: r.title_ru,
-      titleEn: r.title_en,
-      graphicUrl: r.graphic_url,
-      graphicMime: r.graphic_mime,
-    }));
-  }
-
-  const rows = db
-    .prepare(
-      `SELECT p.id, p.fg_path, p.title_ru, p.title_en, p.graphic_url, p.graphic_mime
-       FROM plates p
-       JOIN plate_models pm ON pm.plate_id = p.id AND pm.model_cid = ?
-       WHERE p.fg_path = ? OR p.fg_path LIKE ?
-       ORDER BY p.title_ru, p.title_en, p.id`,
-    )
-    .all(cid, fg, `${fg}/%`) as Array<{
+  type PlateRow = {
     id: number;
     fg_path: string;
     title_ru: string | null;
     title_en: string | null;
     graphic_url: string | null;
     graphic_mime: string | null;
-  }>;
+    graphic_file: string | null;
+  };
+
+  if (cid == null) {
+    const rows = db
+      .prepare(
+        `SELECT id, fg_path, title_ru, title_en, graphic_url, graphic_mime, graphic_file
+         FROM plates
+         WHERE fg_path = ? OR fg_path LIKE ?
+         ORDER BY title_ru, title_en, id`,
+      )
+      .all(fg, `${fg}/%`) as PlateRow[];
+    return rows.map((r) => mapPlateRow(r));
+  }
+
+  const rows = db
+    .prepare(
+      `SELECT p.id, p.fg_path, p.title_ru, p.title_en, p.graphic_url, p.graphic_mime, p.graphic_file
+       FROM plates p
+       JOIN plate_models pm ON pm.plate_id = p.id AND pm.model_cid = ?
+       WHERE p.fg_path = ? OR p.fg_path LIKE ?
+       ORDER BY p.title_ru, p.title_en, p.id`,
+    )
+    .all(cid, fg, `${fg}/%`) as PlateRow[];
 
   // Dedupe by title+graphic (same illustration often repeated per profile)
   const seen = new Set<string>();
   const out: PartsPlate[] = [];
   for (const r of rows) {
-    const key = `${(r.title_ru || r.title_en || "").toLowerCase()}|${r.graphic_url || ""}`;
+    const key = `${(r.title_ru || r.title_en || "").toLowerCase()}|${r.graphic_url || r.graphic_file || ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      id: r.id,
-      fgPath: r.fg_path,
-      titleRu: r.title_ru,
-      titleEn: r.title_en,
-      graphicUrl: r.graphic_url,
-      graphicMime: r.graphic_mime,
-    });
+    out.push(mapPlateRow(r));
   }
   return out;
+}
+
+function plateAllowedForModel(db: Database.Database, plateId: number, cid: number | null): boolean {
+  if (cid == null) return true;
+  const row = db
+    .prepare(`SELECT 1 AS ok FROM plate_models WHERE plate_id = ? AND model_cid = ? LIMIT 1`)
+    .get(plateId, cid) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+export function getPlateDetail(opts: {
+  plateId: number;
+  model?: string;
+  year?: string;
+  lang?: "ru" | "en";
+}): PartsPlateDetail | null {
+  const db = getPartsDb();
+  if (!db) return null;
+  const plateId = Number(opts.plateId);
+  if (!Number.isFinite(plateId) || plateId <= 0) return null;
+  const cid = modelCidFor(opts.model || "", opts.year);
+  if (!plateAllowedForModel(db, plateId, cid)) return null;
+
+  const row = db
+    .prepare(
+      `SELECT id, fg_path, title_ru, title_en, graphic_url, graphic_mime, graphic_file
+       FROM plates WHERE id = ?`,
+    )
+    .get(plateId) as
+    | {
+        id: number;
+        fg_path: string;
+        title_ru: string | null;
+        title_en: string | null;
+        graphic_url: string | null;
+        graphic_mime: string | null;
+        graphic_file: string | null;
+      }
+    | undefined;
+  if (!row) return null;
+
+  const plate = mapPlateRow(row);
+  const partRows = db
+    .prepare(
+      `SELECT hotspot, pn, title_ru, title_en, qty, unit, seq
+       FROM plate_parts
+       WHERE plate_id = ?
+       ORDER BY
+         CASE WHEN hotspot GLOB '[0-9]*' THEN CAST(hotspot AS INTEGER) ELSE 999999 END,
+         seq, id`,
+    )
+    .all(plateId) as Array<{
+    hotspot: string | null;
+    pn: string | null;
+    title_ru: string | null;
+    title_en: string | null;
+    qty: number | null;
+    unit: string | null;
+    seq: number;
+  }>;
+
+  const parts: PartsPlatePart[] = partRows.map((p) => ({
+    hotspot: p.hotspot,
+    pn: p.pn,
+    titleRu: p.title_ru,
+    titleEn: p.title_en,
+    qty: p.qty,
+    unit: p.unit,
+    seq: Number(p.seq || 0),
+  }));
+
+  const graphicUrl = plate.graphicAvailable ? `/api/parts-catalog/graphic/${plate.id}` : null;
+  return { plate, parts, graphicUrl };
+}
+
+export function getPlateGraphicFile(plateId: number): { path: string; mime: string } | null {
+  const db = getPartsDb();
+  if (!db) return null;
+  const id = Number(plateId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const row = db
+    .prepare(`SELECT graphic_file FROM plates WHERE id = ?`)
+    .get(id) as { graphic_file: string | null } | undefined;
+  if (!row) return null;
+  const abs = resolvePlateGraphicPath(row.graphic_file);
+  if (!abs) return null;
+  return { path: abs, mime: mimeForGraphicPath(abs) };
+}
+
+export function partDisplayTitle(
+  p: Pick<PartsPlatePart, "titleRu" | "titleEn" | "pn" | "hotspot">,
+  lang: "ru" | "en" = "ru",
+): string {
+  const fallback = p.pn || (p.hotspot ? `#${p.hotspot}` : "—");
+  if (lang === "en") return displayTitle(p.titleEn, p.titleRu, fallback);
+  return displayTitle(p.titleRu, p.titleEn, fallback);
 }
 
 export function plateDisplayTitle(p: PartsPlate, lang: "ru" | "en" = "ru"): string {

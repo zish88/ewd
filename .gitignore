@@ -55,6 +55,7 @@ data/servicerep.sqlite-*
 data/servicerep-graphics/
 data/parts.sqlite
 data/parts.sqlite-*
+data/parts-graphics/
 data/push-last-notified.json
 data/telegram.sqlite
 data/telegram.sqlite-*

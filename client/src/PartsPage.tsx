@@ -15,9 +15,18 @@ type Plate = {
   id: number;
   fgPath: string;
   title: string;
-  graphicUrl: string | null;
-  graphicMime: string | null;
+  graphicAvailable: boolean;
 };
+
+type PlatePart = {
+  hotspot: string | null;
+  pn: string | null;
+  title: string;
+  qty: number | null;
+  unit: string | null;
+};
+
+type MobilePane = "tree" | "art" | "table";
 
 function readParam(key: string): string {
   try {
@@ -51,15 +60,25 @@ function initialVehicle(): { model: string; year: string } {
   return { model: "V70", year: "2014" };
 }
 
-function syncUrl(model: string, year: string, fg: string) {
+function syncUrl(model: string, year: string, fg: string, plateId: number | null) {
   const qs = new URLSearchParams();
   if (model) qs.set("model", model);
   if (year) qs.set("year", year);
   if (fg) qs.set("fg", fg);
+  if (plateId) qs.set("plate", String(plateId));
   const next = qs.toString() ? `/parts?${qs}` : "/parts";
   if (`${window.location.pathname}${window.location.search}` !== next) {
     window.history.replaceState(null, "", next);
   }
+}
+
+function formatQty(qty: number | null, unit: string | null): string {
+  if (qty == null || Number.isNaN(Number(qty))) return "—";
+  const n = Number(qty);
+  const s = Number.isInteger(n) ? String(n) : String(n);
+  const u = (unit || "").trim();
+  if (!u || u === "ST" || u === "SA") return s;
+  return `${s} ${u}`;
 }
 
 export function PartsPage() {
@@ -76,8 +95,19 @@ export function PartsPage() {
   const [childrenByParent, setChildrenByParent] = useState<Record<string, FgNode[]>>({});
   const [selectedFg, setSelectedFg] = useState(() => readParam("fg") || "");
   const [plates, setPlates] = useState<Plate[]>([]);
+  const [selectedPlateId, setSelectedPlateId] = useState<number | null>(() => {
+    const raw = readParam("plate");
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  const [plateTitle, setPlateTitle] = useState("");
+  const [graphicUrl, setGraphicUrl] = useState<string | null>(null);
+  const [parts, setParts] = useState<PlatePart[]>([]);
+  const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [platesLoading, setPlatesLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(false);
+  const [mobilePane, setMobilePane] = useState<MobilePane>("tree");
 
   const years = useMemo(() => (model ? yearsByModel[model] || [] : []), [model, yearsByModel]);
 
@@ -107,8 +137,8 @@ export function PartsPage() {
 
   useEffect(() => {
     persistVehicle(model, year);
-    syncUrl(model, year, selectedFg);
-  }, [model, year, selectedFg]);
+    syncUrl(model, year, selectedFg, selectedPlateId);
+  }, [model, year, selectedFg, selectedPlateId]);
 
   useEffect(() => {
     if (!available || !model) {
@@ -134,6 +164,7 @@ export function PartsPage() {
   useEffect(() => {
     if (!available || !selectedFg || !model) {
       setPlates([]);
+      setSelectedPlateId(null);
       return;
     }
     setPlatesLoading(true);
@@ -144,10 +175,72 @@ export function PartsPage() {
     if (lang === "en") qs.set("lang", "en");
     fetch(`/api/parts-catalog/plates?${qs}`)
       .then((r) => r.json())
-      .then((d) => setPlates(Array.isArray(d.plates) ? d.plates : []))
-      .catch(() => setPlates([]))
+      .then((d) => {
+        const list: Plate[] = Array.isArray(d.plates)
+          ? d.plates.map((p: Plate & { graphicAvailable?: boolean }) => ({
+              id: p.id,
+              fgPath: p.fgPath,
+              title: p.title,
+              graphicAvailable: Boolean(p.graphicAvailable),
+            }))
+          : [];
+        setPlates(list);
+        if (list.length === 0) {
+          setSelectedPlateId(null);
+          // Deep-link / stale FG with no plates for this model → climb to parent.
+          const parent = selectedFg.replace(/\/[^/]+$/, "");
+          if (parent && parent !== selectedFg && parent.startsWith("/")) {
+            setSelectedFg(parent);
+          }
+          return;
+        }
+        setSelectedPlateId((prev) => {
+          if (prev && list.some((p) => p.id === prev)) return prev;
+          const withArt = list.find((p) => p.graphicAvailable);
+          return withArt?.id ?? list[0]?.id ?? null;
+        });
+      })
+      .catch(() => {
+        setPlates([]);
+        setSelectedPlateId(null);
+      })
       .finally(() => setPlatesLoading(false));
   }, [available, selectedFg, model, year, lang]);
+
+  useEffect(() => {
+    if (!available || !selectedPlateId || !model) {
+      setParts([]);
+      setGraphicUrl(null);
+      setPlateTitle("");
+      setActiveHotspot(null);
+      return;
+    }
+    setDetailLoading(true);
+    setActiveHotspot(null);
+    const qs = new URLSearchParams();
+    qs.set("model", model);
+    if (year) qs.set("year", year);
+    if (lang === "en") qs.set("lang", "en");
+    fetch(`/api/parts-catalog/plate/${selectedPlateId}?${qs}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.ok) {
+          setParts([]);
+          setGraphicUrl(null);
+          setPlateTitle("");
+          return;
+        }
+        setPlateTitle(d.plate?.title || "");
+        setGraphicUrl(typeof d.graphicUrl === "string" ? d.graphicUrl : null);
+        setParts(Array.isArray(d.parts) ? d.parts : []);
+      })
+      .catch(() => {
+        setParts([]);
+        setGraphicUrl(null);
+        setPlateTitle("");
+      })
+      .finally(() => setDetailLoading(false));
+  }, [available, selectedPlateId, model, year, lang]);
 
   async function toggleOpen(node: FgNode) {
     const path = node.path;
@@ -175,10 +268,18 @@ export function PartsPage() {
     const kids = childrenByParent[node.path];
     const open = openPaths.has(node.path);
     const selected = selectedFg === node.path;
+    const code = (node.label || node.path.replace(/^\//, "")).trim();
+    const title = (node.title || "").trim();
+    const titleIsCode =
+      !title ||
+      title === code ||
+      title.replace(/\s+/g, "") === code.replace(/\s+/g, "");
     const count =
       node.plateCount != null && node.plateCount > 0 ? (
         <span className="text-[10px] text-[var(--text-muted)] tabular-nums ml-1">({node.plateCount})</span>
       ) : null;
+    const hasLoadedKids = kids != null;
+    const canExpand = !hasLoadedKids || kids.length > 0;
     return (
       <li key={node.path} className="select-none">
         <div
@@ -187,27 +288,30 @@ export function PartsPage() {
           }`}
           style={{ paddingLeft: `${4 + indent * 12}px` }}
         >
-          <button
-            type="button"
-            className="w-5 h-5 shrink-0 text-[var(--text-muted)] text-xs"
-            aria-label={open ? "collapse" : "expand"}
-            onClick={() => void toggleOpen(node)}
-          >
-            {open ? "▾" : "▸"}
-          </button>
+          {canExpand ? (
+            <button
+              type="button"
+              className="w-5 h-5 shrink-0 text-[var(--text-muted)] text-xs"
+              aria-label={open ? "collapse" : "expand"}
+              onClick={() => void toggleOpen(node)}
+            >
+              {open ? "▾" : "▸"}
+            </button>
+          ) : (
+            <span className="w-5 h-5 shrink-0" />
+          )}
           <button
             type="button"
             className="flex-1 text-left truncate min-w-0"
             onClick={() => {
               setSelectedFg(node.path);
-              if (!open) void toggleOpen(node);
+              setMobilePane("art");
+              if (canExpand && !open) void toggleOpen(node);
             }}
             data-testid={`parts-fg-${node.path}`}
           >
-            <span className="font-mono text-[11px] text-[var(--text-muted)] mr-1">
-              {node.label || node.path.replace(/^\//, "")}
-            </span>
-            {node.title}
+            <span className="font-mono text-[11px] text-[var(--text-muted)] mr-1">{code}</span>
+            {titleIsCode ? null : title}
             {count}
           </button>
         </div>
@@ -217,6 +321,177 @@ export function PartsPage() {
       </li>
     );
   }
+
+  const treePane = (
+    <div className="flex flex-col min-h-0 h-full border-r border-[var(--border-color)] bg-[var(--bg-card)]">
+      <div className="p-3 space-y-2 border-b border-[var(--border-color)] shrink-0">
+        <div className="flex gap-2">
+          <label className="flex-1 text-[11px] text-[var(--text-muted)]">
+            {t("partsCatalog.model")}
+            <select
+              className="mt-0.5 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setSelectedFg("");
+                setPlates([]);
+                setSelectedPlateId(null);
+              }}
+              data-testid="parts-model"
+            >
+              {models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="w-24 text-[11px] text-[var(--text-muted)]">
+            {t("partsCatalog.year")}
+            <select
+              className="mt-0.5 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              data-testid="parts-year"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto p-2" data-testid="parts-tree">
+        {treeLoading ? (
+          <p className="text-xs text-[var(--text-muted)] px-2">{t("partsCatalog.loading")}</p>
+        ) : (
+          <ul>{roots.map((n) => renderNode(n, 0))}</ul>
+        )}
+      </div>
+    </div>
+  );
+
+  const artPane = (
+    <div className="flex flex-col min-h-0 h-full bg-[var(--bg-main)]" data-testid="parts-art">
+      <div className="p-2 border-b border-[var(--border-color)] shrink-0 space-y-1.5">
+        <div className="text-[11px] text-[var(--text-muted)] truncate">
+          {selectedFg
+            ? `FG ${selectedFg.replace(/^\//, "")}`
+            : t("partsCatalog.pickFg")}
+        </div>
+        {selectedFg ? (
+          <label className="block text-[11px] text-[var(--text-muted)]">
+            {t("partsCatalog.plate")}
+            <select
+              className="mt-0.5 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+              value={selectedPlateId ?? ""}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                setSelectedPlateId(Number.isFinite(id) && id > 0 ? id : null);
+                setMobilePane("table");
+              }}
+              disabled={platesLoading || plates.length === 0}
+              data-testid="parts-plate-select"
+            >
+              {plates.length === 0 ? (
+                <option value="">{t("partsCatalog.noPlates")}</option>
+              ) : (
+                plates.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                    {p.graphicAvailable ? "" : ` · ${t("partsCatalog.noGraphicShort")}`}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        ) : null}
+        {plateTitle ? <h2 className="text-sm font-semibold truncate">{plateTitle}</h2> : null}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto bg-white flex items-center justify-center p-2">
+        {!selectedFg ? (
+          <p className="text-sm text-[var(--text-muted)] px-4 text-center">{t("partsCatalog.pickFgHint")}</p>
+        ) : platesLoading || detailLoading ? (
+          <p className="text-xs text-[var(--text-muted)]">{t("partsCatalog.loading")}</p>
+        ) : plates.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)]">{t("partsCatalog.noPlates")}</p>
+        ) : graphicUrl ? (
+          <img
+            src={graphicUrl}
+            alt={plateTitle || "plate"}
+            className="max-w-full max-h-full object-contain"
+            data-testid="parts-graphic"
+          />
+        ) : (
+          <p className="text-sm text-[var(--text-muted)] px-4 text-center" data-testid="parts-no-graphic">
+            {t("partsCatalog.noGraphic")}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const tablePane = (
+    <div
+      className="flex flex-col min-h-0 h-full border-l border-[var(--border-color)] bg-[var(--bg-card)]"
+      data-testid="parts-table-pane"
+    >
+      <div className="px-3 py-2 border-b border-[var(--border-color)] shrink-0 text-sm font-semibold">
+        {t("partsCatalog.bom")}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {!selectedPlateId ? (
+          <p className="text-sm text-[var(--text-muted)] p-3">{t("partsCatalog.pickPlate")}</p>
+        ) : detailLoading ? (
+          <p className="text-xs text-[var(--text-muted)] p-3">{t("partsCatalog.loading")}</p>
+        ) : parts.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)] p-3" data-testid="parts-empty-bom">
+            {t("partsCatalog.noParts")}
+          </p>
+        ) : (
+          <table className="w-full text-sm border-collapse" data-testid="parts-bom-table">
+            <thead className="sticky top-0 bg-[var(--bg-card)] z-[1]">
+              <tr className="text-left text-[11px] text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                <th className="px-2 py-1.5 w-10 font-medium">#</th>
+                <th className="px-2 py-1.5 w-[7.5rem] font-medium">{t("partsCatalog.colPn")}</th>
+                <th className="px-2 py-1.5 font-medium">{t("partsCatalog.colTitle")}</th>
+                <th className="px-2 py-1.5 w-14 font-medium text-right">{t("partsCatalog.colQty")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parts.map((row, i) => {
+                const hs = row.hotspot != null ? String(row.hotspot) : "";
+                const active = activeHotspot != null && hs === activeHotspot;
+                return (
+                  <tr
+                    key={`${hs}-${row.pn || ""}-${i}`}
+                    className={`border-b border-[var(--border-color)]/60 cursor-pointer ${
+                      active ? "bg-[var(--accent)]/15" : "hover:bg-[var(--input-bg)]"
+                    }`}
+                    onClick={() => setActiveHotspot(hs || null)}
+                    data-testid={hs ? `parts-row-${hs}` : `parts-row-i${i}`}
+                  >
+                    <td className="px-2 py-1 font-mono text-[12px] tabular-nums text-[var(--text-muted)]">
+                      {hs || "—"}
+                    </td>
+                    <td className="px-2 py-1 font-mono text-[12px] whitespace-nowrap">
+                      {row.pn && row.pn !== "ns" ? row.pn : "—"}
+                    </td>
+                    <td className="px-2 py-1 text-[13px] leading-snug">{row.title}</td>
+                    <td className="px-2 py-1 text-right tabular-nums text-[12px] text-[var(--text-muted)]">
+                      {formatQty(row.qty, row.unit)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -243,9 +518,6 @@ export function PartsPage() {
           {t("nav.service")}
         </a>
       </header>
-      <p className="hidden sm:block shrink-0 px-4 py-1.5 text-[11px] text-[var(--text-muted)] border-b border-[var(--border-color)] bg-[var(--input-bg)]">
-        {t("partsCatalog.disclaimer")}
-      </p>
 
       {available === false ? (
         <div className="max-w-xl mx-auto p-6 space-y-3 text-sm" data-testid="parts-unavailable">
@@ -257,95 +529,43 @@ export function PartsPage() {
       ) : null}
 
       {available ? (
-        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(280px,360px)_1fr]">
-          <aside className="border-r border-[var(--border-color)] bg-[var(--bg-card)] flex flex-col min-h-0">
-            <div className="p-3 space-y-2 border-b border-[var(--border-color)] shrink-0">
-              <div className="flex gap-2">
-                <label className="flex-1 text-[11px] text-[var(--text-muted)]">
-                  {t("partsCatalog.model")}
-                  <select
-                    className="mt-0.5 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
-                    value={model}
-                    onChange={(e) => {
-                      setModel(e.target.value);
-                      setSelectedFg("");
-                      setPlates([]);
-                    }}
-                    data-testid="parts-model"
-                  >
-                    {models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="w-24 text-[11px] text-[var(--text-muted)]">
-                  {t("partsCatalog.year")}
-                  <select
-                    className="mt-0.5 w-full bg-[var(--input-bg)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    data-testid="parts-year"
-                  >
-                    {years.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto p-2" data-testid="parts-tree">
-              {treeLoading ? (
-                <p className="text-xs text-[var(--text-muted)] px-2">{t("partsCatalog.loading")}</p>
-              ) : (
-                <ul>{roots.map((n) => renderNode(n, 0))}</ul>
-              )}
-            </div>
-          </aside>
+        <>
+          <div className="lg:hidden shrink-0 flex border-b border-[var(--border-color)] bg-[var(--bg-card)]">
+            {(
+              [
+                ["tree", t("partsCatalog.tabTree")],
+                ["art", t("partsCatalog.tabArt")],
+                ["table", t("partsCatalog.tabTable")],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`flex-1 py-2 text-xs font-medium ${
+                  mobilePane === id
+                    ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                    : "text-[var(--text-muted)]"
+                }`}
+                onClick={() => setMobilePane(id)}
+                data-testid={`parts-tab-${id}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-          <main className="flex flex-col min-h-0 bg-[var(--bg-main)]">
-            <div className="p-3 border-b border-[var(--border-color)] shrink-0">
-              <h2 className="text-sm font-semibold truncate">
-                {selectedFg
-                  ? `${t("partsCatalog.plates")} · FG ${selectedFg.replace(/^\//, "")}`
-                  : t("partsCatalog.pickFg")}
-              </h2>
-            </div>
-            <div className="flex-1 overflow-auto p-3" data-testid="parts-plate-list">
-              {!selectedFg ? (
-                <p className="text-sm text-[var(--text-muted)]">{t("partsCatalog.pickFgHint")}</p>
-              ) : platesLoading ? (
-                <p className="text-xs text-[var(--text-muted)]">{t("partsCatalog.loading")}</p>
-              ) : plates.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">{t("partsCatalog.noPlates")}</p>
-              ) : (
-                <ul className="space-y-1">
-                  {plates.map((p) => (
-                    <li
-                      key={p.id}
-                      className="rounded border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 text-sm"
-                      data-testid={`parts-plate-${p.id}`}
-                    >
-                      <div className="font-medium">{p.title}</div>
-                      <div className="text-[11px] text-[var(--text-muted)] mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span className="font-mono">{p.fgPath}</span>
-                        {p.graphicUrl ? <span className="font-mono">{p.graphicUrl}</span> : null}
-                        {p.graphicMime ? <span>{p.graphicMime}</span> : null}
-                        <span className="opacity-60">#{p.id}</span>
-                      </div>
-                      <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
-                        {t("partsCatalog.viewerLater")}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </main>
-        </div>
+          <div className="flex-1 min-h-0 hidden lg:grid lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(280px,360px)]">
+            {treePane}
+            {artPane}
+            {tablePane}
+          </div>
+
+          <div className="flex-1 min-h-0 lg:hidden">
+            {mobilePane === "tree" ? treePane : null}
+            {mobilePane === "art" ? artPane : null}
+            {mobilePane === "table" ? tablePane : null}
+          </div>
+        </>
       ) : null}
     </div>
   );
