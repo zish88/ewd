@@ -138,9 +138,6 @@ export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
         <p className="empty-state-hero__intro" data-testid="empty-state-intro">
           {t("empty.intro")}
         </p>
-        <p className="empty-state-hero__instruction" data-testid="empty-state-instruction">
-          {t("empty.hint")}
-        </p>
       </div>
     </div>
   );

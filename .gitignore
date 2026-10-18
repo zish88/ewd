@@ -53,6 +53,8 @@ data/push.sqlite-*
 data/servicerep.sqlite
 data/servicerep.sqlite-*
 data/servicerep-graphics/
+data/parts.sqlite
+data/parts.sqlite-*
 data/push-last-notified.json
 data/telegram.sqlite
 data/telegram.sqlite-*

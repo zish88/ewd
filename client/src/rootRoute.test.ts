@@ -17,6 +17,11 @@ test("/service resolves to the service surface", () => {
   assert.equal(rootSurfaceForPath("/service/"), "service");
 });
 
+test("/parts resolves to the parts surface", () => {
+  assert.equal(rootSurfaceForPath("/parts"), "parts");
+  assert.equal(rootSurfaceForPath("/parts/"), "parts");
+});
+
 test("other paths resolve to the public app", () => {
   assert.equal(rootSurfaceForPath("/"), "app");
   assert.equal(rootSurfaceForPath("/telegram"), "app");

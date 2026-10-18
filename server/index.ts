@@ -7,6 +7,7 @@ import { openDatabase } from "./db/schema.js";
 import { createLocationRouter, createOverrideRouter, createSearchRouter } from "./routes/search.js";
 import { createNavRouter } from "./routes/nav.js";
 import { createPartsRouter } from "./routes/parts.js";
+import { createPartsCatalogRouter } from "./routes/partsCatalog.js";
 import { createEwdRouter } from "./routes/ewd.js";
 import { createEwdCapitalRouter } from "./routes/ewdCapital.js";
 import { createAdminRouter } from "./routes/admin.js";
@@ -145,6 +146,7 @@ app.use("/api", (req, res, next) => {
     path.startsWith("/platforms/") ||
     path.startsWith("/knowledge") ||
     path.startsWith("/service") ||
+    path.startsWith("/parts-catalog") ||
     path.startsWith("/admin") ||
     path.startsWith("/push")
   ) {
@@ -193,6 +195,7 @@ app.use("/api/telegram", createTelegramAuthRouter());
 app.use("/api/search", createSearchRouter(db));
 app.use("/api/nav", createNavRouter(db));
 app.use("/api/parts", createPartsRouter());
+app.use("/api/parts-catalog", createPartsCatalogRouter());
 app.use("/api/ewd", createEwdRouter());
 app.use("/api/ewd", createEwdCapitalRouter());
 app.use("/api/dtc", createDtcRouter());

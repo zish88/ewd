@@ -33,6 +33,7 @@ import "./styles.css";
 import { AdminPage } from "./AdminPage.js";
 import { KnowledgePage } from "./KnowledgePage.js";
 import { ServicePage } from "./ServicePage.js";
+import { PartsPage } from "./PartsPage.js";
 import { MaintenancePage } from "./MaintenancePage.js";
 import { rootSurfaceForPath } from "./rootRoute.js";
 import { loadPersistedFilters, savePersistedFilters, type PersistedFilters } from "./filterPersist.js";
@@ -2055,6 +2056,7 @@ function App() {
   const [capitalPanel, setCapitalPanel] = useState<CapitalPanel | null>(null);
   const [fuseReportAvailable, setFuseReportAvailable] = useState(false);
   const [serviceAvailable, setServiceAvailable] = useState(false);
+  const [partsAvailable, setPartsAvailable] = useState(false);
   const [activeSvg, setActiveSvg] = useState<ActiveSvg | null>(null);
   const [schemeFullscreen, setSchemeFullscreen] = useState(false);
   const showSeqRef = useRef(0);
@@ -2366,6 +2368,21 @@ function App() {
       })
       .catch(() => {
         if (alive) setServiceAvailable(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/parts-catalog/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setPartsAvailable(Boolean(d?.available));
+      })
+      .catch(() => {
+        if (alive) setPartsAvailable(false);
       });
     return () => {
       alive = false;
@@ -4004,7 +4021,7 @@ function App() {
           aria-pressed={theme === th.id}
           onClick={() => setTheme(th.id)}
         >
-          {th.label}
+          {isMobileUi ? th.label.slice(0, 2) : th.label}
         </button>
       ))}
     </div>
@@ -4030,6 +4047,17 @@ function App() {
           data-testid="nav-service"
         >
           {t("nav.service")}
+        </a>
+      ) : null}
+      {partsAvailable ? (
+        <a
+          className="app-bar__kb-link"
+          href="/parts"
+          title={t("nav.partsTitle")}
+          aria-label={t("nav.parts")}
+          data-testid="nav-parts"
+        >
+          {t("nav.parts")}
         </a>
       ) : null}
       <nav className="app-bar__social-links" aria-label={lang === "en" ? "External links" : "Внешние ссылки"}>
@@ -5548,6 +5576,7 @@ function Root() {
   if (surface === "admin") return <AdminPage />;
   if (surface === "knowledge") return <KnowledgePage />;
   if (surface === "service") return <ServicePage />;
+  if (surface === "parts") return <PartsPage />;
   return <App />;
 }
 
@@ -5561,7 +5590,7 @@ function RootWithLang() {
 
 async function startClient() {
   const surface = rootSurfaceForPath(window.location.pathname);
-  if (surface !== "admin" && surface !== "knowledge" && surface !== "service") {
+  if (surface !== "admin" && surface !== "knowledge" && surface !== "service" && surface !== "parts") {
     await loadTelegramWebAppSdk();
     initializeTelegramWebApp();
     void bootstrapTelegramIdentity();
