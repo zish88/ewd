@@ -4652,6 +4652,13 @@ main.is-filters-sheet-open {
   color: var(--accent);
 }
 
+.parts-callout-layer {
+  position: absolute;
+  pointer-events: none;
+  z-index: 8;
+  overflow: visible;
+}
+
 .parts-callout {
   position: absolute;
   box-sizing: border-box;
@@ -4659,7 +4666,8 @@ main.is-filters-sheet-open {
   background: rgba(16, 185, 129, 0.22);
   border-radius: 50%;
   pointer-events: none;
-  z-index: 6;
+  z-index: 9;
+  transform: translate(-50%, -50%);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 .parts-bom-title {

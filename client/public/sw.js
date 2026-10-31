@@ -1,5 +1,5 @@
 /* Shell-only service worker: caches app shell, never /api/* or EWD SVG assets. */
-const CACHE = "volvo-ewd-shell-v5";
+const CACHE = "volvo-ewd-shell-v6";
 const SHELL = [
   "/",
   "/index.html",
@@ -65,16 +65,26 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match(req)),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        if (
-          res.ok &&
-          (url.pathname.startsWith("/assets/") ||
-            url.pathname.startsWith("/icons/") ||
-            url.pathname === "/manifest.webmanifest")
-        ) {
+        if (res.ok && (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest")) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
         }

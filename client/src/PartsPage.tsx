@@ -167,6 +167,9 @@ export function PartsPage() {
   const [callouts, setCallouts] = useState<Record<string, CalloutBox>>({});
   const [markTick, setMarkTick] = useState(0);
   const [markStyle, setMarkStyle] = useState<CSSProperties | null>(null);
+  const [layerBox, setLayerBox] = useState<{ left: number; top: number; width: number; height: number } | null>(
+    null,
+  );
   const [copiedKey, setCopiedKey] = useState("");
   const [copiedPn, setCopiedPn] = useState("");
   const copyTimer = useRef(0);
@@ -514,28 +517,49 @@ export function PartsPage() {
     }
   }
 
-  function digitMarkStyle(box: CalloutBox): CSSProperties | null {
+  function measureLayer() {
     const img = graphicImgRef.current;
-    const origin = overlayRef.current || graphicPaneRef.current;
-    if (!img || !origin) return null;
+    const pane = graphicPaneRef.current;
+    if (!img || !pane) {
+      setLayerBox(null);
+      return;
+    }
     const ir = containedImageRect(img);
-    const pr = origin.getBoundingClientRect();
-    if (ir.width < 2 || ir.height < 2) return null;
-    const w = Math.min(40, Math.max(22, box.w * ir.width * 1.7));
-    const h = Math.min(40, Math.max(22, box.h * ir.height * 1.7));
-    const cx = ir.left - pr.left + (box.x + box.w / 2) * ir.width;
-    const cy = ir.top - pr.top + (box.y + box.h / 2) * ir.height;
-    return {
-      left: cx - w / 2,
-      top: cy - h / 2,
-      width: w,
-      height: h,
-    };
+    const pr = pane.getBoundingClientRect();
+    if (ir.width < 2 || ir.height < 2) {
+      setLayerBox(null);
+      return;
+    }
+    setLayerBox({
+      left: ir.left - pr.left,
+      top: ir.top - pr.top,
+      width: ir.width,
+      height: ir.height,
+    });
   }
 
   useLayoutEffect(() => {
+    measureLayer();
     const box = calloutFor(activeHotspot);
-    setMarkStyle(box ? digitMarkStyle(box) : null);
+    const img = graphicImgRef.current;
+    const pane = graphicPaneRef.current;
+    if (!box || !img || !pane) {
+      setMarkStyle(null);
+      return;
+    }
+    const ir = containedImageRect(img);
+    if (ir.width < 2 || ir.height < 2) {
+      setMarkStyle(null);
+      return;
+    }
+    const w = Math.min(40, Math.max(22, box.w * ir.width * 1.7));
+    const h = Math.min(40, Math.max(22, box.h * ir.height * 1.7));
+    setMarkStyle({
+      left: `${(box.x + box.w / 2) * 100}%`,
+      top: `${(box.y + box.h / 2) * 100}%`,
+      width: w,
+      height: h,
+    });
   }, [activeHotspot, callouts, markTick, graphicUrl]);
 
   useEffect(() => {
@@ -700,12 +724,20 @@ export function PartsPage() {
               data-testid="parts-graphic"
               onLoad={() => setMarkTick((n) => n + 1)}
             />
-            <div
-              ref={overlayRef}
-              className="absolute inset-0 z-[6] pointer-events-none overflow-visible"
-            >
-              {markStyle ? <span className="parts-callout" style={markStyle} /> : null}
-            </div>
+            {layerBox ? (
+              <div
+                ref={overlayRef}
+                className="parts-callout-layer"
+                style={{
+                  left: layerBox.left,
+                  top: layerBox.top,
+                  width: layerBox.width,
+                  height: layerBox.height,
+                }}
+              >
+                {markStyle ? <span className="parts-callout" style={markStyle} /> : null}
+              </div>
+            ) : null}
           </>
         ) : (
           <p className="text-sm text-[var(--text-muted)] px-4 text-center" data-testid="parts-no-graphic">
