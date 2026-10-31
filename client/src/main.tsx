@@ -4061,7 +4061,7 @@ function App() {
     <div className="app-bar__ext-cluster" aria-label={lang === "en" ? "Site sections" : "Разделы сайта"}>
       {serviceAvailable && features.serviceBrowser ? (
         <a
-          className="app-bar__kb-link"
+          className="app-bar__section-link"
           href="/service"
           title={t("nav.serviceTitle")}
           aria-label={t("nav.service")}
@@ -4072,7 +4072,7 @@ function App() {
       ) : null}
       {partsAvailable ? (
         <a
-          className="app-bar__kb-link"
+          className="app-bar__section-link"
           href="/parts"
           title={t("nav.partsTitle")}
           aria-label={t("nav.parts")}

@@ -2783,7 +2783,7 @@ html[data-telegram="true"] {
   overflow: visible;
 }
 
-.app-bar__kb-link {
+.app-bar__section-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2805,14 +2805,14 @@ html[data-telegram="true"] {
     background 0.16s ease;
 }
 
-.app-bar__kb-link:hover {
+.app-bar__section-link:hover {
   color: #99f6e4;
   border-color: color-mix(in srgb, #2dd4bf 80%, transparent);
   background: color-mix(in srgb, #2dd4bf 24%, var(--bg-card));
   box-shadow: 0 0 0 1px color-mix(in srgb, #2dd4bf 25%, transparent);
 }
 
-.app-bar__kb-link:focus-visible {
+.app-bar__section-link:focus-visible {
   outline: 2px solid color-mix(in srgb, #2dd4bf 70%, transparent);
   outline-offset: 2px;
 }
@@ -3410,13 +3410,13 @@ main.is-filters-sheet-open {
     padding: 0.2rem 0.05rem;
   }
 
-  .app-bar__kb-link {
+  .app-bar__section-link {
     min-height: 1.6rem;
     padding: 0.15rem 0.42rem;
     font-size: 0.65rem;
   }
 
-  /* Social icons crowd the chrome on phones — keep Knowledge/Service only */
+  /* Social icons crowd the chrome on phones — keep Service/Parts only */
   .app-bar__social-links {
     display: none;
   }
