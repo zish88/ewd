@@ -409,7 +409,9 @@ export function PartsPage() {
     const canExpand = Boolean(node.hasChildren) || (hasLoadedKids && kids.length > 0);
     return (
       <li key={node.path} className="select-none">
-        <div className={`parts-fg-tree__row ${selected ? "is-selected" : ""}`}>
+        <div
+          className={`parts-fg-tree__row ${selected ? "is-selected" : ""} ${open ? "is-open" : ""}`}
+        >
           {canExpand ? (
             <button
               type="button"

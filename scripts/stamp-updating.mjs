@@ -73,6 +73,7 @@ const drive2 = DRIVE2_CHANGELOG_URL;
 const block = `${START}
       <div class="deploy-meta" id="deploy-meta" data-version="${esc(version)}" data-git="${esc(gitShort)}">
         <p class="deploy-meta__ver">версия ${esc(version)} · ${esc(gitShort)}</p>
+        <p class="deploy-meta__quip" id="deploy-quip"></p>
         <p class="deploy-meta__drive2">
           <a class="deploy-meta__link" href="${esc(drive2)}" target="_blank" rel="noopener noreferrer">Что нового — на Drive2</a>
         </p>

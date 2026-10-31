@@ -123,6 +123,7 @@ type StoredTreeState = {
   open: string[];
   selectedTreeItemId: number | null;
   visited: number[];
+  visitedFg: string[];
 };
 
 function treeStateKey(model: string, year: string): string {
@@ -132,7 +133,7 @@ function treeStateKey(model: string, year: string): string {
 function loadTreeState(model: string, year: string): StoredTreeState {
   try {
     const raw = localStorage.getItem(treeStateKey(model, year));
-    if (!raw) return { open: [], selectedTreeItemId: null, visited: [] };
+    if (!raw) return { open: [], selectedTreeItemId: null, visited: [], visitedFg: [] };
     const parsed = JSON.parse(raw) as Partial<StoredTreeState>;
     return {
       open: Array.isArray(parsed.open) ? parsed.open.map(String).filter(Boolean) : [],
@@ -143,9 +144,10 @@ function loadTreeState(model: string, year: string): StoredTreeState {
       visited: Array.isArray(parsed.visited)
         ? parsed.visited.map(Number).filter((n) => Number.isFinite(n))
         : [],
+      visitedFg: Array.isArray(parsed.visitedFg) ? parsed.visitedFg.map(String).filter(Boolean) : [],
     };
   } catch {
-    return { open: [], selectedTreeItemId: null, visited: [] };
+    return { open: [], selectedTreeItemId: null, visited: [], visitedFg: [] };
   }
 }
 
@@ -157,6 +159,7 @@ function saveTreeState(model: string, year: string, state: StoredTreeState) {
         open: state.open.slice(0, 200),
         selectedTreeItemId: state.selectedTreeItemId,
         visited: state.visited.slice(-80),
+        visitedFg: state.visitedFg.slice(-120),
       }),
     );
   } catch {
@@ -171,6 +174,7 @@ function TreeBranch({
   year,
   selectedTreeItemId,
   visitedTreeItemIds,
+  visitedFgCodes,
   expandedCodes,
   onToggleExpand,
   onOpenItem,
@@ -182,6 +186,7 @@ function TreeBranch({
   year: string;
   selectedTreeItemId: number | null;
   visitedTreeItemIds: Set<number>;
+  visitedFgCodes: Set<string>;
   expandedCodes: Set<string>;
   onToggleExpand: (code: string, open: boolean) => void;
   onOpenItem: (id: number) => void;
@@ -239,12 +244,8 @@ function TreeBranch({
             type="button"
             aria-current={isSelected ? "true" : undefined}
             className={[
-              "block flex-1 text-left px-2 py-1 text-[12px] rounded border-l-2",
-              isSelected
-                ? "border-[var(--accent)] bg-[var(--input-bg)] font-medium text-[var(--text-main)] ring-1 ring-[var(--accent)]/40"
-                : isVisited
-                  ? "border-[var(--border-color)] text-[var(--text-muted)]"
-                  : "border-transparent hover:bg-[var(--input-bg)]",
+              "service-tree-item",
+              isSelected ? "is-current" : isVisited ? "is-visited" : "is-unread",
             ].join(" ")}
             onClick={() => {
               if (tid != null) onOpenItem(tid);
@@ -301,7 +302,10 @@ function TreeBranch({
     <div style={{ paddingLeft: depth * 10 }}>
       <button
         type="button"
-        className="w-full text-left px-2 py-1.5 text-[13px] hover:bg-[var(--input-bg)] rounded flex items-center gap-1 min-h-8"
+        className={[
+          "service-tree-fg",
+          open ? "is-open" : visitedFgCodes.has(fgCode) ? "is-visited" : "is-collapsed",
+        ].join(" ")}
         onClick={() => {
           if (!fgCode) return;
           onToggleExpand(fgCode, !open);
@@ -315,7 +319,7 @@ function TreeBranch({
         </span>
         <span className="truncate">{node.title}</span>
         {node.childCount != null ? (
-          <span className="ml-auto text-[10px] text-[var(--text-muted)] tabular-nums">{node.childCount}</span>
+          <span className="service-tree-fg__count">{node.childCount}</span>
         ) : null}
       </button>
       {open ? (
@@ -332,6 +336,7 @@ function TreeBranch({
                 year={year}
                 selectedTreeItemId={selectedTreeItemId}
                 visitedTreeItemIds={visitedTreeItemIds}
+                visitedFgCodes={visitedFgCodes}
                 expandedCodes={expandedCodes}
                 onToggleExpand={onToggleExpand}
                 onOpenItem={onOpenItem}
@@ -371,6 +376,9 @@ export function ServicePage() {
   });
   const [visitedTreeItemIds, setVisitedTreeItemIds] = useState<Set<number>>(() => {
     return new Set(loadTreeState(vehicle0.model, vehicle0.year).visited);
+  });
+  const [visitedFgCodes, setVisitedFgCodes] = useState<Set<string>>(() => {
+    return new Set(loadTreeState(vehicle0.model, vehicle0.year).visitedFg);
   });
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(() => {
     return new Set(loadTreeState(vehicle0.model, vehicle0.year).open);
@@ -538,6 +546,7 @@ export function ServicePage() {
     setExpandedCodes(new Set(saved.open));
     setSelectedTreeItemId(saved.selectedTreeItemId);
     setVisitedTreeItemIds(new Set(saved.visited));
+    setVisitedFgCodes(new Set([...saved.visitedFg, ...saved.open]));
   }, [model, year]);
 
   // Persist expanded folders + selection for current vehicle
@@ -546,8 +555,9 @@ export function ServicePage() {
       open: [...expandedCodes],
       selectedTreeItemId,
       visited: [...visitedTreeItemIds],
+      visitedFg: [...visitedFgCodes],
     });
-  }, [model, year, expandedCodes, selectedTreeItemId, visitedTreeItemIds]);
+  }, [model, year, expandedCodes, selectedTreeItemId, visitedTreeItemIds, visitedFgCodes]);
 
   function toggleExpand(code: string, open: boolean) {
     const c = String(code || "").trim();
@@ -564,6 +574,14 @@ export function ServicePage() {
       }
       return next;
     });
+    if (open) {
+      setVisitedFgCodes((prev) => {
+        if (prev.has(c)) return prev;
+        const next = new Set(prev);
+        next.add(c);
+        return next;
+      });
+    }
   }
 
   useEffect(() => {
@@ -1125,6 +1143,7 @@ export function ServicePage() {
                         year={year}
                         selectedTreeItemId={selectedTreeItemId}
                         visitedTreeItemIds={visitedTreeItemIds}
+                        visitedFgCodes={visitedFgCodes}
                         expandedCodes={expandedCodes}
                         onToggleExpand={toggleExpand}
                         onOpenItem={openTreeItem}

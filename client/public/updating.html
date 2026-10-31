@@ -96,8 +96,17 @@
       letter-spacing: 0.04em;
       color: color-mix(in srgb, #f8fafc 55%, var(--accent));
     }
+    .deploy-meta__quip {
+      margin: 0.85rem 0 0;
+      font-size: clamp(0.92rem, 2.5vw, 1.05rem);
+      line-height: 1.45;
+      font-style: italic;
+      font-weight: 500;
+      color: #e2e8f0;
+      text-wrap: pretty;
+    }
     .deploy-meta__drive2 {
-      margin: 0.65rem 0 0;
+      margin: 0.75rem 0 0;
     }
     .deploy-meta__link {
       font-size: 0.85rem;
@@ -404,6 +413,7 @@
 <!-- DEPLOY_META_START -->
       <div class="deploy-meta" id="deploy-meta" data-version="2026.10.18" data-git="ce11cc29">
         <p class="deploy-meta__ver">версия 2026.10.18 · ce11cc29</p>
+        <p class="deploy-meta__quip" id="deploy-quip"></p>
         <p class="deploy-meta__drive2">
           <a class="deploy-meta__link" href="https://www.drive2.ru/r/volvo/xc70/645101615031802914/" target="_blank" rel="noopener noreferrer">Что нового — на Drive2</a>
         </p>
@@ -411,5 +421,26 @@
 <!-- DEPLOY_META_END -->
     </div>
   </main>
+  <script>
+    (function () {
+      var quips = [
+        "Обновляемся. Как диагностика: «пять минут» — и кабель уже тёплый.",
+        "Сайт на подъёмнике. Вы подождите, мы ключ ищем.",
+        "Ищем предохранитель с надписью «сейчас заработает».",
+        "P3 сказал подождать. P3 всегда так говорит.",
+        "Не сломалось. Просто решили улучшить, пока вы смотрите.",
+        "Пауза как в стендапе — только эта техническая.",
+        "Сервер считает провода. Их снова на один больше, чем на схеме.",
+        "Мы не зависли. Мы медитируем над массой.",
+        "Пока схема грузится, можно проверить: это XC70 или просто мокрое пятно под ним.",
+        "Контакт есть. Связи пока нет. Классика.",
+        "Как хороший механик: сначала кофе, потом масса, потом обещания.",
+        "Если долго смотреть на эту надпись, она начнёт спрашивать DTC."
+      ];
+      var el = document.getElementById("deploy-quip");
+      if (!el) return;
+      el.textContent = quips[Math.floor(Date.now() / 15000) % quips.length];
+    })();
+  </script>
 </body>
 </html>
