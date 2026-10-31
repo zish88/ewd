@@ -36,40 +36,107 @@ DEFAULT_MDF = Path(
 SERVER = os.environ.get("VIDA_SQL_SERVER", r"(localdb)\MSSQLLocalDB")
 OUT_DEFAULT = ROOT / "data" / "servicerep-graphics"
 ID_RE = re.compile(r"^[0-9a-f]{16}$", re.I)
+NAMED_RE = re.compile(r"^(?:.*[/\\])?((?:IMG|GR)-\d+)(?:\.(?:gif|png|jpe?g|svg|cgm))?$", re.I)
 
 
 def log(msg: str) -> None:
     print(msg, flush=True)
 
 
+def normalize_named(raw: str) -> str | None:
+    m = NAMED_RE.match((raw or "").strip())
+    if not m:
+        return None
+    s = m.group(1).upper().replace("_", "-")
+    if s.startswith("IMG") and not s.startswith("IMG-"):
+        s = "IMG-" + s[3:]
+    if s.startswith("GR") and not s.startswith("GR-"):
+        s = "GR-" + s[2:]
+    return s
+
+
 def normalize_id(raw: str) -> str | None:
-    s = (raw or "").strip().lower()
+    s = (raw or "").strip()
     if not s:
         return None
     # 0900c8af80059b21_0_0.gif → guid
     m = re.match(r"^([0-9a-f]{16})(?:_\d+_\d+)?(?:\.(?:gif|png|jpe?g|svg))?$", s, re.I)
     if m:
         return m.group(1).lower()
-    if ID_RE.match(s):
+    if ID_RE.match(s.lower()):
         return s.lower()
+    return normalize_named(s)
+
+
+def _existing_file(out_dir: Path, gid: str) -> str | None:
+    for ext in (".gif", ".png", ".jpg", ".jpeg", ".svg", ".bin"):
+        p = out_dir / f"{gid}{ext}"
+        if p.is_file() and p.stat().st_size > 0:
+            return p.name
+        p2 = out_dir / f"{gid.lower()}{ext}"
+        if p2.is_file() and p2.stat().st_size > 0:
+            return p2.name
     return None
 
 
+def _write_blob(out_dir: Path, gid: str, blob: bytes, path_name: str) -> str:
+    ext = Path(path_name).suffix.lower() or ".gif"
+    if ext not in (".gif", ".png", ".jpg", ".jpeg", ".svg"):
+        ext = ".gif"
+    dest = out_dir / f"{gid}{ext}"
+    dest.write_bytes(blob)
+    return dest.name
+
+
+def fetch_by_hex(cur, gid: str) -> tuple[str, bytes] | None:
+    cur.execute(
+        """
+        SELECT TOP 1 path, imageData
+        FROM dbo.LocalizedGraphics
+        WHERE fkGraphic = ? AND imageData IS NOT NULL
+        ORDER BY languageId
+        """,
+        (gid,),
+    )
+    row = cur.fetchone()
+    if not row or row[1] is None:
+        return None
+    return str(row[0] or f"{gid}.gif"), bytes(row[1])
+
+
+def fetch_by_name(cur, name: str) -> tuple[str, bytes] | None:
+    """IMG-227782 / GR-366703 live in LocalizedGraphics.path (and sometimes title)."""
+    stem = name.split(".")[0]
+    like = f"%{stem}%"
+    cur.execute(
+        """
+        SELECT TOP 1 path, imageData
+        FROM dbo.LocalizedGraphics
+        WHERE imageData IS NOT NULL
+          AND (
+            path LIKE ?
+            OR title LIKE ?
+          )
+        ORDER BY DATALENGTH(imageData) DESC
+        """,
+        (like, like),
+    )
+    row = cur.fetchone()
+    if not row or row[1] is None:
+        return None
+    return str(row[0] or f"{stem}.gif"), bytes(row[1])
+
+
 def fetch_many(ids: list[str], out_dir: Path, mdf: Path) -> dict[str, str]:
-    """Return map id → relative filename written (or existing)."""
+    """Return map id → relative filename written (or existing). Keys are hex or IMG-/GR-."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    wanted = []
+    wanted: list[str] = []
     result: dict[str, str] = {}
     for raw in ids:
         gid = normalize_id(raw)
         if not gid:
             continue
-        existing = None
-        for ext in (".gif", ".png", ".jpg", ".jpeg", ".svg", ".bin"):
-            p = out_dir / f"{gid}{ext}"
-            if p.is_file() and p.stat().st_size > 0:
-                existing = p.name
-                break
+        existing = _existing_file(out_dir, gid)
         if existing:
             result[gid] = existing
         else:
@@ -82,33 +149,20 @@ def fetch_many(ids: list[str], out_dir: Path, mdf: Path) -> dict[str, str]:
         raise FileNotFoundError(f"ImageRepository MDF not found: {mdf}")
 
     ensure_localdb_started()
-    server = resolve_sqlcmd_server(SERVER)
+    resolve_sqlcmd_server(SERVER)
     # Reuse attach if already present; attach_mdf detaches first.
     attach_mdf(SERVER, DB_NAME, mdf, None)
     conn = get_odbc_connection(SERVER, DB_NAME)
     cur = conn.cursor()
     try:
         for gid in wanted:
-            cur.execute(
-                """
-                SELECT TOP 1 path, imageData
-                FROM dbo.LocalizedGraphics
-                WHERE fkGraphic = ? AND imageData IS NOT NULL
-                ORDER BY languageId
-                """,
-                (gid,),
-            )
-            row = cur.fetchone()
-            if not row or row[1] is None:
+            hit = fetch_by_hex(cur, gid) if ID_RE.match(gid) else fetch_by_name(cur, gid)
+            if not hit:
                 log(f"  miss {gid}")
                 continue
-            path_name = str(row[0] or f"{gid}.gif")
-            ext = Path(path_name).suffix.lower() or ".gif"
-            if ext not in (".gif", ".png", ".jpg", ".jpeg", ".svg"):
-                ext = ".gif"
-            dest = out_dir / f"{gid}{ext}"
-            dest.write_bytes(bytes(row[1]))
-            result[gid] = dest.name
+            path_name, blob = hit
+            result[gid] = _write_blob(out_dir, gid, blob, path_name)
+            dest = out_dir / result[gid]
             log(f"  wrote {dest.name} ({dest.stat().st_size} bytes)")
     finally:
         try:

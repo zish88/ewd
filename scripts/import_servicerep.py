@@ -11,6 +11,7 @@ Env:
 Usage:
   python scripts/import_servicerep.py
   python scripts/import_servicerep.py --html-limit 2000
+  python scripts/import_servicerep.py --rebuild-profiles
 """
 from __future__ import annotations
 
@@ -55,12 +56,135 @@ IMG_REF_RE = re.compile(
     r"^(?:.*[/\\])?([0-9a-f]{16})(?:_\d+_\d+)?(?:\.(?:gif|png|jpe?g|svg))?$",
     re.I,
 )
+NAMED_IMG_RE = re.compile(
+    r"^(?:.*[/\\])?((?:IMG|GR)-\d+)(?:\.(?:gif|png|jpe?g|svg|cgm))?$",
+    re.I,
+)
 
 MODEL_TOKENS = ("XC70", "V70", "S80", "XC60", "S60", "V60", "XC90", "S40", "V50", "C30", "C70")
+# Longer first so XC70 wins over V70 when scanning.
+MODEL_TOKEN_ORDER = tuple(sorted(MODEL_TOKENS, key=len, reverse=True))
+YEAR_RE = re.compile(r"(?:MY\s*)?(20(?:0[5-9]|1[0-8]))", re.I)
+
+# Soft platform siblings: if a model has few exclusive profile hits, inherit
+# profiles tagged to stronger siblings (ServiceRep titles rarely say XC60/XC70).
+P3_FAMILY = frozenset({"XC60", "XC70", "V70", "S60", "S80", "V60"})
+P1_FAMILY = frozenset({"S40", "V50", "C30", "C70"})
+PLATFORM_FAMILIES = (P3_FAMILY, P1_FAMILY)
+PLATFORM_MIN_OWN = 20
 
 
 def log(msg: str) -> None:
     print(msg, flush=True)
+
+
+def _model_hits(text: str) -> list[str]:
+    """Word-boundary model tokens (avoids V70 inside XC70)."""
+    up = (text or "").upper()
+    hits: list[str] = []
+    for model in MODEL_TOKEN_ORDER:
+        i = 0
+        while True:
+            j = up.find(model, i)
+            if j < 0:
+                break
+            before = up[j - 1] if j > 0 else " "
+            after = up[j + len(model)] if j + len(model) < len(up) else " "
+            if (not before.isalnum()) and (not after.isalnum()):
+                hits.append(model)
+                break
+            i = j + 1
+    return hits
+
+
+def _years_in(text: str) -> list[int]:
+    return [int(y) for y in YEAR_RE.findall(text or "")]
+
+
+def build_profile_vehicle(db: sqlite3.Connection) -> int:
+    """
+    Rebuild profile_vehicle from tree + document titles.
+
+    ServiceRep MDF has TreeItemProfile / DocumentProfile IDs only — no CarConfig
+    model/year tables. Heuristic + soft platform expand is the offline fallback.
+    """
+    from collections import defaultdict
+
+    log("Building profile_vehicle (tree+docs + years + platform expand)…")
+    scores: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    profile_years: dict[str, list[int]] = defaultdict(list)
+
+    for pid, title in db.execute(
+        """
+        SELECT tip.profile_id, ti.title
+        FROM tree_item_profiles tip
+        JOIN tree_items ti ON ti.id = tip.tree_item_id
+        WHERE IFNULL(ti.title,'') != ''
+        """
+    ):
+        for y in _years_in(title or ""):
+            profile_years[pid].append(y)
+        for model in _model_hits(title or ""):
+            scores[pid][model] += 1
+
+    for pid, title in db.execute(
+        """
+        SELECT dp.profile_id, d.title
+        FROM document_profiles dp
+        JOIN documents d ON d.id = dp.document_id
+        WHERE IFNULL(d.title,'') != ''
+        """
+    ):
+        for y in _years_in(title or ""):
+            profile_years[pid].append(y)
+        for model in _model_hits(title or ""):
+            scores[pid][model] += 2
+
+    own: dict[str, set[str]] = defaultdict(set)
+    for pid, models in scores.items():
+        for model, cnt in models.items():
+            if cnt >= 1:
+                own[model].add(pid)
+
+    year_span: dict[str, tuple[int | None, int | None]] = {}
+    for pid, ys in profile_years.items():
+        if ys:
+            year_span[pid] = (min(ys), max(ys))
+
+    expanded: dict[str, set[str]] = {m: set(own[m]) for m in MODEL_TOKENS}
+    for family in PLATFORM_FAMILIES:
+        strong = [m for m in family if len(own[m]) >= PLATFORM_MIN_OWN]
+        weak = [m for m in family if len(own[m]) < PLATFORM_MIN_OWN]
+        if not strong or not weak:
+            continue
+        donor: set[str] = set()
+        for m in strong:
+            donor |= own[m]
+        for m in weak:
+            before = len(expanded[m])
+            expanded[m] |= donor
+            log(f"  platform expand {m}: {before} -> {len(expanded[m])} (from {', '.join(sorted(strong))})")
+
+    rows: list[tuple[str, str, int | None, int | None]] = []
+    for model in MODEL_TOKENS:
+        for pid in expanded[model]:
+            yf, yt = year_span.get(pid, (None, None))
+            rows.append((pid, model, yf, yt))
+
+    db.execute("DELETE FROM profile_vehicle")
+    db.executemany(
+        "INSERT OR IGNORE INTO profile_vehicle(profile_id, model, year_from, year_to) VALUES (?,?,?,?)",
+        rows,
+    )
+    by_model = {m: len(expanded[m]) for m in MODEL_TOKENS}
+    with_years = sum(1 for _, _, yf, yt in rows if yf is not None or yt is not None)
+    log(f"  profile_vehicle rows {len(rows)} (with years {with_years})")
+    log(f"  by model: {by_model}")
+    db.execute(
+        "INSERT OR REPLACE INTO meta(key,value) VALUES ('profile_vehicle_built',?)",
+        ("tree+docs+platform",),
+    )
+    return len(rows)
 
 
 def strip_xml_text(fragment: str) -> str:
@@ -92,9 +216,22 @@ def _elem_plain(el) -> str:
     return WS_RE.sub(" ", "".join(el.itertext())).strip()
 
 
+def _named_graphic_id(ref: str) -> str | None:
+    m = NAMED_IMG_RE.match((ref or "").strip())
+    if not m:
+        return None
+    raw = m.group(1).upper().replace("_", "-")
+    if not raw.startswith(("IMG-", "GR-")):
+        raw = raw.replace("IMG", "IMG-", 1) if raw.startswith("IMG") else raw.replace("GR", "GR-", 1)
+    return raw
+
+
 def _graphic_id(ref: str) -> str | None:
-    m = IMG_REF_RE.match((ref or "").strip())
-    return m.group(1).lower() if m else None
+    s = (ref or "").strip()
+    m = IMG_REF_RE.match(s)
+    if m:
+        return m.group(1).lower()
+    return _named_graphic_id(s)
 
 
 def _img_html(ref: str, title: str = "", assets: dict[str, bytes] | None = None) -> str:
@@ -128,8 +265,15 @@ def _img_html(ref: str, title: str = "", assets: dict[str, bytes] | None = None)
             f'<img src="data:{mime};base64,{b64}" alt="{alt}"/>'
             f"</figure>"
         )
+    named = _named_graphic_id(ref)
+    if named:
+        return (
+            f'<figure class="sr-fig">'
+            f'<img src="/api/service/graphic/{html_lib.escape(named)}" alt="{alt}" loading="lazy"/>'
+            f"</figure>"
+        )
     if ref and ("." in ref or _graphic_id(ref)):
-        return f'<p class="sr-missing-img">[{html_lib.escape(ref)}]</p>'
+        return f'<p class="sr-missing-img">{html_lib.escape("иллюстрация недоступна")}</p>'
     return ""
 
 
@@ -171,7 +315,9 @@ def _inline_flow(
                     add_text(child.tail)
                     continue
                 chron = _chronicle_from_ref(ref)
-                label = title or (chron and title_by_chron.get(chron)) or ref
+                # Prefer RU title from our documents table: VIDA href/@title is often Swedish
+                # even inside ru-RU body text.
+                label = (chron and title_by_chron.get(chron)) or title or ref
                 if chron:
                     html_parts.append(
                         f'<a class="sr-xref" href="/service?ref={html_lib.escape(ref)}" '
@@ -194,6 +340,224 @@ def _inline_flow(
     walk_inline(el)
     plain = WS_RE.sub(" ", "".join(plain_parts)).strip()
     return "".join(html_parts), plain
+
+
+def _cell_flow(
+    el,
+    title_by_chron: dict[str, str] | None = None,
+) -> tuple[str, str]:
+    """Table cell: inline/ptxt without wrapping every fragment in <p>."""
+    title_by_chron = title_by_chron or {}
+    chunks: list[str] = []
+    plains: list[str] = []
+    tag = _local_tag(el.tag)
+    if tag in ("ptxt", "phrase", "emph"):
+        html_inline, plain = _inline_flow(el, title_by_chron)
+        if html_inline.strip():
+            chunks.append(html_inline)
+        if plain:
+            plains.append(plain)
+    else:
+        if el.text and el.text.strip():
+            t = el.text.replace("\n", " ")
+            chunks.append(html_lib.escape(t))
+            plains.append(t)
+        for child in list(el):
+            h, p = _cell_flow(child, title_by_chron)
+            if h:
+                chunks.append(h)
+            if p:
+                plains.append(p)
+            if child.tail and child.tail.strip():
+                t = child.tail.replace("\n", " ")
+                chunks.append(html_lib.escape(t))
+                plains.append(t)
+    return "".join(chunks), WS_RE.sub(" ", " ".join(plains)).strip()
+
+
+def _colspec_names(tgroup) -> list[str]:
+    names: list[str] = []
+    for c in list(tgroup):
+        if _local_tag(c.tag) != "colspec":
+            continue
+        name = (c.get("colname") or "").strip()
+        if not name:
+            name = f"col{len(names) + 1}"
+        names.append(name)
+    return names
+
+
+def _col_index(colnames: list[str], name: str | None) -> int | None:
+    if not name or not colnames:
+        return None
+    try:
+        return colnames.index(name)
+    except ValueError:
+        m = re.match(r"^col(\d+)$", name, re.I)
+        if m:
+            i = int(m.group(1)) - 1
+            if 0 <= i < len(colnames):
+                return i
+        return None
+
+
+def _entry_placement(entry, colnames: list[str]) -> tuple[int | None, int, int]:
+    """Return (start_col_or_None, colspan, rowspan) from CALS attrs."""
+    namest = (entry.get("namest") or "").strip() or None
+    nameend = (entry.get("nameend") or "").strip() or None
+    colname = (entry.get("colname") or "").strip() or None
+    morerows_raw = (entry.get("morerows") or "").strip()
+    rowspan = 1
+    if morerows_raw.isdigit():
+        rowspan = max(1, int(morerows_raw) + 1)
+
+    if namest and nameend and colnames:
+        i0 = _col_index(colnames, namest)
+        i1 = _col_index(colnames, nameend)
+        if i0 is not None and i1 is not None and i1 >= i0:
+            return i0, i1 - i0 + 1, rowspan
+    if colname and colnames:
+        i0 = _col_index(colnames, colname)
+        if i0 is not None:
+            return i0, 1, rowspan
+    if namest and nameend:
+        # No colspec list — try numeric colN
+        i0 = _col_index([f"col{i}" for i in range(1, 33)], namest)
+        i1 = _col_index([f"col{i}" for i in range(1, 33)], nameend)
+        if i0 is not None and i1 is not None and i1 >= i0:
+            return i0, i1 - i0 + 1, rowspan
+    return None, 1, rowspan
+
+
+def _render_cals_row(
+    row,
+    colnames: list[str],
+    title_by_chron: dict[str, str],
+    plain_bits: list[str],
+    *,
+    header: bool,
+    pending: list[int] | None = None,
+) -> str:
+    """Emit one <tr> with colspan/rowspan; skip cells covered by prior morerows.
+
+    Full-width morerows (VIDA form notes) expand into a label row + empty grid
+    rows so the writable area stays at the bottom with column lines — not as
+    extra columns on the right.
+    """
+    entries = [e for e in list(row) if _local_tag(e.tag) == "entry"]
+    cell_tag = "th" if header else "td"
+    n = len(colnames)
+    if n <= 0:
+        max_end = 0
+        cursor = 0
+        for e in entries:
+            start, span, _rs = _entry_placement(e, [f"col{i}" for i in range(1, 33)])
+            if start is None:
+                start = cursor
+            max_end = max(max_end, start + span)
+            cursor = start + span
+        n = max(max_end, len(entries), 1)
+        colnames = [f"col{i}" for i in range(1, n + 1)]
+
+    if pending is None:
+        pending = [0] * n
+    while len(pending) < n:
+        pending.append(0)
+
+    # slots[i] = None | "occ" | "span" | (html, colspan, rowspan)
+    slots: list = [None] * n
+    for i in range(n):
+        if pending[i] > 0:
+            slots[i] = "occ"
+
+    cursor = 0
+    expand_grid_rows = 0
+    for entry in entries:
+        cell_html, cell_plain = _cell_flow(entry, title_by_chron)
+        start, span, rowspan = _entry_placement(entry, colnames)
+        if start is None:
+            while cursor < n and slots[cursor] is not None:
+                cursor += 1
+            if cursor >= n:
+                continue
+            start = cursor
+        if all(slots[j] is not None for j in range(start, min(n, start + max(1, span)))):
+            continue
+        while start < n and slots[start] is not None:
+            start += 1
+        if start >= n:
+            continue
+        span = max(1, min(span, n - start))
+        for j in range(start, start + span):
+            if slots[j] is not None:
+                span = j - start
+                break
+        if span < 1:
+            continue
+        if cell_plain:
+            plain_bits.append(cell_plain)
+
+        # Full-width notes/form block: label + one writable pad row (VIDA-like).
+        # Do not expand into many empty grid rows — they bloat print onto page 2.
+        if rowspan > 1 and start == 0 and span >= n:
+            slots[start] = (cell_html, span, 1)
+            for j in range(start, start + span):
+                slots[j] = "span" if j > start else slots[j]
+                pending[j] = max(pending[j], rowspan)
+            expand_grid_rows = max(expand_grid_rows, 1)
+            cursor = start + span
+            continue
+
+        slots[start] = (cell_html, span, rowspan)
+        for j in range(start + 1, start + span):
+            slots[j] = "span"
+        if rowspan > 1:
+            for j in range(start, start + span):
+                pending[j] = max(pending[j], rowspan)
+        cursor = start + span
+
+    out: list[str] = ["<tr>"]
+    i = 0
+    emitted = False
+    while i < n:
+        cell = slots[i]
+        if cell in ("span", "occ"):
+            i += 1
+            continue
+        if cell is None:
+            out.append(f"<{cell_tag}></{cell_tag}>")
+            emitted = True
+            i += 1
+            continue
+        html, span, rowspan = cell
+        attrs = ""
+        if span > 1:
+            attrs += f' colspan="{span}"'
+        if rowspan > 1:
+            attrs += f' rowspan="{rowspan}"'
+        out.append(f"<{cell_tag}{attrs}>{html}</{cell_tag}>")
+        emitted = True
+        i += span
+    out.append("</tr>")
+
+    extras = ""
+    if expand_grid_rows > 0:
+        # One full-width writable strip (not N×cols empty cells that stretch print).
+        extras = (
+            f'<tr class="sr-form-pad">'
+            f'<{cell_tag} colspan="{n}">&nbsp;</{cell_tag}>'
+            f"</tr>"
+        )
+
+    # Consume one row of pending coverage.
+    for j in range(n):
+        if pending[j] > 0:
+            pending[j] -= 1
+
+    # CALS stub rows under rowspan/expand: emit nothing (grid already expanded).
+    if not emitted:
+        return ""
+    return "".join(out) + extras
 
 
 def xml_to_html(
@@ -259,6 +623,102 @@ def xml_to_html(
             for c in list(el):
                 walk(c)
             parts.append("</section>")
+            return
+
+        if tag == "torqueinfo":
+            # Compact torque specs: component + Nm + optional illustration.
+            docno = (el.get("docno") or "").strip()
+            torque_res = (el.get("torqueRes") or "").strip()
+            chron = _chronicle_from_ref(el.get("IE-ID") or "")
+            heading = (chron and title_by_chron.get(chron)) or docno
+            component = ""
+            value = ""
+            unit = ""
+            for c in list(el):
+                ct = _local_tag(c.tag)
+                if ct == "component":
+                    component = _elem_plain(c)
+                elif ct == "value":
+                    value = _elem_plain(c)
+                    unit = (c.get("unit") or "").strip()
+            if not heading:
+                bits = [docno, component]
+                if value:
+                    bits.append(f"{value} {unit}".strip())
+                heading = " · ".join(b for b in bits if b)
+            if heading:
+                parts.append(f"<h2>{html_lib.escape(heading)}</h2>")
+                plain_bits.append(heading)
+            parts.append('<article class="sr-torque">')
+            if docno:
+                parts.append(f'<p class="sr-torque-docno"><code>{html_lib.escape(docno)}</code></p>')
+            if torque_res:
+                chunk = _img_html(torque_res, docno or torque_res, assets)
+                if chunk:
+                    parts.append(chunk)
+                else:
+                    parts.append(f'<p class="sr-missing-img">[{html_lib.escape(torque_res)}]</p>')
+            parts.append('<dl class="sr-torque-dl">')
+            if component:
+                parts.append(f"<dt>Компонент / крепёж</dt><dd>{html_lib.escape(component)}</dd>")
+                plain_bits.append(component)
+            if value:
+                vv = f"{value} {unit}".strip()
+                parts.append(f"<dt>Момент затяжки</dt><dd><strong>{html_lib.escape(vv)}</strong></dd>")
+                plain_bits.append(vv)
+            parts.append("</dl></article>")
+            return
+
+        if tag == "table":
+            # CALS-like VIDA tables: table > tgroup > tbody/thead > row > entry
+            # Respect namest/nameend → colspan and colname placement.
+            # pgwide="1" = VIDA page-wide / landscape form tables.
+            pgwide = (el.get("pgwide") or "").strip() == "1"
+            wrap_cls = "sr-table-wrap sr-table-pgwide" if pgwide else "sr-table-wrap"
+            parts.append(f'<div class="{wrap_cls}"><table class="sr-table">')
+            for tg in list(el):
+                if _local_tag(tg.tag) != "tgroup":
+                    walk(tg)
+                    continue
+                colnames = _colspec_names(tg)
+                for body in list(tg):
+                    bt = _local_tag(body.tag)
+                    if bt == "colspec":
+                        continue
+                    pending_rows = [0] * max(len(colnames), 1)
+                    if bt not in ("thead", "tbody"):
+                        if bt == "row":
+                            parts.append(
+                                _render_cals_row(
+                                    body,
+                                    colnames,
+                                    title_by_chron,
+                                    plain_bits,
+                                    header=False,
+                                    pending=pending_rows,
+                                )
+                            )
+                        continue
+                    parts.append(f"<{bt}>")
+                    for row in list(body):
+                        if _local_tag(row.tag) != "row":
+                            continue
+                        parts.append(
+                            _render_cals_row(
+                                row,
+                                colnames,
+                                title_by_chron,
+                                plain_bits,
+                                header=(bt == "thead"),
+                                pending=pending_rows,
+                            )
+                        )
+                    parts.append(f"</{bt}>")
+            parts.append("</table></div>")
+            return
+
+        # Do not flatten table internals outside table handler
+        if tag in ("tgroup", "colspec", "tbody", "thead", "row", "entry"):
             return
 
         if tag in ("list1", "para", "procstep", "stepgrp", "procedure", "item"):
@@ -392,6 +852,9 @@ def init_sqlite(path: Path) -> sqlite3.Connection:
         CREATE INDEX idx_pv_model ON profile_vehicle(model);
         CREATE INDEX idx_doc_pdid ON documents(project_document_id);
         CREATE INDEX idx_doc_title ON documents(title);
+        CREATE INDEX idx_doc_chronicle ON documents(chronicle_id);
+        CREATE INDEX idx_tree_chronicle ON tree_items(chronicle_id);
+        CREATE INDEX idx_tree_vcc ON tree_items(vcc_number);
         """
     )
     return db
@@ -510,7 +973,25 @@ def main() -> int:
         action="store_true",
         help="Rebuild HTML for existing docs (document-order images, like VIDA)",
     )
+    ap.add_argument(
+        "--rebuild-profiles",
+        action="store_true",
+        help="Rebuild profile_vehicle from existing sqlite (no MDF attach)",
+    )
     args = ap.parse_args()
+
+    if args.rebuild_profiles:
+        if not args.out.is_file():
+            log(f"ERROR: --rebuild-profiles needs existing {args.out}")
+            return 1
+        db = sqlite3.connect(str(args.out))
+        try:
+            n = build_profile_vehicle(db)
+            db.commit()
+            log(f"OK rebuild-profiles rows={n} -> {args.out}")
+            return 0
+        finally:
+            db.close()
 
     if not args.mdf.is_file():
         log(f"ERROR: MDF not found: {args.mdf}")
@@ -760,36 +1241,7 @@ def main() -> int:
             """
         )
 
-        # Coarse profile → vehicle from tree item titles sharing a profile
-        log("Building coarse profile_vehicle map…")
-        rows = db.execute(
-            """
-            SELECT tip.profile_id, ti.title
-            FROM tree_item_profiles tip
-            JOIN tree_items ti ON ti.id = tip.tree_item_id
-            WHERE ti.title IS NOT NULL AND ti.title != ''
-            """
-        ).fetchall()
-        # profile -> model counts from titles that mention model
-        from collections import defaultdict
-
-        scores: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        for pid, title in rows:
-            up = (title or "").upper()
-            for model in MODEL_TOKENS:
-                if model in up:
-                    scores[pid][model] += 1
-        pv = []
-        for pid, models in scores.items():
-            # keep models that appear at least twice for this profile
-            for model, cnt in models.items():
-                if cnt >= 2:
-                    pv.append((pid, model, None, None))
-        db.executemany(
-            "INSERT OR IGNORE INTO profile_vehicle(profile_id, model, year_from, year_to) VALUES (?,?,?,?)",
-            pv,
-        )
-        log(f"  profile_vehicle rows {len(pv)}")
+        build_profile_vehicle(db)
 
         db.execute(
             "INSERT INTO meta(key,value) VALUES (?,?)",

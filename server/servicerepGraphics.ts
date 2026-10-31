@@ -1,10 +1,12 @@
 /**
  * Local cache of ServiceRep illustrations from VIDA ImageRepository.
  * Files: data/servicerep-graphics/<graphicId>.{gif,png,...}
+ * Portable DB: data/servicerep-graphics.sqlite (for VPS without LocalDB/MDF)
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import Database from "better-sqlite3";
 
 const ROOT = resolve(process.cwd());
 
@@ -12,17 +14,91 @@ export function servicerepGraphicsDir(): string {
   return resolve(process.env.SERVICEREP_GRAPHICS_DIR || join(ROOT, "data", "servicerep-graphics"));
 }
 
-const GRAPHIC_REF_RE =
-  /([0-9a-f]{16})(?:_\d+_\d+)?(?:\.(?:gif|png|jpe?g|svg))?/i;
-
-export function parseGraphicId(ref: string): string | null {
-  const m = String(ref || "").trim().match(GRAPHIC_REF_RE);
-  return m ? m[1].toLowerCase() : null;
+export function servicerepGraphicsDbPath(): string {
+  return resolve(
+    process.env.SERVICEREP_GRAPHICS_DB || join(ROOT, "data", "servicerep-graphics.sqlite"),
+  );
 }
 
-export function findCachedGraphic(id: string): { path: string; mime: string } | null {
+const HEX_GRAPHIC_RE =
+  /(?:^|[\\/])([0-9a-f]{16})(?:_\d+_\d+)?(?:\.(?:gif|png|jpe?g|svg))?$/i;
+const NAMED_GRAPHIC_RE =
+  /(?:^|[\\/])((?:IMG|GR)-\d+)(?:\.(?:gif|png|jpe?g|svg|cgm))?$/i;
+
+/** Hex ImageRepo id or VIDA file stem (IMG-227782 / GR-366703). */
+export function parseGraphicId(ref: string): string | null {
+  const s = String(ref || "").trim();
+  if (!s) return null;
+  const hex = s.match(HEX_GRAPHIC_RE) || s.match(/^([0-9a-f]{16})$/i);
+  if (hex) return hex[1].toLowerCase();
+  const named = s.match(NAMED_GRAPHIC_RE);
+  if (!named) return null;
+  let id = named[1].toUpperCase().replace(/_/g, "-");
+  if (id.startsWith("IMG") && !id.startsWith("IMG-")) id = `IMG-${id.slice(3)}`;
+  if (id.startsWith("GR") && !id.startsWith("GR-")) id = `GR-${id.slice(2)}`;
+  return id;
+}
+
+function cacheKeys(id: string): string[] {
+  const keys = [id];
+  if (id !== id.toLowerCase()) keys.push(id.toLowerCase());
+  if (id !== id.toUpperCase()) keys.push(id.toUpperCase());
+  return [...new Set(keys)];
+}
+
+export type GraphicHit =
+  | { kind: "file"; path: string; mime: string }
+  | { kind: "buffer"; bytes: Buffer; mime: string };
+
+let graphicsDb: Database.Database | null = null;
+let graphicsDbPathOpened = "";
+let graphicsDbMtimeMs = 0;
+
+function openGraphicsDb(): Database.Database | null {
+  const path = servicerepGraphicsDbPath();
+  if (!existsSync(path)) {
+    if (graphicsDb) {
+      try {
+        graphicsDb.close();
+      } catch {
+        /* ignore */
+      }
+      graphicsDb = null;
+      graphicsDbPathOpened = "";
+      graphicsDbMtimeMs = 0;
+    }
+    return null;
+  }
+  let mtimeMs = 0;
+  try {
+    mtimeMs = statSync(path).mtimeMs;
+  } catch {
+    /* ignore */
+  }
+  if (graphicsDb && graphicsDbPathOpened === path && mtimeMs === graphicsDbMtimeMs) {
+    return graphicsDb;
+  }
+  if (graphicsDb) {
+    try {
+      graphicsDb.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    graphicsDb = new Database(path, { readonly: true, fileMustExist: true });
+    graphicsDb.pragma("query_only = ON");
+    graphicsDbPathOpened = path;
+    graphicsDbMtimeMs = mtimeMs;
+    return graphicsDb;
+  } catch {
+    graphicsDb = null;
+    return null;
+  }
+}
+
+function findFileGraphic(id: string): GraphicHit | null {
   const dir = servicerepGraphicsDir();
-  const gid = id.toLowerCase();
   const mimeByExt: Record<string, string> = {
     ".gif": "image/gif",
     ".png": "image/png",
@@ -31,21 +107,47 @@ export function findCachedGraphic(id: string): { path: string; mime: string } | 
     ".svg": "image/svg+xml",
     ".bin": "application/octet-stream",
   };
-  for (const [ext, mime] of Object.entries(mimeByExt)) {
-    const p = join(dir, `${gid}${ext}`);
-    if (existsSync(p) && statSync(p).size > 0) return { path: p, mime };
+  for (const gid of cacheKeys(id)) {
+    for (const [ext, mime] of Object.entries(mimeByExt)) {
+      const p = join(dir, `${gid}${ext}`);
+      if (existsSync(p) && statSync(p).size > 0) return { kind: "file", path: p, mime };
+    }
   }
   return null;
+}
+
+function findDbGraphic(id: string): GraphicHit | null {
+  const d = openGraphicsDb();
+  if (!d) return null;
+  try {
+    let row: { mime: string; bytes: Buffer } | undefined;
+    for (const key of cacheKeys(id)) {
+      row = d
+        .prepare(`SELECT mime, bytes FROM graphics WHERE id=? LIMIT 1`)
+        .get(key) as { mime: string; bytes: Buffer } | undefined;
+      if (row?.bytes?.length) break;
+    }
+    if (!row?.bytes?.length) return null;
+    return { kind: "buffer", bytes: Buffer.from(row.bytes), mime: row.mime || "image/gif" };
+  } catch {
+    return null;
+  }
+}
+
+export function findCachedGraphic(id: string): GraphicHit | null {
+  return findFileGraphic(id) || findDbGraphic(id);
 }
 
 /** Rewrite import placeholders to img tags served by /api/service/graphic/:id */
 export function rewriteServiceHtmlImages(html: string | null): string | null {
   if (!html) return html;
-  return html.replace(/<p class="sr-missing-img">\[([^\]]+)\]<\/p>/gi, (_full, ref: string) => {
-    const id = parseGraphicId(ref);
-    if (!id) return _full;
-    const alt = String(ref).replace(/"/g, "&quot;");
-    return `<figure class="sr-fig"><img src="/api/service/graphic/${id}" alt="${alt}" loading="lazy"/></figure>`;
+  return html.replace(/<p class="sr-missing-img">\[?([^\]<]+)\]?<\/p>/gi, (_full, ref: string) => {
+    const gid = parseGraphicId(ref);
+    if (!gid) {
+      return `<p class="sr-missing-img">иллюстрация недоступна</p>`;
+    }
+    const alt = String(gid).replace(/"/g, "&quot;");
+    return `<figure class="sr-fig"><img src="/api/service/graphic/${gid}" alt="${alt}" loading="lazy"/></figure>`;
   });
 }
 
@@ -128,11 +230,21 @@ function runFetchScript(ids: string[]): Promise<void> {
   });
 }
 
-/** Ensure graphic is on disk (batching concurrent requests). */
+/** Ensure graphic is on disk (batching concurrent requests). Skips if already in file/DB cache. */
 export function ensureServiceGraphic(id: string): Promise<boolean> {
-  const gid = id.toLowerCase();
-  if (!/^[0-9a-f]{16}$/.test(gid)) return Promise.resolve(false);
+  const gid = parseGraphicId(id);
+  if (!gid) return Promise.resolve(false);
   if (findCachedGraphic(gid)) return Promise.resolve(true);
+  // On VPS there is usually no ImageRepository MDF — don't spawn doomed Python.
+  if (!existsSync(join(ROOT, "scripts", "servicerep_fetch_graphic.py"))) {
+    return Promise.resolve(false);
+  }
+  const mdf =
+    process.env.VIDA_IMAGE_MDF ||
+    (existsSync("E:\\manual\\imagerepository_Data.MDF") ? "E:\\manual\\imagerepository_Data.MDF" : "");
+  if (!mdf || !existsSync(mdf)) {
+    return Promise.resolve(false);
+  }
   return new Promise((resolvePromise, reject) => {
     const list = pending.get(gid) || [];
     list.push({ resolve: resolvePromise, reject });
@@ -142,11 +254,22 @@ export function ensureServiceGraphic(id: string): Promise<boolean> {
 }
 
 export function listCachedGraphicCount(): number {
+  let n = 0;
   const dir = servicerepGraphicsDir();
-  if (!existsSync(dir)) return 0;
-  try {
-    return readdirSync(dir).filter((n) => /\.(gif|png|jpe?g|svg|bin)$/i.test(n)).length;
-  } catch {
-    return 0;
+  if (existsSync(dir)) {
+    try {
+      n += readdirSync(dir).filter((name) => /\.(gif|png|jpe?g|svg|bin)$/i.test(name)).length;
+    } catch {
+      /* ignore */
+    }
   }
+  const d = openGraphicsDb();
+  if (d) {
+    try {
+      n += Number(d.prepare(`SELECT COUNT(*) AS c FROM graphics`).get()?.c || 0);
+    } catch {
+      /* ignore */
+    }
+  }
+  return n;
 }

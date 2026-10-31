@@ -23,6 +23,15 @@ test("filters cascade: V70 2008 keeps 2.5T; XC60 2009 has none", () => {
   assert.ok(!resolveFilters({ model: "XC60", year: "2009" }).engines.includes("2.5T"));
 });
 
+test("filters cascade: XC60 2014 lists 2.4D D4 separately from D5", () => {
+  const r = resolveFilters({ model: "XC60", year: "2014" });
+  assert.ok(r.engines.includes("2.4D D5"));
+  assert.ok(r.engines.includes("2.4D D4"));
+  assert.ok(r.engines.includes("2.0D D4"));
+  assert.ok(r.engines.includes("2.0D D3"));
+  assert.ok(!r.engines.includes("2.0D D3/D4"));
+});
+
 test("filters cascade: XC60 2014 offers regional 2.5T (B5254T12 T5 AWD)", () => {
   const xc60 = resolveFilters({ model: "XC60", year: "2014", engine: "2.5T" });
   assert.ok(xc60.engines.includes("2.5T"));
@@ -136,8 +145,38 @@ test("filters soft: empty transmission kept as all-KPP", () => {
 });
 
 test("filters cascade: 2.0D offers MPS6", () => {
-  const r = resolveFilters({ model: "XC70", year: "2012", engine: "2.0D D3/D4" });
+  const r = resolveFilters({ model: "XC70", year: "2012", engine: "2.0D D4" });
   assert.ok(r.transmissions.some((t) => t.id === "MPS6"));
+  const alias = resolveFilters({ model: "XC70", year: "2012", engine: "2.0D D3/D4" });
+  assert.equal(alias.selection.engine, "2.0D D4");
+});
+
+test("filters cascade: shared EWD families are grouped for the engine picker", () => {
+  const r = resolveFilters({ model: "XC60", year: "2014" });
+  const diesel24 = r.engineSections.find((section) => section.id === "2.4D");
+  assert.ok(diesel24?.label === "2.4D");
+  assert.deepEqual(
+    diesel24?.options.map((opt) => opt.id),
+    ["2.4D D5", "2.4D D4"],
+  );
+  assert.deepEqual(
+    diesel24?.options.map((opt) => opt.label),
+    ["D5", "D4"],
+  );
+  const diesel20 = r.engineSections.find((section) => section.id === "2.0D");
+  assert.deepEqual(
+    diesel20?.options.map((opt) => opt.id),
+    ["2.0D D4", "2.0D D3"],
+  );
+  const driveE = r.engineSections.find((section) => section.id === "2.0 Drive-E");
+  assert.deepEqual(
+    driveE?.options.map((opt) => opt.id),
+    ["2.0T Drive-E", "2.0D Drive-E"],
+  );
+  assert.equal(
+    r.engineOptions.find((opt) => opt.id === "2.4D D4")?.label,
+    "2.4D D4",
+  );
 });
 
 test("VIN decode rejects short input", () => {

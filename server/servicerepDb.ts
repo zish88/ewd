@@ -6,6 +6,114 @@ import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { rewriteServiceHtmlImages } from "./servicerepGraphics.js";
+import { repairServiceTitle, repairServiceHtml } from "./serviceTitleRepair.js";
+import { extractTorqueinfoFromHtml, rewriteTorqueinfoHtml, torqueinfoDisplayTitle } from "./serviceTorqueinfo.js";
+
+/** Common Swedish href/@title fragments → RU when target doc is missing from sqlite. */
+const SV_XREF_PHRASES: Array<[RegExp, string]> = [
+  [/\bÅtdragningsmoment\b/gi, "Момент затяжки"],
+  [/\bVäxellåda\b/gi, "Коробка передач"],
+  [/\bkontroll\b/gi, "проверка"],
+  [/\bbyte\b/gi, "замена"],
+  [/\bDitsättning\b/gi, "Установка"],
+  [/\bBorttagning\b/gi, "Снятие"],
+  [/\bSpecifikationer?\b/gi, "Спецификации"],
+  [/\bTÄTNINGSPLUGG\b/gi, "Заглушки"],
+  [/\bBromsskiva bak till hjulnav\b/gi, "Тормозной диск задний к ступице"],
+  [/\bBromsskiva fram till hjulnav\b/gi, "Тормозной диск передний к ступице"],
+  [/\bBromsslang till bromsok bak\b/gi, "Тормозной шланг к суппорту задний"],
+  [/\bBromsslang till bromsok fram\b/gi, "Тормозной шланг к суппорту передний"],
+  [/\bGlidstång bromsok bak\b/gi, "Направляющий палец суппорта задний"],
+  [/\bGlidstång bromsok fram\b/gi, "Направляющий палец суппорта передний"],
+  [/\bFäste\b/gi, "Крепление"],
+  [/\bBromsok\b/gi, "Суппорт тормоза"],
+  [/\bBromsskiva\b/gi, "Тормозной диск"],
+  [/\bBromsslang\b/gi, "Тормозной шланг"],
+  [/\bGlidstång\b/gi, "Направляющий палец"],
+];
+
+function looksNonRussian(label: string): boolean {
+  const s = String(label || "");
+  if (!s) return false;
+  if (/[ÅÄÖåäö]/.test(s)) return true;
+  const cyr = (s.match(/[А-Яа-яЁё]/g) || []).length;
+  const lat = (s.match(/[A-Za-z]/g) || []).length;
+  return lat >= 4 && cyr === 0;
+}
+
+/** Lower is better for RU UI: Cyrillic titles before leftover Swedish/English VIDA stubs. */
+export function preferRuDocRank(title: string, html?: string | null): number {
+  const t = String(title || "").trim();
+  if (/[А-Яа-яЁё]/.test(t)) return 0;
+  const sample = `${t}\n${String(html || "").slice(0, 1200)}`;
+  if (/[ÅÄÖåäö]/.test(sample) || /\b(Förberedelser|Borttagning|Ditsättning|Ta bort|Sätt dit)\b/i.test(sample)) {
+    return 3;
+  }
+  if (looksNonRussian(t)) return 2;
+  if (!t) return 1;
+  return 1;
+}
+
+function localizeSvXrefLabel(label: string): string {
+  let out = String(label || "");
+  for (const [re, ru] of SV_XREF_PHRASES) out = out.replace(re, ru);
+  return out;
+}
+
+/** Replace Swedish/foreign sr-xref labels with RU document titles when chronicle resolves. */
+export function rewriteServiceHtmlXrefLabels(
+  html: string | null,
+  titleByChron: Map<string, string>,
+): string | null {
+  if (!html || !html.includes("sr-xref")) return html;
+  return html.replace(
+    /<a\b([^>]*\bclass="[^"]*\bsr-xref\b[^"]*"[^>]*)>([\s\S]*?)<\/a>/gi,
+    (full, attrs: string, inner: string) => {
+      const chronM = String(attrs).match(/\bdata-sr-chronicle="([0-9a-f]{16})"/i);
+      const chron = chronM?.[1]?.toLowerCase() || "";
+      const plainInner = String(inner).replace(/<[^>]+>/g, "").trim();
+      let next = plainInner;
+      if (chron && titleByChron.has(chron)) {
+        const ru = repairServiceTitle(titleByChron.get(chron) || "").trim();
+        if (ru && looksNonRussian(plainInner)) next = ru;
+      } else if (looksNonRussian(plainInner)) {
+        next = localizeSvXrefLabel(plainInner);
+      }
+      if (!next || next === plainInner) return full;
+      return `<a${attrs}>${next.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</a>`;
+    },
+  );
+}
+
+/**
+ * Mark VIDA page-wide / multi-column form tables for landscape screen+print.
+ * Adds `sr-table-pgwide` when a wrap's table has ≥6 logical columns (colspan-aware).
+ */
+export function markServiceWideTables(html: string | null): string | null {
+  if (!html || !html.includes("sr-table-wrap")) return html;
+  return html.replace(
+    /<div class="(sr-table-wrap)((?:\s+[\w-]+)*)">([\s\S]*?)<\/table>\s*<\/div>/gi,
+    (full, _wrap: string, extra: string, inner: string) => {
+      if (/\bsr-table-pgwide\b/.test(extra)) return full;
+      let maxCols = 0;
+      const rows = String(inner).match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+      for (const row of rows) {
+        let cols = 0;
+        const cells = row.match(/<(?:td|th)\b([^>]*)>/gi) || [];
+        for (const cell of cells) {
+          const m = /\bcolspan\s*=\s*["']?(\d+)/i.exec(cell);
+          cols += m ? Number(m[1]) : 1;
+        }
+        if (cols > maxCols) maxCols = cols;
+      }
+      if (maxCols < 6) return full;
+      return full.replace(
+        /<div class="sr-table-wrap/,
+        '<div class="sr-table-wrap sr-table-pgwide',
+      );
+    },
+  );
+}
 
 const ROOT = resolve(process.cwd());
 
@@ -17,9 +125,14 @@ export type ServiceStatus = {
   treeCount: number;
 };
 
+export type ServiceTreeVariant = {
+  treeItemId: number;
+  docCount: number;
+};
+
 export type ServiceTreeNode = {
   id: string;
-  kind: "fg" | "item";
+  kind: "fg" | "item" | "item-group";
   code?: string;
   title: string;
   treeItemId?: number;
@@ -28,6 +141,19 @@ export type ServiceTreeNode = {
   /** Folder may have children not yet loaded (lazy tree). */
   hasChildren?: boolean;
   childCount?: number;
+  /** item-group: number of same-title variants under this branch. */
+  variantCount?: number;
+  variants?: ServiceTreeVariant[];
+};
+
+export type ServiceFilterStatus = "none" | "applied" | "no_profiles";
+
+export type ServiceTreeResult = {
+  tree: ServiceTreeNode[];
+  filterStatus: ServiceFilterStatus;
+  profileCount: number;
+  model: string | null;
+  year: string | null;
 };
 
 export type ServiceSearchHit = {
@@ -87,13 +213,15 @@ export function openServicerepDb(): Database.Database | null {
       /* ignore */
     }
   }
+  // Indexes + WAL checkpoint need a short RW open (readonly container volume is host-writable).
+  ensureServicerepPerfIndexes(path);
   db = new Database(path, { readonly: true, fileMustExist: true });
   db.pragma("query_only = ON");
-  // Low-RAM VPS: avoid full-table scans thrashing 1GB DB into swap.
+  // Low-RAM VPS (~1GB): keep cache modest; full-table scans thrash badly without indexes.
   try {
-    db.pragma("cache_size = -65536"); // ~64MB
+    db.pragma("cache_size = -32768"); // ~32MB
     db.pragma("temp_store = MEMORY");
-    db.pragma("mmap_size = 67108864"); // 64MB
+    db.pragma("mmap_size = 33554432"); // 32MB
   } catch {
     /* ignore */
   }
@@ -101,6 +229,35 @@ export function openServicerepDb(): Database.Database | null {
   dbMtimeMs = mtimeMs;
   statusCache = null;
   return db;
+}
+
+let indexesEnsuredFor = "";
+
+/** Create chronicle indexes once — without them doc/xref lookups scan 1GB HTML table. */
+function ensureServicerepPerfIndexes(path: string): void {
+  if (indexesEnsuredFor === path) return;
+  try {
+    const w = new Database(path);
+    try {
+      w.pragma("journal_mode = WAL");
+      w.exec(`
+        CREATE INDEX IF NOT EXISTS idx_doc_chronicle ON documents(chronicle_id);
+        CREATE INDEX IF NOT EXISTS idx_tree_chronicle ON tree_items(chronicle_id);
+        CREATE INDEX IF NOT EXISTS idx_tree_vcc ON tree_items(vcc_number);
+      `);
+      try {
+        w.pragma("wal_checkpoint(TRUNCATE)");
+      } catch {
+        /* ignore */
+      }
+      indexesEnsuredFor = path;
+    } finally {
+      w.close();
+    }
+  } catch {
+    // Readonly filesystem / locked DB — keep serving without indexes.
+    indexesEnsuredFor = path;
+  }
 }
 
 function metaMap(d: Database.Database): Map<string, string> {
@@ -171,8 +328,129 @@ function profileIdsForModel(d: Database.Database, model: string): string[] | nul
   const rows = d
     .prepare(`SELECT DISTINCT profile_id AS p FROM profile_vehicle WHERE UPPER(model)=?`)
     .all(m) as Array<{ p: string }>;
-  if (!rows.length) return null;
+  // Empty array = model requested but uncovered (hard empty). null = no model filter.
   return rows.map((r) => r.p);
+}
+
+/** Models present in profile_vehicle (for filters UI). */
+export function listServiceCoveredModels(): string[] {
+  const d = openServicerepDb();
+  if (!d) return [];
+  try {
+    return (
+      d.prepare(`SELECT DISTINCT model AS m FROM profile_vehicle ORDER BY model`).all() as Array<{ m: string }>
+    ).map((r) => r.m);
+  } catch {
+    return [];
+  }
+}
+
+/** Year ranges found in profile_vehicle for a model (may be empty). */
+export function listServiceProfileYears(model: string): number[] {
+  const d = openServicerepDb();
+  if (!d) return [];
+  const m = String(model || "").trim().toUpperCase();
+  if (!m) return [];
+  try {
+    const rows = d
+      .prepare(
+        `
+        SELECT year_from AS yf, year_to AS yt
+        FROM profile_vehicle
+        WHERE UPPER(model)=? AND (year_from IS NOT NULL OR year_to IS NOT NULL)
+      `,
+      )
+      .all(m) as Array<{ yf: number | null; yt: number | null }>;
+    const set = new Set<number>();
+    for (const r of rows) {
+      const a = r.yf ?? r.yt;
+      const b = r.yt ?? r.yf;
+      if (a == null || b == null) continue;
+      for (let y = a; y <= b; y++) set.add(y);
+    }
+    return [...set].sort((x, y) => x - y);
+  } catch {
+    return [];
+  }
+}
+
+function resolveVehicleFilter(
+  d: Database.Database,
+  model: string,
+  year: string,
+): { profileFilter: string[] | null; filterStatus: ServiceFilterStatus; profileCount: number } {
+  if (!model) {
+    return { profileFilter: null, filterStatus: "none", profileCount: 0 };
+  }
+  let profileFilter = profileIdsForModel(d, model);
+  if (!profileFilter.length) {
+    return { profileFilter: [], filterStatus: "no_profiles", profileCount: 0 };
+  }
+  profileFilter = narrowProfilesByYear(d, profileFilter, model, year) || profileFilter;
+  return {
+    profileFilter,
+    filterStatus: "applied",
+    profileCount: profileFilter.length,
+  };
+}
+
+function titleKey(title: string): string {
+  return String(title || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+/** Drop TOC leaves whose titles clearly belong to another vehicle/era. */
+function filterLeavesForVehicle(
+  leaves: Array<{ id: number; title: string; doc_count: number }>,
+  model: string,
+  year: string,
+): Array<{ id: number; title: string; doc_count: number }> {
+  if (!model) return leaves;
+  return leaves.filter(
+    (leaf) => !titleIncompatibleWithVehicle(repairServiceTitle(leaf.title), model, year),
+  );
+}
+
+/** Collapse same-title leaves into one item-group (preferred = most docs). */
+function dedupeLeaves(
+  leaves: Array<{ id: number; title: string; doc_count: number }>,
+): ServiceTreeNode[] {
+  const groups = new Map<string, Array<{ id: number; title: string; doc_count: number }>>();
+  for (const leaf of leaves) {
+    const title = repairServiceTitle(leaf.title);
+    const key = titleKey(title);
+    const normalized = { ...leaf, title };
+    const list = groups.get(key);
+    if (list) list.push(normalized);
+    else groups.set(key, [normalized]);
+  }
+  const out: ServiceTreeNode[] = [];
+  for (const list of groups.values()) {
+    list.sort((a, b) => b.doc_count - a.doc_count || a.id - b.id);
+    const best = list[0]!;
+    if (list.length === 1) {
+      out.push({
+        id: `item:${best.id}`,
+        kind: "item",
+        treeItemId: best.id,
+        title: best.title,
+        docCount: best.doc_count,
+      });
+      continue;
+    }
+    out.push({
+      id: `group:${best.id}`,
+      kind: "item-group",
+      treeItemId: best.id,
+      title: best.title,
+      docCount: best.doc_count,
+      variantCount: list.length,
+      variants: list.map((v) => ({ treeItemId: v.id, docCount: v.doc_count })),
+    });
+  }
+  return out;
 }
 
 function yearOk(yearFrom: number | null, yearTo: number | null, year: string): boolean {
@@ -183,6 +461,69 @@ function yearOk(yearFrom: number | null, yearTo: number | null, year: string): b
   return true;
 }
 
+/** P3 / late models in the UI — drop classic 850-era stubs for these. */
+const MODERN_SERVICE_MODELS = new Set(["XC60", "XC70", "V70", "S80", "S60", "V60"]);
+
+const SERVICE_MODEL_IN_TITLE_RE = /\b(XC90|XC70|XC60|V70|V60|V50|S80|S70|S60|S40|C70|C30)\b/gi;
+
+/**
+ * True when the document title clearly belongs to another vehicle / era
+ * than the selected model+year (VIDA corpus mixes generations).
+ */
+export function titleIncompatibleWithVehicle(title: string, model: string, year: string): boolean {
+  const t = String(title || "").trim();
+  const m = String(model || "").trim().toUpperCase();
+  if (!t || !m) return false;
+  const y = Number(year);
+  const modern = (Number.isFinite(y) && y >= 2007) || MODERN_SERVICE_MODELS.has(m);
+  const isRhs850 = /\bRHS\s*850\b/i.test(t);
+
+  // Classic Volvo 850 car articles (not the RHS 850 A/C reclaim machine).
+  if (modern && !isRhs850) {
+    if (/,\s*850\b/.test(t)) return true;
+    if (/\b850\/S70\b/.test(t)) return true;
+    if (/\bVolvo\s*850\b/i.test(t)) return true;
+    if (/\b850\s+модели\b/i.test(t)) return true;
+    if (/\bSIPS\s*\(\s*850\s*\)/i.test(t)) return true;
+    if (/\b850\b/.test(t) && /\b(199[0-9]|2000|2001|2002)\b/.test(t)) return true;
+    // Bare 850 in part/engine titles: «Подрамник 850», «B5254T 850»
+    if (/\b850\b/.test(t)) return true;
+  }
+
+  // Classic 940 / 960 for modern selections (titles like «960/940, 4-дверная»).
+  if (modern && /\b9[46]0\b/.test(t)) return true;
+
+  // Pre-P3 V70 / S70 generation mixed titles when a late V70/XC70/S60 is selected.
+  if (modern && Number.isFinite(y) && y >= 2008 && (m === "V70" || m === "XC70" || m === "S60")) {
+    if (/\bC70\/S70\/V70\b/i.test(t)) return true;
+    if (/\bS70\/V70\b/i.test(t)) return true;
+    if (/\bV70\s*R\b/i.test(t)) return true;
+    if (/\bS70\/V70\s*R\b/i.test(t)) return true;
+  }
+
+  // S70-only titles when S70 is not the selected model.
+  if (modern && m !== "S70" && /\bS70\b/i.test(t) && !new RegExp(`\\b${m}\\b`, "i").test(t)) {
+    return true;
+  }
+
+  const mentioned = new Set(
+    [...t.matchAll(SERVICE_MODEL_IN_TITLE_RE)].map((x) => String(x[1] || "").toUpperCase()),
+  );
+  if (mentioned.size > 0 && !mentioned.has(m)) return true;
+
+  if (Number.isFinite(y) && y >= 2008) {
+    const yearsInTitle = [...t.matchAll(/\b((?:19|20)\d{2})\b/g)].map((x) => Number(x[1]));
+    if (
+      yearsInTitle.length &&
+      yearsInTitle.every((ty) => ty <= 2002) &&
+      Math.min(...yearsInTitle.map((ty) => y - ty)) >= 6
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function narrowProfilesByYear(
   d: Database.Database,
   profileFilter: string[] | null,
@@ -190,23 +531,39 @@ function narrowProfilesByYear(
   year: string,
 ): string[] | null {
   if (!profileFilter || !year || !model) return profileFilter;
-  const narrowed: string[] = [];
+  const datedOk: string[] = [];
+  const undated: string[] = [];
   for (const pid of profileFilter) {
     const row = d
       .prepare(
         `SELECT year_from AS yf, year_to AS yt FROM profile_vehicle WHERE profile_id=? AND UPPER(model)=? LIMIT 1`,
       )
       .get(pid, model.toUpperCase()) as { yf: number | null; yt: number | null } | undefined;
-    if (!row || yearOk(row.yf, row.yt, year)) narrowed.push(pid);
+    if (!row) {
+      undated.push(pid);
+      continue;
+    }
+    const hasYears = row.yf != null || row.yt != null;
+    if (!hasYears) {
+      undated.push(pid);
+      continue;
+    }
+    if (yearOk(row.yf, row.yt, year)) datedOk.push(pid);
   }
-  return narrowed.length ? narrowed : profileFilter;
+  // When year matches dated profiles, do not dilute with undated (main leak path).
+  if (datedOk.length) return datedOk;
+  return undated.length ? undated : profileFilter;
 }
 
 function treeProfileClause(
   profileFilter: string[] | null,
   alias = "ti",
 ): { sql: string; params: unknown[] } {
-  if (!profileFilter?.length) return { sql: "", params: [] };
+  // null → no vehicle filter; [] → force empty (model uncovered)
+  if (profileFilter === null) return { sql: "", params: [] };
+  if (!profileFilter.length) {
+    return { sql: ` AND 1=0 `, params: [] };
+  }
   const ph = profileFilter.map(() => "?").join(",");
   // All tree_items currently have profiles. IN-subquery uses idx on profile_id
   // (much cheaper than per-row EXISTS over 1M+ tip rows on low-RAM hosts).
@@ -232,7 +589,7 @@ function loadFgTitles(d: Database.Database): Map<string, string> {
 
 function fgTitleOf(fgTitles: Map<string, string>, code: string): string {
   const last = code.includes("/") ? code.split("/").pop() || code : code;
-  return fgTitles.get(code) || fgTitles.get(last) || code;
+  return repairServiceTitle(fgTitles.get(code) || fgTitles.get(last) || code);
 }
 
 const SYSTEMS_FG1 = ["2", "3", "4", "5", "6", "7", "8"] as const;
@@ -287,11 +644,16 @@ function listTreeChildren(
   profileFilter: string[] | null,
   fgTitles: Map<string, string>,
   limit: number,
+  model = "",
+  year = "",
 ): ServiceTreeNode[] {
   const parsed = parseParent(parent);
   if (!parsed) return [];
   const { sql: profSql, params: profParams } = treeProfileClause(profileFilter);
   const out: ServiceTreeNode[] = [];
+  const pushLeaves = (leaves: Array<{ id: number; title: string; doc_count: number }>) => {
+    out.push(...dedupeLeaves(filterLeavesForVehicle(leaves, model, year)));
+  };
 
   if (!parsed.fg2) {
     // Children of fg1: distinct fg2 folders + leaf items with no fg2
@@ -341,15 +703,7 @@ function listTreeChildren(
       )
       .all(parsed.fg1, ...profParams, limit) as Array<{ id: number; title: string; doc_count: number }>;
 
-    for (const r of leaves) {
-      out.push({
-        id: `item:${r.id}`,
-        kind: "item",
-        treeItemId: r.id,
-        title: r.title,
-        docCount: r.doc_count,
-      });
-    }
+    pushLeaves(leaves);
     return out;
   }
 
@@ -408,15 +762,7 @@ function listTreeChildren(
       doc_count: number;
     }>;
 
-    for (const r of leaves) {
-      out.push({
-        id: `item:${r.id}`,
-        kind: "item",
-        treeItemId: r.id,
-        title: r.title,
-        docCount: r.doc_count,
-      });
-    }
+    pushLeaves(leaves);
     return out;
   }
 
@@ -445,25 +791,27 @@ function listTreeChildren(
     doc_count: number;
   }>;
 
-  return leaves.map((r) => ({
-    id: `item:${r.id}`,
-    kind: "item" as const,
-    treeItemId: r.id,
-    title: r.title,
-    docCount: r.doc_count,
-  }));
+  return dedupeLeaves(filterLeavesForVehicle(leaves, model, year));
 }
 
-/** Soft vehicle filter. Without parent → roots only; with parent → lazy children; with q → flat search tree. */
+/** Vehicle filter + title dedupe. Without parent → roots; with parent → lazy children; with q → search tree. */
 export function listServiceTree(opts: {
   model?: string;
   year?: string;
   q?: string;
   parent?: string;
   limit?: number;
-}): ServiceTreeNode[] {
+}): ServiceTreeResult {
+  const empty = (status: ServiceFilterStatus, model: string, year: string): ServiceTreeResult => ({
+    tree: [],
+    filterStatus: status,
+    profileCount: 0,
+    model: model || null,
+    year: year || null,
+  });
+
   const d = openServicerepDb();
-  if (!d) return [];
+  if (!d) return empty("none", "", "");
   const model = String(opts.model || "").trim();
   const year = String(opts.year || "").trim();
   const q = String(opts.q || "").trim();
@@ -471,15 +819,27 @@ export function listServiceTree(opts: {
   const limit = Math.min(Math.max(Number(opts.limit) || 2500, 1), 8000);
   const fgTitles = loadFgTitles(d);
 
-  let profileFilter = profileIdsForModel(d, model);
-  profileFilter = narrowProfilesByYear(d, profileFilter, model, year);
+  const resolved = resolveVehicleFilter(d, model, year);
+  const { profileFilter, filterStatus, profileCount } = resolved;
+
+  if (filterStatus === "no_profiles") {
+    return empty("no_profiles", model, year);
+  }
+
+  const wrap = (tree: ServiceTreeNode[]): ServiceTreeResult => ({
+    tree,
+    filterStatus,
+    profileCount,
+    model: model || null,
+    year: year || null,
+  });
 
   if (!q && !parent) {
-    return listTreeRoots(d, profileFilter, fgTitles);
+    return wrap(listTreeRoots(d, profileFilter, fgTitles));
   }
 
   if (!q && parent) {
-    return listTreeChildren(d, parent, profileFilter, fgTitles, limit);
+    return wrap(listTreeChildren(d, parent, profileFilter, fgTitles, limit, model, year));
   }
 
   // Search mode: return nested tree of matching items (capped, balanced by fg1)
@@ -519,6 +879,10 @@ export function listServiceTree(opts: {
     doc_count: number;
   }>;
 
+  const treeRows = model
+    ? rows.filter((r) => !titleIncompatibleWithVehicle(repairServiceTitle(r.title), model, year))
+    : rows;
+
   type FgMap = Map<string, ServiceTreeNode>;
   const root: FgMap = new Map();
   const top: ServiceTreeNode[] = [];
@@ -540,7 +904,7 @@ export function listServiceTree(opts: {
     return node;
   };
 
-  for (const r of rows) {
+  for (const r of treeRows) {
     const fg1 = r.fg1 || "0";
     const n1 = ensureFg(root, fg1, top);
     n1.children = n1.children || [];
@@ -566,17 +930,25 @@ export function listServiceTree(opts: {
     });
   }
 
-  const strip = (nodes: ServiceTreeNode[]): ServiceTreeNode[] =>
+  const dedupeNodeChildren = (nodes: ServiceTreeNode[]): ServiceTreeNode[] =>
     nodes.map((n) => {
       const { _m, ...rest } = n as ServiceTreeNode & { _m?: FgMap };
       void _m;
-      return {
-        ...rest,
-        children: rest.children?.length ? strip(rest.children) : undefined,
-      };
+      const kids = rest.children?.length ? dedupeNodeChildren(rest.children) : undefined;
+      if (!kids?.length) return { ...rest, children: undefined };
+      const folders = kids.filter((k) => k.kind === "fg");
+      const leaves = kids
+        .filter((k) => k.kind === "item" || k.kind === "item-group")
+        .map((k) => ({
+          id: k.treeItemId || 0,
+          title: k.title,
+          doc_count: k.docCount || 0,
+        }))
+        .filter((k) => k.id);
+      return { ...rest, children: [...folders, ...dedupeLeaves(leaves)] };
     });
 
-  return strip(top);
+  return wrap(dedupeNodeChildren(top));
 }
 
 export function searchServiceDocs(opts: {
@@ -592,8 +964,8 @@ export function searchServiceDocs(opts: {
   const limit = Math.min(Math.max(Number(opts.limit) || 40, 1), 100);
   const model = String(opts.model || "").trim();
   const year = String(opts.year || "").trim();
-  let profileFilter = profileIdsForModel(d, model);
-  profileFilter = narrowProfilesByYear(d, profileFilter, model, year);
+  const { profileFilter, filterStatus } = resolveVehicleFilter(d, model, year);
+  if (filterStatus === "no_profiles") return [];
 
   let rows: Array<{ id: number; title: string; has_html: number; qualifier_id: number | null }> = [];
   try {
@@ -633,25 +1005,59 @@ export function searchServiceDocs(opts: {
     const allowStmt = d.prepare(
       `SELECT 1 AS ok FROM document_profiles WHERE document_id=? AND profile_id IN (${ph}) LIMIT 1`,
     );
-    const bareStmt = d.prepare(
-      `SELECT 1 AS ok FROM documents d WHERE d.id=? AND NOT EXISTS (SELECT 1 FROM document_profiles dp WHERE dp.document_id=d.id) LIMIT 1`,
-    );
     rows = rows.filter((r) => {
-      if (allowStmt.get(r.id, ...profileFilter!)) return true;
-      if (bareStmt.get(r.id)) return true;
-      return false;
+      if (!allowStmt.get(r.id, ...profileFilter!)) return false;
+      if (titleIncompatibleWithVehicle(repairServiceTitle(r.title), model, year)) return false;
+      return true;
     });
+  } else if (model) {
+    rows = rows.filter(
+      (r) => !titleIncompatibleWithVehicle(repairServiceTitle(r.title), model, year),
+    );
   }
 
-  return rows.slice(0, limit).map((r) => ({
-    id: r.id,
-    title: r.title,
-    hasHtml: Boolean(r.has_html),
-    qualifierId: r.qualifier_id,
-  }));
+  return rows
+    .map((r) => ({
+      id: r.id,
+      title: repairServiceTitle(r.title),
+      hasHtml: Boolean(r.has_html),
+      qualifierId: r.qualifier_id,
+      _rank: preferRuDocRank(repairServiceTitle(r.title)),
+    }))
+    .sort((a, b) => {
+      if (Number(b.hasHtml) !== Number(a.hasHtml)) return Number(b.hasHtml) - Number(a.hasHtml);
+      if (a._rank !== b._rank) return a._rank - b._rank;
+      return a.title.localeCompare(b.title, "ru");
+    })
+    .slice(0, limit)
+    .map(({ _rank: _r, ...hit }) => hit);
 }
 
-export function getServiceDoc(id: number): ServiceDoc | null {
+function documentAllowedForVehicle(
+  d: Database.Database,
+  documentId: number,
+  title: string,
+  model: string,
+  year: string,
+): boolean {
+  if (!model) return true;
+  if (titleIncompatibleWithVehicle(title, model, year)) return false;
+  const { profileFilter, filterStatus } = resolveVehicleFilter(d, model, year);
+  if (filterStatus === "no_profiles") return false;
+  if (!profileFilter || !profileFilter.length) return true;
+  const ph = profileFilter.map(() => "?").join(",");
+  const ok = d
+    .prepare(
+      `SELECT 1 AS ok FROM document_profiles WHERE document_id=? AND profile_id IN (${ph}) LIMIT 1`,
+    )
+    .get(documentId, ...profileFilter);
+  return Boolean(ok);
+}
+
+export function getServiceDoc(
+  id: number,
+  opts?: { model?: string; year?: string },
+): ServiceDoc | null {
   const d = openServicerepDb();
   if (!d || !Number.isFinite(id)) return null;
   const row = d
@@ -672,47 +1078,126 @@ export function getServiceDoc(id: number): ServiceDoc | null {
       }
     | undefined;
   if (!row) return null;
+  let rawHtml = rewriteServiceHtmlImages(repairServiceHtml(row.html));
+  let title = repairServiceTitle(row.title);
+  const model = String(opts?.model || "").trim();
+  const year = String(opts?.year || "").trim();
+  const torqueRewrite = rewriteTorqueinfoHtml(rawHtml, "ru");
+  if (torqueRewrite.html && torqueRewrite.html !== rawHtml) {
+    rawHtml = torqueRewrite.html;
+    if ((!title || !title.trim()) && torqueRewrite.title) title = torqueRewrite.title;
+  } else {
+    const tip = extractTorqueinfoFromHtml(row.html);
+    if (tip && (!title || !title.trim())) title = torqueinfoDisplayTitle(tip);
+  }
+  if (model && !documentAllowedForVehicle(d, row.id, title || repairServiceTitle(row.title), model, year)) {
+    return null;
+  }
+  const chronIds = [
+    ...new Set(
+      [...(rawHtml || "").matchAll(/\bdata-sr-chronicle="([0-9a-f]{16})"/gi)].map((m) =>
+        m[1].toLowerCase(),
+      ),
+    ),
+  ];
+  const titleByChron = new Map<string, string>();
+  if (chronIds.length) {
+    const placeholders = chronIds.map(() => "?").join(",");
+    const rows = d
+      .prepare(
+        `SELECT chronicle_id AS chron, title, html FROM documents WHERE chronicle_id IN (${placeholders})`,
+      )
+      .all(...chronIds) as Array<{ chron: string; title: string; html: string | null }>;
+    for (const r of rows) {
+      if (!r.chron) continue;
+      let t = repairServiceTitle(r.title).trim();
+      if (!t) {
+        const tip = extractTorqueinfoFromHtml(r.html);
+        if (tip) t = torqueinfoDisplayTitle(tip);
+      }
+      if (t) titleByChron.set(String(r.chron).toLowerCase(), t);
+    }
+  }
   return {
     id: row.id,
-    title: row.title,
-    html: rewriteServiceHtmlImages(row.html),
+    title: title || repairServiceTitle(row.title),
+    html: markServiceWideTables(rewriteServiceHtmlXrefLabels(rawHtml, titleByChron)),
     hasHtml: Boolean(row.hasHtml),
     path: row.path,
     conditionType: row.conditionType,
   };
 }
 
-export function listDocsForTreeItem(treeItemId: number): ServiceSearchHit[] {
+export function listDocsForTreeItem(
+  treeItemId: number,
+  opts?: { model?: string; year?: string },
+): ServiceSearchHit[] {
   const d = openServicerepDb();
   if (!d) return [];
-  return (
-    d
-      .prepare(
-        `
-      SELECT d.id, d.title, d.has_html AS hasHtml, d.qualifier_id AS qualifierId
+  const model = String(opts?.model || "").trim();
+  const year = String(opts?.year || "").trim();
+  const { profileFilter } = resolveVehicleFilter(d, model, year);
+  const rows = d
+    .prepare(
+      `
+      SELECT d.id, d.title, d.has_html AS hasHtml, d.qualifier_id AS qualifierId, d.html
       FROM tree_item_docs td
       JOIN documents d ON d.project_document_id = td.project_document_id
       WHERE td.tree_item_id = ?
       ORDER BY d.has_html DESC, d.title
       LIMIT 80
     `,
-      )
-      .all(treeItemId) as Array<{
-      id: number;
-      title: string;
-      hasHtml: number;
-      qualifierId: number | null;
-    }>
-  ).map((r) => ({
-    id: r.id,
-    title: r.title,
-    hasHtml: Boolean(r.hasHtml),
-    qualifierId: r.qualifierId,
-  }));
+    )
+    .all(treeItemId) as Array<{
+    id: number;
+    title: string;
+    hasHtml: number;
+    qualifierId: number | null;
+    html: string | null;
+  }>;
+
+  let allowStmt: Database.Statement | null = null;
+  if (profileFilter && profileFilter.length) {
+    const ph = profileFilter.map(() => "?").join(",");
+    allowStmt = d.prepare(
+      `SELECT 1 AS ok FROM document_profiles WHERE document_id=? AND profile_id IN (${ph}) LIMIT 1`,
+    );
+  }
+
+  return rows
+    .map((r) => {
+      let title = repairServiceTitle(r.title).trim();
+      if (!title) {
+        const tip = extractTorqueinfoFromHtml(r.html);
+        if (tip) title = torqueinfoDisplayTitle(tip);
+      }
+      const finalTitle = title || repairServiceTitle(r.title);
+      return {
+        id: r.id,
+        title: finalTitle,
+        hasHtml: Boolean(r.hasHtml),
+        qualifierId: r.qualifierId,
+        _rank: preferRuDocRank(finalTitle, r.html),
+        _html: r.html,
+      };
+    })
+    .filter((r) => {
+      if (model && titleIncompatibleWithVehicle(r.title, model, year)) return false;
+      if (allowStmt && profileFilter?.length) {
+        if (!allowStmt.get(r.id, ...profileFilter)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (Number(b.hasHtml) !== Number(a.hasHtml)) return Number(b.hasHtml) - Number(a.hasHtml);
+      if (a._rank !== b._rank) return a._rank - b._rank;
+      return a.title.localeCompare(b.title, "ru");
+    })
+    .map(({ _rank: _r, _html: _h, ...hit }) => hit);
 }
 
 /** Resolve VIDA cross-ref like ru-RU0900c8af8085f972#KC07142606 → document. */
-export function resolveServiceRef(ref: string): ServiceSearchHit | null {
+export function resolveServiceRef(ref: string, labelHint = ""): ServiceSearchHit | null {
   const d = openServicerepDb();
   if (!d) return null;
   const raw = String(ref || "").trim();
@@ -720,22 +1205,113 @@ export function resolveServiceRef(ref: string): ServiceSearchHit | null {
   const body = raw.split("#", 1)[0];
   const m = body.match(/^(?:[a-z]{2}-[A-Z]{2})?([0-9a-f]{16})$/i);
   const chron = (m?.[1] || body).toLowerCase();
-  if (!/^[0-9a-f]{16}$/.test(chron)) return null;
-  const row = d
-    .prepare(
-      `
-      SELECT id, title, has_html AS hasHtml, qualifier_id AS qualifierId
-      FROM documents WHERE lower(chronicle_id)=? LIMIT 1
-    `,
-    )
-    .get(chron) as
-    | { id: number; title: string; hasHtml: number; qualifierId: number | null }
-    | undefined;
-  if (!row) return null;
-  return {
-    id: row.id,
-    title: row.title,
-    hasHtml: Boolean(row.hasHtml),
-    qualifierId: row.qualifierId,
-  };
+  if (/^[0-9a-f]{16}$/.test(chron)) {
+    const row = d
+      .prepare(
+        `
+        SELECT id, title, has_html AS hasHtml, qualifier_id AS qualifierId
+        FROM documents WHERE chronicle_id=? LIMIT 1
+      `,
+      )
+      .get(chron) as
+      | { id: number; title: string; hasHtml: number; qualifierId: number | null }
+      | undefined;
+    if (row) {
+      let title = repairServiceTitle(row.title).trim();
+      if (!title) {
+        const htmlRow = d.prepare(`SELECT html FROM documents WHERE id=?`).get(row.id) as
+          | { html: string | null }
+          | undefined;
+        const tip = extractTorqueinfoFromHtml(htmlRow?.html);
+        if (tip) title = torqueinfoDisplayTitle(tip);
+      }
+      return {
+        id: row.id,
+        title: title || repairServiceTitle(row.title) || labelHint,
+        hasHtml: Boolean(row.hasHtml),
+        qualifierId: row.qualifierId,
+      };
+    }
+    // Tree may know chronicle → project_document_id even when documents.chronicle_id differs
+    const viaTree = d
+      .prepare(
+        `
+        SELECT d.id, d.title, d.has_html AS hasHtml, d.qualifier_id AS qualifierId
+        FROM tree_items t
+        JOIN documents d ON d.project_document_id = t.project_document_id
+        WHERE t.chronicle_id=?
+        ORDER BY d.has_html DESC
+        LIMIT 1
+      `,
+      )
+      .get(chron) as
+      | { id: number; title: string; hasHtml: number; qualifierId: number | null }
+      | undefined;
+    if (viaTree) {
+      let title = repairServiceTitle(viaTree.title).trim();
+      if (!title) {
+        const htmlRow = d.prepare(`SELECT html FROM documents WHERE id=?`).get(viaTree.id) as
+          | { html: string | null }
+          | undefined;
+        const tip = extractTorqueinfoFromHtml(htmlRow?.html);
+        if (tip) title = torqueinfoDisplayTitle(tip);
+      }
+      return {
+        id: viaTree.id,
+        title: title || repairServiceTitle(viaTree.title) || labelHint,
+        hasHtml: Boolean(viaTree.hasHtml),
+        qualifierId: viaTree.qualifierId,
+      };
+    }
+  }
+
+  // Fallback: VCC-######-# from label or ref text
+  const hint = `${labelHint} ${raw}`;
+  const vcc = hint.match(/\b(VCC-\d+(?:-\d+)?)\b/i)?.[1];
+  if (vcc) {
+    const byVcc = d
+      .prepare(
+        `
+        SELECT id, title, has_html AS hasHtml, qualifier_id AS qualifierId
+        FROM documents
+        WHERE title LIKE ? OR title LIKE ?
+        ORDER BY has_html DESC, length(title) ASC
+        LIMIT 1
+      `,
+      )
+      .get(`%${vcc}%`, `%${vcc.replace(/^VCC-/i, "")}%`) as
+      | { id: number; title: string; hasHtml: number; qualifierId: number | null }
+      | undefined;
+    if (byVcc) {
+      return {
+        id: byVcc.id,
+        title: repairServiceTitle(byVcc.title),
+        hasHtml: Boolean(byVcc.hasHtml),
+        qualifierId: byVcc.qualifierId,
+      };
+    }
+    const treeVcc = d
+      .prepare(
+        `
+        SELECT d.id, d.title, d.has_html AS hasHtml, d.qualifier_id AS qualifierId
+        FROM tree_items t
+        JOIN documents d ON d.project_document_id = t.project_document_id
+        WHERE IFNULL(t.vcc_number,'') LIKE ? OR t.title LIKE ?
+        ORDER BY d.has_html DESC
+        LIMIT 1
+      `,
+      )
+      .get(`%${vcc}%`, `%${vcc}%`) as
+      | { id: number; title: string; hasHtml: number; qualifierId: number | null }
+      | undefined;
+    if (treeVcc) {
+      return {
+        id: treeVcc.id,
+        title: repairServiceTitle(treeVcc.title),
+        hasHtml: Boolean(treeVcc.hasHtml),
+        qualifierId: treeVcc.qualifierId,
+      };
+    }
+  }
+  return null;
 }

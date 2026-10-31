@@ -17,7 +17,29 @@ export type EngineOption = {
   id: string;
   label: string;
   market?: string;
+  family?: string;
 };
+
+/** UI: family + VIDA variant, so 2.4D D4/D5 read as siblings of one EWD option. */
+const ENGINE_UI: Record<string, { family: string; variant: string }> = {
+  "3.2 i6": { family: "3.2", variant: "i6" },
+  "3.0T T6": { family: "3.0T", variant: "T6" },
+  "2.5T": { family: "2.5T", variant: "T5" },
+  "2.4D D5": { family: "2.4D", variant: "D5" },
+  "2.4D D4": { family: "2.4D", variant: "D4" },
+  "2.0D D4": { family: "2.0D", variant: "D4" },
+  "2.0D D3": { family: "2.0D", variant: "D3" },
+  "2.0D D3/D4": { family: "2.0D", variant: "D3/D4" },
+  "1.6T": { family: "1.6T", variant: "T3/T4" },
+  "2.0T Drive-E": { family: "2.0 Drive-E", variant: "T" },
+  "2.0D Drive-E": { family: "2.0 Drive-E", variant: "D" },
+};
+
+export function engineDisplayLabel(id: string, market?: string, grouped = false): string {
+  const meta = ENGINE_UI[id];
+  const core = grouped && meta ? meta.variant : id;
+  return market ? `${core} · ${market}` : core;
+}
 
 export const TRANSMISSION_LABELS: Record<TransmissionId, string> = {
   "TF-80SC": "TF-80SC (АКПП)",
@@ -31,12 +53,13 @@ const ENGINE_BY_OPTION: Record<string, string> = {
   "3.2PZEV": "3.2 i6",
   "3.0T": "3.0T T6",
   "2.5P": "2.5T",
+  // 2.4D / 2.4H in EWD cover both D5 and D4 (same option family). Mapped in optionTokensForSelection.
   "2.4D": "2.4D D5",
   "2.4H": "2.4D D5",
-  "2.0D": "2.0D D3/D4",
+  "2.0D": "2.0D D4",
   "2.0P": "1.6T",
   "1.6P": "1.6T",
-  "1.6D": "2.0D D3/D4",
+  "1.6D": "2.0D D3",
   /** Capital package 4/5 (VEA / Drive-E) */
   VEP4: "2.0T Drive-E",
   VED4: "2.0D Drive-E",
@@ -46,7 +69,10 @@ const ENGINE_CODES: Record<string, string[]> = {
   "3.2 i6": ["B6324S5", "B6324S4"],
   "3.0T T6": ["B6304TX"],
   "2.5T": ["B5254TX", "B5254T12"],
-  "2.4D D5": ["D5244TX"],
+  "2.4D D5": ["D5244TX", "D5244T11", "D5244T15"],
+  "2.4D D4": ["D5244T12", "D5244T17"],
+  "2.0D D4": ["D5204TX", "D5204T3", "D5204T7"],
+  "2.0D D3": ["D5204T2", "D5204T5", "D4162TX"],
   "2.0D D3/D4": ["D5204TX", "D4162TX"],
   "1.6T": ["B4164TX", "B5204TX"],
   "2.0T Drive-E": ["B4204TX"],
@@ -74,64 +100,64 @@ const MODEL_YEAR_ENGINES: Record<string, Record<string, string[]>> = {
     "2008": ["3.2 i6", "2.4D D5"],
     "2009": ["3.2 i6", "3.0T T6", "2.4D D5"],
     "2010": ["3.2 i6", "3.0T T6", "2.4D D5"],
-    "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3"],
+    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
   },
   V70: {
     "2008": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2009": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2010": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
-    "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3"],
+    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
   },
   S80: {
     "2007": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2008": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2009": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
     "2010": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5"],
-    "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3"],
+    "2012": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
   },
   XC60: {
     "2009": ["3.2 i6", "3.0T T6", "2.4D D5"],
     "2010": ["3.2 i6", "3.0T T6", "2.4D D5"],
-    "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4"],
-    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
-    "2017": ["2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3"],
+    "2012": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.2 i6", "3.0T T6", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.2 i6", "3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
+    "2017": ["2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
   },
   S60: {
-    "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
     "2017": ["2.5T", "2.0T Drive-E", "2.0D Drive-E"],
     "2018": ["2.0T Drive-E", "2.0D Drive-E"],
   },
   V60: {
-    "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T"],
-    "2014": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
-    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.0D D3/D4", "2.0T Drive-E", "2.0D Drive-E"],
+    "2011": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2012": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2013": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T"],
+    "2014": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2015": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "1.6T", "2.0T Drive-E", "2.0D Drive-E"],
+    "2016": ["3.0T T6", "2.5T", "2.4D D5", "2.4D D4", "2.0D D4", "2.0D D3", "2.0T Drive-E", "2.0D Drive-E"],
     "2017": ["2.5T", "2.0T Drive-E", "2.0D Drive-E"],
     "2018": ["2.0T Drive-E", "2.0D Drive-E"],
   },
@@ -174,6 +200,9 @@ const ENGINE_TRANSMISSIONS: Record<string, TransmissionId[]> = {
   "3.0T T6": ["TF-80SC"],
   "2.5T": ["TF-80SC", "M66"],
   "2.4D D5": ["TF-80SC", "M66"],
+  "2.4D D4": ["TF-80SC", "M66"],
+  "2.0D D4": ["TF-80SC", "MPS6", "M66"],
+  "2.0D D3": ["TF-80SC", "MPS6", "M66"],
   "2.0D D3/D4": ["TF-80SC", "MPS6", "M66"],
   "1.6T": ["MPS6", "M66", "TF-80SC"],
   "2.0T Drive-E": ["TF-80SC", "M66"],
@@ -196,6 +225,14 @@ export function optionTokensForSelection(sel: VehicleSelection): string[] {
   for (const [opt, label] of Object.entries(ENGINE_BY_OPTION)) {
     if (label === eng) tokens.add(opt);
   }
+  if (eng === "2.4D D4" || eng === "2.4D D5") {
+    tokens.add("2.4D");
+    tokens.add("2.4H");
+  }
+  if (eng === "2.0D D3" || eng === "2.0D D4" || eng === "2.0D D3/D4") {
+    tokens.add("2.0D");
+  }
+  if (eng === "2.0D D3") tokens.add("1.6D");
   for (const code of ENGINE_CODES[eng] || []) tokens.add(code);
   if (eng === "2.0T Drive-E") {
     tokens.add("VEP4");
@@ -263,12 +300,51 @@ export function engineOptionsForModelYear(model: string, year: string): EngineOp
   const markets = MODEL_YEAR_ENGINE_MARKETS[model]?.[year] || {};
   return enginesForModelYear(model, year).map((id) => {
     const market = markets[id];
+    const family = ENGINE_UI[id]?.family;
     return {
       id,
-      label: market ? `${id} · ${market}` : id,
+      label: engineDisplayLabel(id, market),
       ...(market ? { market } : {}),
+      ...(family ? { family } : {}),
     };
   });
+}
+
+export type EngineOptionSection = {
+  id: string;
+  label?: string;
+  options: EngineOption[];
+};
+
+/** Keep catalog order; only families with 2+ variants get a group header. */
+export function engineOptionSections(options: EngineOption[]): EngineOptionSection[] {
+  const familyCount = new Map<string, number>();
+  for (const opt of options) {
+    if (opt.family) familyCount.set(opt.family, (familyCount.get(opt.family) || 0) + 1);
+  }
+  const sections: EngineOptionSection[] = [];
+  const seenFamily = new Set<string>();
+  for (const opt of options) {
+    const fam = opt.family || "";
+    const grouped = Boolean(fam && (familyCount.get(fam) || 0) >= 2);
+    if (!grouped) {
+      sections.push({ id: opt.id, options: [opt] });
+      continue;
+    }
+    if (seenFamily.has(fam)) continue;
+    seenFamily.add(fam);
+    sections.push({
+      id: fam,
+      label: fam,
+      options: options
+        .filter((item) => item.family === fam)
+        .map((item) => ({
+          ...item,
+          label: engineDisplayLabel(item.id, item.market, true),
+        })),
+    });
+  }
+  return sections;
 }
 
 export function transmissionsForEngine(engine: string): Array<{ id: TransmissionId; label: string }> {
@@ -294,9 +370,14 @@ export function resolveFilters(sel: VehicleSelection) {
         ? enginesForModelYear(model, "")
         : [];
   const engineRaw = String(sel.engine || "").trim();
+  const engineAlias: Record<string, string> = {
+    "2.0D D3/D4": engines.includes("2.0D D4") ? "2.0D D4" : engines.includes("2.0D D3") ? "2.0D D3" : "",
+  };
+  const engineResolved = engineAlias[engineRaw] || engineRaw;
   // Drop stale engine when it is not offered for this model+year (do not soft-append).
-  const engine = !legacyCollapsedYear && engineRaw && engines.includes(engineRaw) ? engineRaw : "";
+  const engine = !legacyCollapsedYear && engineResolved && engines.includes(engineResolved) ? engineResolved : "";
   const engineOptions = engineOptionsForModelYear(model, year);
+  const engineSections = engineOptionSections(engineOptions);
   let transmissions = engine ? transmissionsForEngine(engine) : [];
   if (engine && !transmissions.length) {
     transmissions = ["TF-80SC", "M66"].map((id) => ({
@@ -325,6 +406,7 @@ export function resolveFilters(sel: VehicleSelection) {
     years: year && !years.includes(year) ? [...years, year] : years,
     engines,
     engineOptions,
+    engineSections,
     transmissions,
     selection: { model, year, engine, transmission },
     optionTokens: optionTokensForSelection({ model, year, engine, transmission }),

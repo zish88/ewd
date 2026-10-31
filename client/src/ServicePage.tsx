@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useUiLang } from "./i18n/LangProvider.js";
-import { loadPersistedFilters, readFiltersFromStorage, type PersistedFilters } from "./filterPersist.js";
+import {
+  initialSharedVehicle,
+  vehicleHref,
+  writeFiltersToStorage,
+} from "./filterPersist.js";
 
 type TreeVariant = { treeItemId: number; docCount: number };
 
@@ -108,34 +112,8 @@ function writeParams(patch: Record<string, string>) {
   }
 }
 
-const SERVICE_FILTERS_KEY = "ewd.filters.v1";
-
 function persistServiceVehicle(model: string, year: string) {
-  try {
-    const cur = readFiltersFromStorage();
-    const next: PersistedFilters = {
-      model: model || cur.model || "",
-      year: year || cur.year || "",
-      engine: cur.engine || "",
-      transmission: cur.transmission || "",
-      zone: cur.zone || "all",
-      code: cur.code || "",
-      theme: cur.theme,
-    };
-    localStorage.setItem(SERVICE_FILTERS_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
-}
-
-function initialServiceVehicle(): { model: string; year: string } {
-  const fromUrlModel = readParam("model");
-  const fromUrlYear = readParam("year");
-  if (fromUrlModel || fromUrlYear) {
-    return { model: fromUrlModel, year: fromUrlYear };
-  }
-  const saved = loadPersistedFilters();
-  return { model: saved.model || "", year: saved.year || "" };
+  writeFiltersToStorage({ model, year });
 }
 
 const TREE_STATE_PREFIX = "ewd.service.tree.v1:";
@@ -372,7 +350,7 @@ export function ServicePage() {
   const [models, setModels] = useState<string[]>([]);
   const [coveredModels, setCoveredModels] = useState<string[]>([]);
   const [yearsByModel, setYearsByModel] = useState<Record<string, string[]>>({});
-  const vehicle0 = useMemo(() => initialServiceVehicle(), []);
+  const vehicle0 = useMemo(() => initialSharedVehicle(), []);
   const [model, setModel] = useState(vehicle0.model);
   const [year, setYear] = useState(vehicle0.year);
   const [vinInput, setVinInput] = useState(() => readParam("vin"));
@@ -412,7 +390,22 @@ export function ServicePage() {
   useEffect(() => {
     if (!doc?.html || docLoading) return;
     markWideTablesInDom(docHtmlRef.current);
-  }, [doc?.id, doc?.html, docLoading]);
+    const root = docHtmlRef.current;
+    if (!root) return;
+    const onImgError = (ev: Event) => {
+      const img = ev.target as HTMLImageElement | null;
+      if (!img || img.tagName !== "IMG") return;
+      img.dataset.srBroken = "1";
+      const p = document.createElement("p");
+      p.className = "sr-missing-img";
+      p.textContent = t("service.graphicMissing");
+      img.replaceWith(p);
+    };
+    root.querySelectorAll("img").forEach((img) => img.addEventListener("error", onImgError));
+    return () => {
+      root.querySelectorAll("img").forEach((img) => img.removeEventListener("error", onImgError));
+    };
+  }, [doc?.id, doc?.html, docLoading, t]);
 
   const years = useMemo(() => (model ? yearsByModel[model] || [] : []), [model, yearsByModel]);
 
@@ -683,6 +676,7 @@ export function ServicePage() {
     const target = e.target as HTMLElement | null;
     const img = target?.closest?.("img") as HTMLImageElement | null;
     if (img?.src && img.closest(".service-doc-html")) {
+      if (img.dataset.srBroken === "1") return;
       e.preventDefault();
       setLightboxSrc(img.currentSrc || img.src);
       return;

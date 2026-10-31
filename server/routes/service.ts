@@ -4,6 +4,8 @@ import {
   getServiceDoc,
   getServiceStatus,
   listDocsForTreeItem,
+  listServiceCoveredModels,
+  listServiceProfileYears,
   listServiceTree,
   resolveServiceRef,
   searchServiceDocs,
@@ -63,10 +65,21 @@ export function createServiceRouter(): Router {
   });
 
   router.get("/filters", (_req, res) => {
+    const models = listModels();
+    const covered = new Set(listServiceCoveredModels().map((m) => m.toUpperCase()));
     res.json({
       ok: true,
-      models: listModels(),
-      yearsByModel: Object.fromEntries(listModels().map((m) => [m, yearsForModel(m)])),
+      models,
+      coveredModels: models.filter((m) => covered.has(m.toUpperCase())),
+      yearsByModel: Object.fromEntries(
+        models.map((m) => {
+          const matrixYears = yearsForModel(m);
+          const profileYears = listServiceProfileYears(m).map(String);
+          // Prefer matrix years for UI; profile years are informational.
+          const years = matrixYears.length ? matrixYears : profileYears;
+          return [m, years];
+        }),
+      ),
     });
   });
 
@@ -80,13 +93,15 @@ export function createServiceRouter(): Router {
     const year = String(req.query.year || "").trim();
     const q = String(req.query.q || "").trim();
     const parent = String(req.query.parent || "").trim();
-    const tree = listServiceTree({ model, year, q, parent });
+    const result = listServiceTree({ model, year, q, parent });
     res.json({
       ok: true,
-      count: tree.length,
-      tree,
-      model: model || null,
-      year: year || null,
+      count: result.tree.length,
+      tree: result.tree,
+      filterStatus: result.filterStatus,
+      profileCount: result.profileCount,
+      model: result.model,
+      year: result.year,
       parent: parent || null,
     });
   });
@@ -115,7 +130,9 @@ export function createServiceRouter(): Router {
       res.status(400).json({ ok: false, error: "id required" });
       return;
     }
-    res.json({ ok: true, treeItemId: id, docs: listDocsForTreeItem(id) });
+    const model = String(req.query.model || "").trim();
+    const year = String(req.query.year || "").trim();
+    res.json({ ok: true, treeItemId: id, docs: listDocsForTreeItem(id, { model, year }) });
   });
 
   router.get("/doc/:id", (req, res) => {
@@ -125,7 +142,9 @@ export function createServiceRouter(): Router {
       return;
     }
     const id = Number(req.params.id);
-    const doc = getServiceDoc(id);
+    const model = String(req.query.model || "").trim();
+    const year = String(req.query.year || "").trim();
+    const doc = getServiceDoc(id, { model, year });
     if (!doc) {
       res.status(404).json({ ok: false, error: "not_found" });
       return;
@@ -141,16 +160,24 @@ export function createServiceRouter(): Router {
       return;
     }
     const ref = String(req.query.ref || "").trim();
-    const hit = resolveServiceRef(ref);
+    const label = String(req.query.label || "").trim();
+    const model = String(req.query.model || "").trim();
+    const year = String(req.query.year || "").trim();
+    const hit = resolveServiceRef(ref, label);
     if (!hit) {
       res.status(404).json({ ok: false, error: "not_found", ref });
+      return;
+    }
+    // Same vehicle gate as /doc when model is selected.
+    if (model && !getServiceDoc(hit.id, { model, year })) {
+      res.status(404).json({ ok: false, error: "not_found", ref, reason: "vehicle_mismatch" });
       return;
     }
     res.json({ ok: true, ref, hit });
   });
 
-  /** Illustration from ImageRepository (cached under data/servicerep-graphics/). */
-  router.get("/graphic/:id", async (req, res) => {
+  /** Illustration from ImageRepository (file cache or portable graphics.sqlite). */
+  router.get("/graphic/:id(*)", async (req, res) => {
     const id = parseGraphicId(String(req.params.id || ""));
     if (!id) {
       res.status(400).json({ ok: false, error: "bad_id" });
@@ -168,6 +195,10 @@ export function createServiceRouter(): Router {
       }
       res.setHeader("Content-Type", hit.mime);
       res.setHeader("Cache-Control", "public, max-age=86400");
+      if (hit.kind === "buffer") {
+        res.send(hit.bytes);
+        return;
+      }
       createReadStream(hit.path).pipe(res);
     } catch (e) {
       res.status(500).json({

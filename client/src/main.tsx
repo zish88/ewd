@@ -670,12 +670,39 @@ type NavGroup = { id: string; label: string; items: NavItem[] };
 type NavZone = { id: string; label: string; count: number };
 const DEFAULT_MODELS = ["XC70", "V70", "S80", "XC60", "S60", "V60"];
 type TransmissionOpt = { id: string; label: string };
-type EngineOpt = { id: string; label: string; market?: string };
+type EngineOpt = { id: string; label: string; market?: string; family?: string };
+type EngineSection = { id: string; label?: string; options: EngineOpt[] };
+function parseEngineOpt(raw: unknown): EngineOpt | null {
+  if (!raw || typeof raw !== "object" || !("id" in raw) || !("label" in raw)) return null;
+  const x = raw as EngineOpt;
+  return {
+    id: String(x.id),
+    label: String(x.label),
+    ...(x.market ? { market: String(x.market) } : {}),
+    ...(x.family ? { family: String(x.family) } : {}),
+  };
+}
+function parseEngineSections(raw: unknown, fallback: EngineOpt[]): EngineSection[] {
+  if (!Array.isArray(raw)) return fallback.map((opt) => ({ id: opt.id, options: [opt] }));
+  return raw
+    .filter((item): item is { id: unknown; label?: unknown; options?: unknown } =>
+      Boolean(item && typeof item === "object" && "id" in item),
+    )
+    .map((item) => ({
+      id: String(item.id),
+      ...(item.label ? { label: String(item.label) } : {}),
+      options: Array.isArray(item.options)
+        ? item.options.map(parseEngineOpt).filter((opt): opt is EngineOpt => Boolean(opt))
+        : [],
+    }))
+    .filter((section) => section.options.length > 0);
+}
 type FilterAvailable = {
   models: string[];
   years: string[];
   engines: string[];
   engineOptions: EngineOpt[];
+  engineSections: EngineSection[];
   transmissions: TransmissionOpt[];
 };
 const colors = WIRE_COLOR_HEX;
@@ -1977,6 +2004,7 @@ function App() {
     years: [],
     engines: [],
     engineOptions: [],
+    engineSections: [],
     transmissions: [],
   });
   const [optionTokens, setOptionTokens] = useState<string[]>([]);
@@ -2258,9 +2286,18 @@ function App() {
           value={selectedEngine}
           disabled={vinLocked || !selectedYear}
           placeholder={t("filter.dash")}
-          options={[
-            { value: "", label: t("filter.dash") },
-            ...available.engineOptions.map((x) => ({ value: x.id, label: x.label })),
+          sections={[
+            { id: "dash", options: [{ value: "", label: t("filter.dash") }] },
+            ...available.engineSections.map((section) => ({
+              id: section.id,
+              label: section.label,
+              options: section.options.map((x) => ({
+                value: x.id,
+                label: x.label,
+                triggerLabel:
+                  available.engineOptions.find((opt) => opt.id === x.id)?.label || x.id,
+              })),
+            })),
           ]}
           onChange={(nextValue) => {
             setVinLocked(false);
@@ -2570,16 +2607,9 @@ function App() {
         const nextYears: string[] = Array.isArray(data.years) ? data.years : [];
         const nextEngines: string[] = Array.isArray(data.engines) ? data.engines : [];
         const nextEngineOptions: EngineOpt[] = Array.isArray(data.engineOptions)
-          ? data.engineOptions
-              .filter((x: unknown): x is EngineOpt => Boolean(
-                x && typeof x === "object" && "id" in x && "label" in x,
-              ))
-              .map((x: EngineOpt) => ({
-                id: String(x.id),
-                label: String(x.label),
-                ...(x.market ? { market: String(x.market) } : {}),
-              }))
+          ? data.engineOptions.map(parseEngineOpt).filter((opt): opt is EngineOpt => Boolean(opt))
           : nextEngines.map((id) => ({ id, label: id }));
+        const nextEngineSections = parseEngineSections(data.engineSections, nextEngineOptions);
         const nextTrans: TransmissionOpt[] = Array.isArray(data.transmissions) ? data.transmissions : [];
         const nextModels: string[] = Array.isArray(data.models) && data.models.length ? data.models : DEFAULT_MODELS;
         setAvailable({
@@ -2587,6 +2617,7 @@ function App() {
           years: nextYears,
           engines: nextEngines,
           engineOptions: nextEngineOptions,
+          engineSections: nextEngineSections,
           transmissions: nextTrans,
         });
         if (Array.isArray(data.optionTokens)) {

@@ -11,6 +11,8 @@ import { createPortal } from "react-dom";
 export type ModernSelectOption = {
   value: string;
   label: string;
+  /** Closed trigger text; defaults to `label`. */
+  triggerLabel?: string;
   disabled?: boolean;
 };
 
@@ -20,11 +22,19 @@ export type ModernSelectGroup = {
   options: ModernSelectOption[];
 };
 
+/** Ordered mix of flat options (no `label`) and labeled groups. */
+export type ModernSelectSection = {
+  id: string;
+  label?: string;
+  options: ModernSelectOption[];
+};
+
 type ModernSelectProps = {
   value: string;
   onChange: (value: string) => void;
   options?: ModernSelectOption[];
   groups?: ModernSelectGroup[];
+  sections?: ModernSelectSection[];
   placeholder?: string;
   disabled?: boolean;
   testId?: string;
@@ -78,6 +88,7 @@ export function ModernSelect({
   onChange,
   options = [],
   groups = [],
+  sections = [],
   placeholder = "—",
   disabled = false,
   testId,
@@ -91,8 +102,11 @@ export function ModernSelect({
   const [position, setPosition] = useState<PopupPosition | null>(null);
 
   const flatOptions = useMemo(
-    () => [...options, ...groups.flatMap((group) => group.options)],
-    [groups, options],
+    () =>
+      sections.length
+        ? sections.flatMap((section) => section.options)
+        : [...options, ...groups.flatMap((group) => group.options)],
+    [groups, options, sections],
   );
   const selectedIndex = flatOptions.findIndex((option) => option.value === value);
   const selected = selectedIndex >= 0 ? flatOptions[selectedIndex] : null;
@@ -278,12 +292,15 @@ export function ModernSelect({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={selected?.label || placeholder}
+        title={selected?.triggerLabel || selected?.label || placeholder}
         disabled={disabled}
         onClick={() => (open ? closeList() : openList())}
         onKeyDown={onTriggerKeyDown}
       >
-        <OverflowingLabel text={selected?.label || placeholder} placeholder={!selected} />
+        <OverflowingLabel
+          text={selected?.triggerLabel || selected?.label || placeholder}
+          placeholder={!selected}
+        />
         <svg className="modern-select__chevron" viewBox="0 0 24 24" aria-hidden="true">
           <path d="m7 10 5 5 5-5" />
         </svg>
@@ -298,15 +315,32 @@ export function ModernSelect({
               role="listbox"
               aria-label={ariaLabel}
             >
-              {options.map(renderOption)}
-              {groups.map((group) =>
-                group.options.length ? (
-                  <div className="modern-select__group" key={group.id} role="group" aria-label={group.label}>
-                    <div className="modern-select__group-label">{group.label}</div>
-                    {group.options.map(renderOption)}
-                  </div>
-                ) : null,
-              )}
+              {sections.length
+                ? sections.map((section) =>
+                    section.options.length ? (
+                      section.label ? (
+                        <div className="modern-select__group" key={section.id} role="group" aria-label={section.label}>
+                          <div className="modern-select__group-label">{section.label}</div>
+                          {section.options.map(renderOption)}
+                        </div>
+                      ) : (
+                        <div key={section.id}>{section.options.map(renderOption)}</div>
+                      )
+                    ) : null,
+                  )
+                : (
+                  <>
+                    {options.map(renderOption)}
+                    {groups.map((group) =>
+                      group.options.length ? (
+                        <div className="modern-select__group" key={group.id} role="group" aria-label={group.label}>
+                          <div className="modern-select__group-label">{group.label}</div>
+                          {group.options.map(renderOption)}
+                        </div>
+                      ) : null,
+                    )}
+                  </>
+                )}
             </div>,
             document.body,
           )

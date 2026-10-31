@@ -3,6 +3,10 @@ import { useUiLang } from "./i18n/LangProvider.js";
 
 type EmptyStateHeroProps = {
   selectedModel: string;
+  wordmark?: string;
+  greetingKey?: string;
+  introKey?: string;
+  showDetails?: boolean;
 };
 
 type DetailId = "connector" | "door" | "lamp" | "ecu";
@@ -30,7 +34,13 @@ function startIndexForModel(model: string): number {
   return 0;
 }
 
-export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
+export function EmptyStateHero({
+  selectedModel,
+  wordmark = "VOLVO EWD",
+  greetingKey = "empty.welcome",
+  introKey = "empty.intro",
+  showDetails = true,
+}: EmptyStateHeroProps) {
   const { t } = useUiLang();
   const [activeIndex, setActiveIndex] = useState(() => startIndexForModel(selectedModel));
   const [activeDetail, setActiveDetail] = useState<DetailId | null>(null);
@@ -90,6 +100,7 @@ export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
         ))}
       </div>
 
+      {showDetails ? (
       <div className="empty-state-hero__orbit">
         {DETAIL_IDS.map((id) => {
           const label = t(`empty.detail.${id}`);
@@ -129,14 +140,15 @@ export function EmptyStateHero({ selectedModel }: EmptyStateHeroProps) {
           );
         })}
       </div>
+      ) : null}
 
       <div className="empty-state-hero__copy">
-        <p className="empty-state-hero__wordmark">VOLVO EWD</p>
+        <p className="empty-state-hero__wordmark">{wordmark}</p>
         <p className="empty-state-hero__greeting" data-testid="empty-state-greeting">
-          {t("empty.welcome")}
+          {t(greetingKey)}
         </p>
         <p className="empty-state-hero__intro" data-testid="empty-state-intro">
-          {t("empty.intro")}
+          {t(introKey)}
         </p>
       </div>
     </div>

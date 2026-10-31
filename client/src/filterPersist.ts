@@ -45,12 +45,28 @@ export function loadPersistedFilters(): PersistedFilters {
   };
 }
 
-export function savePersistedFilters(f: PersistedFilters) {
+/** Shared vehicle only — does not rewrite the current page URL. */
+export function writeFiltersToStorage(patch: Partial<PersistedFilters>) {
+  const cur = readFiltersFromStorage();
+  const next: PersistedFilters = {
+    model: patch.model !== undefined ? patch.model : cur.model || "",
+    year: patch.year !== undefined ? patch.year : cur.year || "",
+    engine: patch.engine !== undefined ? patch.engine : cur.engine || "",
+    transmission: patch.transmission !== undefined ? patch.transmission : cur.transmission || "",
+    zone: patch.zone !== undefined ? patch.zone : cur.zone || "all",
+    code: patch.code !== undefined ? patch.code : cur.code || "",
+    theme: patch.theme !== undefined ? patch.theme : cur.theme,
+  };
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     /* ignore quota */
   }
+  return next;
+}
+
+export function savePersistedFilters(f: PersistedFilters) {
+  writeFiltersToStorage(f);
   if (typeof window === "undefined") return;
   const u = new URL(window.location.href);
   const setOrDel = (k: string, v: string) => {
@@ -63,6 +79,46 @@ export function savePersistedFilters(f: PersistedFilters) {
   setOrDel("transmission", f.transmission);
   setOrDel("zone", f.zone);
   setOrDel("code", f.code);
-  // Keep wireId if present (deep link to card)
   window.history.replaceState(null, "", u.pathname + u.search + u.hash);
+}
+
+/** Query for cross-section links. Extra keys (vin, fg) only if non-empty. */
+export function vehicleSearchParams(
+  model: string,
+  year: string,
+  extra?: Record<string, string | undefined | null>,
+): string {
+  const qs = new URLSearchParams();
+  const m = String(model || "").trim();
+  const y = String(year || "").trim();
+  if (m) qs.set("model", m);
+  if (y) qs.set("year", y);
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      const s = String(v || "").trim();
+      if (s) qs.set(k, s);
+    }
+  }
+  return qs.toString();
+}
+
+export function vehicleHref(
+  path: string,
+  model: string,
+  year: string,
+  extra?: Record<string, string | undefined | null>,
+): string {
+  const q = vehicleSearchParams(model, year, extra);
+  const base = path.startsWith("/") ? path : `/${path}`;
+  return q ? `${base}?${q}` : base;
+}
+
+/** URL query wins; otherwise shared store. No hardcoded model/year. */
+export function initialSharedVehicle(): { model: string; year: string } {
+  const fromUrl = readFiltersFromUrl();
+  if (fromUrl.model || fromUrl.year) {
+    return { model: fromUrl.model || "", year: fromUrl.year || "" };
+  }
+  const saved = readFiltersFromStorage();
+  return { model: saved.model || "", year: saved.year || "" };
 }

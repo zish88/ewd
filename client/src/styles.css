@@ -3049,6 +3049,10 @@ html[data-telegram="true"] {
   text-transform: uppercase;
 }
 
+.modern-select__group .modern-select__option {
+  padding-left: 1.05rem;
+}
+
 .modern-select__option {
   position: relative;
   display: flex;
@@ -4377,6 +4381,12 @@ main.is-filters-sheet-open {
   max-width: min(100%, 520px);
   height: auto;
   display: block;
+}
+
+.service-doc-html .sr-missing-img {
+  margin: 0.5rem 0;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 @media print {

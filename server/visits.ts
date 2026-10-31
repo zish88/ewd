@@ -201,6 +201,14 @@ export function recordVisit(opts: {
     timezone,
     screen.slice(0, 24),
   );
+  // Keep WAL from growing forever — safe truncate when quiet enough.
+  // Prevents data loss if something deletes *-wal without checkpoint.
+  try {
+    const n = Number((db.prepare(`SELECT COUNT(*) AS n FROM visits`).get() as { n: number }).n);
+    if (n > 0 && n % 25 === 0) db.pragma("wal_checkpoint(PASSIVE)");
+  } catch {
+    /* ignore */
+  }
   return { ok: true, recorded: true };
 }
 

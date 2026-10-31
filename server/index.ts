@@ -263,6 +263,7 @@ app.get("/api/filters", (req, res) => {
     years: resolved.years,
     engines: resolved.engines,
     engineOptions: resolved.engineOptions,
+    engineSections: resolved.engineSections,
     transmissions: resolved.transmissions,
     selection: resolved.selection,
     optionTokens: resolved.optionTokens,

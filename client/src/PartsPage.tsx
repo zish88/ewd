@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { EmptyStateHero } from "./EmptyStateHero.js";
+import {
+  initialSharedVehicle,
+  vehicleHref,
+  writeFiltersToStorage,
+} from "./filterPersist.js";
 import { useUiLang } from "./i18n/LangProvider.js";
 
 type FgNode = {
@@ -37,27 +43,7 @@ function readParam(key: string): string {
 }
 
 function persistVehicle(model: string, year: string) {
-  try {
-    localStorage.setItem("ewd.parts.vehicle", JSON.stringify({ model, year }));
-  } catch {
-    /* ignore */
-  }
-}
-
-function initialVehicle(): { model: string; year: string } {
-  const fromUrlModel = readParam("model");
-  const fromUrlYear = readParam("year");
-  if (fromUrlModel || fromUrlYear) return { model: fromUrlModel, year: fromUrlYear };
-  try {
-    const raw = localStorage.getItem("ewd.parts.vehicle");
-    if (raw) {
-      const j = JSON.parse(raw) as { model?: string; year?: string };
-      return { model: j.model || "", year: j.year || "" };
-    }
-  } catch {
-    /* ignore */
-  }
-  return { model: "V70", year: "2014" };
+  writeFiltersToStorage({ model, year });
 }
 
 function syncUrl(model: string, year: string, fg: string, plateId: number | null) {
@@ -83,8 +69,10 @@ function formatQty(qty: number | null, unit: string | null): string {
 
 export function PartsPage() {
   const { t, lang } = useUiLang();
-  const vehicle0 = useMemo(() => initialVehicle(), []);
+  const vehicle0 = useMemo(() => initialSharedVehicle(), []);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [vinInput, setVinInput] = useState(() => readParam("vin").toUpperCase());
+  const [vinNote, setVinNote] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [yearsByModel, setYearsByModel] = useState<Record<string, string[]>>({});
@@ -139,6 +127,46 @@ export function PartsPage() {
     persistVehicle(model, year);
     syncUrl(model, year, selectedFg, selectedPlateId);
   }, [model, year, selectedFg, selectedPlateId]);
+
+  useEffect(() => {
+    if (!year || !years.length) return;
+    if (!years.includes(year)) setYear(years[0] || "");
+  }, [years, year]);
+
+  async function applyVin() {
+    const vin = vinInput.trim().toUpperCase();
+    if (vin.length !== 17) {
+      setVinNote(t("service.vinNeed17"));
+      return;
+    }
+    setVinNote(t("service.vinDecoding"));
+    try {
+      const data = await fetch(`/api/vin/decode?vin=${encodeURIComponent(vin)}`).then((r) => r.json());
+      if (!data.ok) {
+        setVinNote(
+          typeof data.error === "string" && data.error.trim() ? data.error : t("service.vinFail"),
+        );
+        return;
+      }
+      const nextModel = String(data.model || "").trim();
+      const nextYear = String(data.year || "").trim();
+      if (!nextModel && !nextYear) {
+        setVinNote(t("service.vinFail"));
+        return;
+      }
+      if (nextModel) setModel(nextModel);
+      if (nextYear) setYear(nextYear);
+      writeFiltersToStorage({
+        model: nextModel || model,
+        year: nextYear || year,
+        engine: String(data.engine || "").trim() || undefined,
+        transmission: String(data.transmission || "").trim() || undefined,
+      });
+      setVinNote(`${nextModel || "—"} · ${nextYear || "—"}`);
+    } catch {
+      setVinNote(t("service.vinFail"));
+    }
+  }
 
   useEffect(() => {
     if (!available || !model) {
@@ -325,6 +353,34 @@ export function PartsPage() {
   const treePane = (
     <div className="flex flex-col min-h-0 h-full border-r border-[var(--border-color)] bg-[var(--bg-card)]">
       <div className="p-3 space-y-2 border-b border-[var(--border-color)] shrink-0">
+        <div className="flex gap-1">
+          <input
+            type="text"
+            className="flex-1 min-w-0 rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] px-2 py-1.5 text-sm font-mono tracking-wider uppercase"
+            placeholder={t("service.vinPlaceholder")}
+            maxLength={17}
+            value={vinInput}
+            onChange={(e) => setVinInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void applyVin();
+              }
+            }}
+            data-testid="parts-vin"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="shrink-0 rounded-md border border-[var(--border-color)] px-2 text-xs hover:bg-[var(--input-bg)]"
+            onClick={() => void applyVin()}
+            data-testid="parts-vin-apply"
+          >
+            {t("service.vinApply")}
+          </button>
+        </div>
+        {vinNote ? <p className="text-[10px] text-[var(--text-muted)]">{vinNote}</p> : null}
         <div className="flex gap-2">
           <label className="flex-1 text-[11px] text-[var(--text-muted)]">
             {t("partsCatalog.model")}
@@ -339,6 +395,7 @@ export function PartsPage() {
               }}
               data-testid="parts-model"
             >
+              <option value="">{t("partsCatalog.pickModel")}</option>
               {models.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -353,7 +410,9 @@ export function PartsPage() {
               value={year}
               onChange={(e) => setYear(e.target.value)}
               data-testid="parts-year"
+              disabled={!model}
             >
+              <option value="">{t("partsCatalog.pickYear")}</option>
               {years.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -410,9 +469,19 @@ export function PartsPage() {
         ) : null}
         {plateTitle ? <h2 className="text-sm font-semibold truncate">{plateTitle}</h2> : null}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto bg-white flex items-center justify-center p-2">
+      <div
+        className={`flex-1 min-h-0 overflow-auto flex items-center justify-center p-2 ${
+          selectedFg && graphicUrl ? "bg-white" : "bg-[var(--bg-main)]"
+        }`}
+      >
         {!selectedFg ? (
-          <p className="text-sm text-[var(--text-muted)] px-4 text-center">{t("partsCatalog.pickFgHint")}</p>
+          <EmptyStateHero
+            selectedModel={model}
+            wordmark={t("partsCatalog.title")}
+            greetingKey="partsCatalog.pickFg"
+            introKey="partsCatalog.pickFgHint"
+            showDetails={false}
+          />
         ) : platesLoading || detailLoading ? (
           <p className="text-xs text-[var(--text-muted)]">{t("partsCatalog.loading")}</p>
         ) : plates.length === 0 ? (
@@ -500,7 +569,10 @@ export function PartsPage() {
       style={{ minHeight: "100dvh", height: "100dvh" }}
     >
       <header className="shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 flex items-center gap-2 min-h-11">
-        <a href="/" className="text-sm text-[var(--accent)] hover:underline shrink-0">
+        <a
+          href={vehicleHref("/", model, year, { vin: vinInput.length === 17 ? vinInput : "" })}
+          className="text-sm text-[var(--accent)] hover:underline shrink-0"
+        >
           ← EWD
         </a>
         <h1 className="text-sm sm:text-base font-semibold truncate">{t("partsCatalog.title")}</h1>
@@ -514,7 +586,11 @@ export function PartsPage() {
         ) : (
           <span className="ml-auto" />
         )}
-        <a href="/service" className="hidden sm:inline text-xs text-[var(--text-muted)] hover:underline shrink-0">
+        <a
+          href={vehicleHref("/service", model, year, { vin: vinInput.length === 17 ? vinInput : "" })}
+          className="hidden sm:inline text-xs text-[var(--text-muted)] hover:underline shrink-0"
+          data-testid="parts-nav-service"
+        >
           {t("nav.service")}
         </a>
       </header>
