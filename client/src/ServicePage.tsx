@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useUiLang } from "./i18n/LangProvider.js";
+import { TreeChevronIcon } from "./TreeChevron.js";
 import {
   initialSharedVehicle,
   vehicleHref,
@@ -300,7 +301,7 @@ function TreeBranch({
     <div style={{ paddingLeft: depth * 10 }}>
       <button
         type="button"
-        className="w-full text-left px-2 py-1 text-[12px] hover:bg-[var(--input-bg)] rounded flex items-center gap-1"
+        className="w-full text-left px-2 py-1.5 text-[13px] hover:bg-[var(--input-bg)] rounded flex items-center gap-1 min-h-8"
         onClick={() => {
           if (!fgCode) return;
           onToggleExpand(fgCode, !open);
@@ -309,7 +310,9 @@ function TreeBranch({
         data-testid="service-fg"
         data-fg-code={fgCode || undefined}
       >
-        <span className="text-[10px] text-[var(--text-muted)] w-3">{open ? "▾" : "▸"}</span>
+        <span className={`nav-tree-chevron ${open ? "is-open" : ""}`} aria-hidden="true">
+          <TreeChevronIcon />
+        </span>
         <span className="truncate">{node.title}</span>
         {node.childCount != null ? (
           <span className="ml-auto text-[10px] text-[var(--text-muted)] tabular-nums">{node.childCount}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { EmptyStateHero } from "./EmptyStateHero.js";
 import {
   initialSharedVehicle,
@@ -6,6 +6,7 @@ import {
   writeFiltersToStorage,
 } from "./filterPersist.js";
 import { useUiLang } from "./i18n/LangProvider.js";
+import { TreeChevronIcon } from "./TreeChevron.js";
 
 type FgNode = {
   id: number;
@@ -15,6 +16,7 @@ type FgNode = {
   depth: number;
   title: string;
   plateCount: number | null;
+  hasChildren?: boolean;
 };
 
 type Plate = {
@@ -28,11 +30,31 @@ type PlatePart = {
   hotspot: string | null;
   pn: string | null;
   title: string;
+  note: string | null;
   qty: number | null;
   unit: string | null;
 };
 
+type CalloutBox = { x: number; y: number; w: number; h: number };
+
 type MobilePane = "tree" | "art" | "table";
+
+function containedImageRect(img: HTMLImageElement): { left: number; top: number; width: number; height: number } {
+  const r = img.getBoundingClientRect();
+  const nw = img.naturalWidth || 0;
+  const nh = img.naturalHeight || 0;
+  if (nw < 2 || nh < 2 || r.width < 2 || r.height < 2) {
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+  const ir = nw / nh;
+  const er = r.width / r.height;
+  if (er > ir) {
+    const width = r.height * ir;
+    return { left: r.left + (r.width - width) / 2, top: r.top, width, height: r.height };
+  }
+  const height = r.width / ir;
+  return { left: r.left, top: r.top + (r.height - height) / 2, width: r.width, height };
+}
 
 function readParam(key: string): string {
   try {
@@ -67,6 +89,55 @@ function formatQty(qty: number | null, unit: string | null): string {
   return `${s} ${u}`;
 }
 
+function splitPartNotes(note: string): { lines: string[]; tags: string[] } {
+  const chunks = note
+    .split(/\s*[·|;]\s+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const lines: string[] = [];
+  const tags: string[] = [];
+  for (const chunk of chunks) {
+    const vc = chunk.match(/^variant code\s*:\s*(.+)$/i);
+    if (vc) {
+      tags.push(vc[1].trim());
+      continue;
+    }
+    if (/^CH\b/i.test(chunk) || /^\([A-Z]{2}(?:\s*,\s*[A-Z]{2})*\)\s*$/.test(chunk)) {
+      tags.push(chunk);
+      continue;
+    }
+    lines.push(chunk);
+  }
+  return { lines, tags };
+}
+
+function CopyPnIcon({ copied }: { copied?: boolean }) {
+  if (copied) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M5 12.5 9.5 17 19 7"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M5 15V5a2 2 0 0 1 2-2h10"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function PartsPage() {
   const { t, lang } = useUiLang();
   const vehicle0 = useMemo(() => initialSharedVehicle(), []);
@@ -92,6 +163,16 @@ export function PartsPage() {
   const [graphicUrl, setGraphicUrl] = useState<string | null>(null);
   const [parts, setParts] = useState<PlatePart[]>([]);
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [callouts, setCallouts] = useState<Record<string, CalloutBox>>({});
+  const [markTick, setMarkTick] = useState(0);
+  const [markStyle, setMarkStyle] = useState<CSSProperties | null>(null);
+  const [copiedKey, setCopiedKey] = useState("");
+  const [copiedPn, setCopiedPn] = useState("");
+  const copyTimer = useRef(0);
+  const graphicImgRef = useRef<HTMLImageElement | null>(null);
+  const graphicPaneRef = useRef<HTMLDivElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const [platesLoading, setPlatesLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(false);
@@ -241,10 +322,14 @@ export function PartsPage() {
       setGraphicUrl(null);
       setPlateTitle("");
       setActiveHotspot(null);
+      setSelectedIdx(null);
+      setCallouts({});
       return;
     }
     setDetailLoading(true);
     setActiveHotspot(null);
+    setSelectedIdx(null);
+    setCallouts({});
     const qs = new URLSearchParams();
     qs.set("model", model);
     if (year) qs.set("year", year);
@@ -260,7 +345,25 @@ export function PartsPage() {
         }
         setPlateTitle(d.plate?.title || "");
         setGraphicUrl(typeof d.graphicUrl === "string" ? d.graphicUrl : null);
-        setParts(Array.isArray(d.parts) ? d.parts : []);
+        setParts(
+          Array.isArray(d.parts)
+            ? d.parts.map((p: PlatePart) => ({
+                ...p,
+                note: typeof p.note === "string" && p.note.trim() ? p.note.trim() : null,
+              }))
+            : [],
+        );
+        const nextCallouts: Record<string, CalloutBox> = {};
+        if (d.callouts && typeof d.callouts === "object") {
+          for (const [id, box] of Object.entries(d.callouts as Record<string, CalloutBox>)) {
+            const x = Number(box?.x);
+            const y = Number(box?.y);
+            const w = Number(box?.w);
+            const h = Number(box?.h);
+            if ([x, y, w, h].every((n) => Number.isFinite(n))) nextCallouts[String(id).trim()] = { x, y, w, h };
+          }
+        }
+        setCallouts(nextCallouts);
       })
       .catch(() => {
         setParts([]);
@@ -292,7 +395,7 @@ export function PartsPage() {
     }
   }
 
-  function renderNode(node: FgNode, indent: number) {
+  function renderNode(node: FgNode) {
     const kids = childrenByParent[node.path];
     const open = openPaths.has(node.path);
     const selected = selectedFg === node.path;
@@ -302,35 +405,26 @@ export function PartsPage() {
       !title ||
       title === code ||
       title.replace(/\s+/g, "") === code.replace(/\s+/g, "");
-    const count =
-      node.plateCount != null && node.plateCount > 0 ? (
-        <span className="text-[10px] text-[var(--text-muted)] tabular-nums ml-1">({node.plateCount})</span>
-      ) : null;
     const hasLoadedKids = kids != null;
-    const canExpand = !hasLoadedKids || kids.length > 0;
+    const canExpand = Boolean(node.hasChildren) || (hasLoadedKids && kids.length > 0);
     return (
       <li key={node.path} className="select-none">
-        <div
-          className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-sm ${
-            selected ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "hover:bg-[var(--input-bg)]"
-          }`}
-          style={{ paddingLeft: `${4 + indent * 12}px` }}
-        >
+        <div className={`parts-fg-tree__row ${selected ? "is-selected" : ""}`}>
           {canExpand ? (
             <button
               type="button"
-              className="w-5 h-5 shrink-0 text-[var(--text-muted)] text-xs"
+              className={`nav-tree-chevron ${open ? "is-open" : ""}`}
               aria-label={open ? "collapse" : "expand"}
               onClick={() => void toggleOpen(node)}
             >
-              {open ? "▾" : "▸"}
+              <TreeChevronIcon />
             </button>
           ) : (
-            <span className="w-5 h-5 shrink-0" />
+            <span className="nav-tree-chevron is-leaf" />
           )}
           <button
             type="button"
-            className="flex-1 text-left truncate min-w-0"
+            className="parts-fg-tree__label"
             onClick={() => {
               setSelectedFg(node.path);
               setMobilePane("art");
@@ -338,17 +432,122 @@ export function PartsPage() {
             }}
             data-testid={`parts-fg-${node.path}`}
           >
-            <span className="font-mono text-[11px] text-[var(--text-muted)] mr-1">{code}</span>
-            {titleIsCode ? null : title}
-            {count}
+            <span className="parts-fg-tree__code">{code}</span>
+            {titleIsCode ? null : <span className="parts-fg-tree__title">{title}</span>}
+            {node.plateCount != null && node.plateCount > 0 ? (
+              <span className="parts-fg-tree__count">{node.plateCount}</span>
+            ) : null}
           </button>
         </div>
         {open && kids && kids.length > 0 ? (
-          <ul>{kids.map((c) => renderNode(c, indent + 1))}</ul>
+          <ul>{kids.map((c) => renderNode(c))}</ul>
         ) : null}
       </li>
     );
   }
+
+  async function copyPn(key: string, pn: string, ev: MouseEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const text = pn.trim();
+    if (!text || text === "ns") return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setCopiedPn(text);
+      window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => {
+        setCopiedKey("");
+        setCopiedPn("");
+      }, 1600);
+    } catch {
+      setCopiedKey("");
+      setCopiedPn("");
+    }
+  }
+
+  function selectPart(index: number, hotspot: string) {
+    setSelectedIdx(index);
+    setActiveHotspot(hotspot ? String(hotspot).trim() : null);
+    setMarkTick((n) => n + 1);
+  }
+
+  function calloutFor(id: string | null): CalloutBox | null {
+    if (!id) return null;
+    const key = String(id).trim();
+    if (callouts[key]) return callouts[key];
+    const n = Number(key);
+    if (Number.isFinite(n) && callouts[String(n)]) return callouts[String(n)];
+    return null;
+  }
+
+  function onGraphicClick(ev: MouseEvent<HTMLDivElement>) {
+    const img = graphicImgRef.current;
+    if (!img) return;
+    const rect = containedImageRect(img);
+    if (rect.width < 2 || rect.height < 2) return;
+    const nx = (ev.clientX - rect.left) / rect.width;
+    const ny = (ev.clientY - rect.top) / rect.height;
+    const pad = 0.014;
+    let hit: string | null = null;
+    let best = 9;
+    for (const [id, box] of Object.entries(callouts)) {
+      if (
+        nx >= box.x - pad &&
+        nx <= box.x + box.w + pad &&
+        ny >= box.y - pad &&
+        ny <= box.y + box.h + pad
+      ) {
+        const d =
+          (nx - (box.x + box.w / 2)) ** 2 + (ny - (box.y + box.h / 2)) ** 2;
+        if (d < best) {
+          best = d;
+          hit = id;
+        }
+      }
+    }
+    if (hit) {
+      const idx = parts.findIndex((p) => String(p.hotspot || "").trim() === hit);
+      selectPart(idx >= 0 ? idx : 0, hit);
+    }
+  }
+
+  function digitMarkStyle(box: CalloutBox): CSSProperties | null {
+    const img = graphicImgRef.current;
+    const origin = overlayRef.current || graphicPaneRef.current;
+    if (!img || !origin) return null;
+    const ir = containedImageRect(img);
+    const pr = origin.getBoundingClientRect();
+    if (ir.width < 2 || ir.height < 2) return null;
+    const w = Math.min(40, Math.max(22, box.w * ir.width * 1.7));
+    const h = Math.min(40, Math.max(22, box.h * ir.height * 1.7));
+    const cx = ir.left - pr.left + (box.x + box.w / 2) * ir.width;
+    const cy = ir.top - pr.top + (box.y + box.h / 2) * ir.height;
+    return {
+      left: cx - w / 2,
+      top: cy - h / 2,
+      width: w,
+      height: h,
+    };
+  }
+
+  useLayoutEffect(() => {
+    const box = calloutFor(activeHotspot);
+    setMarkStyle(box ? digitMarkStyle(box) : null);
+  }, [activeHotspot, callouts, markTick, graphicUrl]);
+
+  useEffect(() => {
+    const pane = graphicPaneRef.current;
+    if (!pane || typeof ResizeObserver === "undefined") return;
+    const bump = () => setMarkTick((n) => n + 1);
+    const ro = new ResizeObserver(bump);
+    ro.observe(pane);
+    window.addEventListener("resize", bump);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", bump);
+    };
+  }, [graphicUrl]);
 
   const treePane = (
     <div className="flex flex-col min-h-0 h-full border-r border-[var(--border-color)] bg-[var(--bg-card)]">
@@ -422,11 +621,11 @@ export function PartsPage() {
           </label>
         </div>
       </div>
-      <div className="flex-1 overflow-auto p-2" data-testid="parts-tree">
+      <div className="flex-1 overflow-auto p-1.5" data-testid="parts-tree">
         {treeLoading ? (
           <p className="text-xs text-[var(--text-muted)] px-2">{t("partsCatalog.loading")}</p>
         ) : (
-          <ul>{roots.map((n) => renderNode(n, 0))}</ul>
+          <ul className="parts-fg-tree">{roots.map((n) => renderNode(n))}</ul>
         )}
       </div>
     </div>
@@ -470,9 +669,12 @@ export function PartsPage() {
         {plateTitle ? <h2 className="text-sm font-semibold truncate">{plateTitle}</h2> : null}
       </div>
       <div
-        className={`flex-1 min-h-0 overflow-auto flex items-center justify-center p-2 ${
+        ref={graphicPaneRef}
+        className={`flex-1 min-h-0 overflow-auto flex items-center justify-center p-2 relative ${
           selectedFg && graphicUrl ? "bg-white" : "bg-[var(--bg-main)]"
         }`}
+        data-testid="parts-graphic-frame"
+        onClick={onGraphicClick}
       >
         {!selectedFg ? (
           <EmptyStateHero
@@ -487,12 +689,22 @@ export function PartsPage() {
         ) : plates.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">{t("partsCatalog.noPlates")}</p>
         ) : graphicUrl ? (
-          <img
-            src={graphicUrl}
-            alt={plateTitle || "plate"}
-            className="max-w-full max-h-full object-contain"
-            data-testid="parts-graphic"
-          />
+          <>
+            <img
+              ref={graphicImgRef}
+              src={graphicUrl}
+              alt={plateTitle || "plate"}
+              className="max-w-full max-h-full object-contain relative z-0"
+              data-testid="parts-graphic"
+              onLoad={() => setMarkTick((n) => n + 1)}
+            />
+            <div
+              ref={overlayRef}
+              className="absolute inset-0 z-[6] pointer-events-none overflow-visible"
+            >
+              {markStyle ? <span className="parts-callout" style={markStyle} /> : null}
+            </div>
+          </>
         ) : (
           <p className="text-sm text-[var(--text-muted)] px-4 text-center" data-testid="parts-no-graphic">
             {t("partsCatalog.noGraphic")}
@@ -507,8 +719,21 @@ export function PartsPage() {
       className="flex flex-col min-h-0 h-full border-l border-[var(--border-color)] bg-[var(--bg-card)]"
       data-testid="parts-table-pane"
     >
-      <div className="px-3 py-2 border-b border-[var(--border-color)] shrink-0 text-sm font-semibold">
-        {t("partsCatalog.bom")}
+      <div className="px-3 py-2 border-b border-[var(--border-color)] shrink-0">
+        <div className="text-sm font-semibold">{t("partsCatalog.bom")}</div>
+        {copiedPn ? (
+          <p className="parts-bom-copied" data-testid="parts-copied">
+            {t("partsCatalog.copied", { n: copiedPn })}
+          </p>
+        ) : null}
+        {activeHotspot && parts.filter((p) => String(p.hotspot || "") === activeHotspot).length > 1 ? (
+          <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">
+            {t("partsCatalog.calloutGroup", {
+              n: activeHotspot,
+              k: parts.filter((p) => String(p.hotspot || "") === activeHotspot).length,
+            })}
+          </p>
+        ) : null}
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
         {!selectedPlateId ? (
@@ -524,7 +749,7 @@ export function PartsPage() {
             <thead className="sticky top-0 bg-[var(--bg-card)] z-[1]">
               <tr className="text-left text-[11px] text-[var(--text-muted)] border-b border-[var(--border-color)]">
                 <th className="px-2 py-1.5 w-10 font-medium">#</th>
-                <th className="px-2 py-1.5 w-[7.5rem] font-medium">{t("partsCatalog.colPn")}</th>
+                <th className="px-2 py-1.5 w-[9rem] font-medium">{t("partsCatalog.colPn")}</th>
                 <th className="px-2 py-1.5 font-medium">{t("partsCatalog.colTitle")}</th>
                 <th className="px-2 py-1.5 w-14 font-medium text-right">{t("partsCatalog.colQty")}</th>
               </tr>
@@ -532,23 +757,68 @@ export function PartsPage() {
             <tbody>
               {parts.map((row, i) => {
                 const hs = row.hotspot != null ? String(row.hotspot) : "";
-                const active = activeHotspot != null && hs === activeHotspot;
+                const selected = selectedIdx === i;
+                const sibling = !selected && activeHotspot != null && hs !== "" && hs === activeHotspot;
+                const bits = row.note ? splitPartNotes(row.note) : null;
                 return (
                   <tr
                     key={`${hs}-${row.pn || ""}-${i}`}
                     className={`border-b border-[var(--border-color)]/60 cursor-pointer ${
-                      active ? "bg-[var(--accent)]/15" : "hover:bg-[var(--input-bg)]"
+                      selected
+                        ? "bg-[var(--accent)]/20"
+                        : sibling
+                          ? "bg-[var(--accent)]/8"
+                          : "hover:bg-[var(--input-bg)]"
                     }`}
-                    onClick={() => setActiveHotspot(hs || null)}
+                    onClick={() => selectPart(i, hs)}
                     data-testid={hs ? `parts-row-${hs}` : `parts-row-i${i}`}
                   >
                     <td className="px-2 py-1 font-mono text-[12px] tabular-nums text-[var(--text-muted)]">
                       {hs || "—"}
                     </td>
                     <td className="px-2 py-1 font-mono text-[12px] whitespace-nowrap">
-                      {row.pn && row.pn !== "ns" ? row.pn : "—"}
+                      {row.pn && row.pn !== "ns" ? (
+                        <span className="parts-bom-pn">
+                          <span>{row.pn}</span>
+                          <button
+                            type="button"
+                            className={`parts-bom-copy ${copiedKey === `${i}-${row.pn}` ? "is-copied" : ""}`}
+                            title={t("partsCatalog.copyPn")}
+                            aria-label={`${t("partsCatalog.copyPn")} ${row.pn}`}
+                            data-testid={`parts-copy-${row.pn}`}
+                            onClick={(e) => void copyPn(`${i}-${row.pn}`, row.pn || "", e)}
+                          >
+                            <CopyPnIcon copied={copiedKey === `${i}-${row.pn}`} />
+                          </button>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
-                    <td className="px-2 py-1 text-[13px] leading-snug">{row.title}</td>
+                    <td className="px-2 py-1.5 align-top">
+                      <div className="parts-bom-title">{row.title}</div>
+                      {bits
+                        ? bits.lines.map((line) => (
+                            <div key={line} className="parts-bom-note">
+                              {line}
+                            </div>
+                          ))
+                        : null}
+                      {bits && bits.tags.length > 0 ? (
+                        <div className="parts-bom-tags">
+                          {bits.tags.map((tag) => (
+                            <span key={tag} className="parts-bom-tag">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {!row.note && sibling ? (
+                        <div className="parts-bom-note parts-bom-note--muted">
+                          {t("partsCatalog.sameCalloutHint")}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-1 text-right tabular-nums text-[12px] text-[var(--text-muted)]">
                       {formatQty(row.qty, row.unit)}
                     </td>

@@ -8,6 +8,7 @@ import {
   listPartsFilters,
   listPartsPlates,
   listPartsTree,
+  partDisplayNote,
   partDisplayTitle,
   plateDisplayTitle,
 } from "../partsDb.js";
@@ -55,6 +56,7 @@ export function createPartsCatalogRouter(): Router {
         titleRu: n.titleRu,
         titleEn: n.titleEn,
         plateCount: n.plateCount ?? null,
+        hasChildren: Boolean(n.hasChildren),
       })),
     });
   });
@@ -107,7 +109,7 @@ export function createPartsCatalogRouter(): Router {
       res.status(404).json({ ok: false, error: "plate_not_found" });
       return;
     }
-    const { plate, parts, graphicUrl } = detail;
+    const { plate, parts, graphicUrl, callouts, graphicWidth, graphicHeight } = detail;
     res.json({
       ok: true,
       plate: {
@@ -119,12 +121,18 @@ export function createPartsCatalogRouter(): Router {
         graphicAvailable: plate.graphicAvailable,
       },
       graphicUrl,
+      graphicWidth,
+      graphicHeight,
+      callouts,
       parts: parts.map((p) => ({
         hotspot: p.hotspot,
         pn: p.pn,
         title: partDisplayTitle(p, lang),
         titleRu: p.titleRu,
         titleEn: p.titleEn,
+        note: partDisplayNote(p, lang),
+        noteRu: p.noteRu,
+        noteEn: p.noteEn,
         qty: p.qty,
         unit: p.unit,
         seq: p.seq,

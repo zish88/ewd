@@ -16,6 +16,7 @@ export type PartsFgNode = {
   titleEn: string | null;
   depth: number;
   plateCount?: number;
+  hasChildren?: boolean;
 };
 
 export type PartsPlate = {
@@ -33,15 +34,22 @@ export type PartsPlatePart = {
   pn: string | null;
   titleRu: string | null;
   titleEn: string | null;
+  noteRu: string | null;
+  noteEn: string | null;
   qty: number | null;
   unit: string | null;
   seq: number;
 };
 
+export type PartsCalloutBox = { x: number; y: number; w: number; h: number };
+
 export type PartsPlateDetail = {
   plate: PartsPlate;
   parts: PartsPlatePart[];
   graphicUrl: string | null;
+  callouts: Record<string, PartsCalloutBox>;
+  graphicWidth: number;
+  graphicHeight: number;
 };
 
 /** P3 ModelCid map (must match scripts/import_epc_parts.py). */
@@ -131,6 +139,54 @@ function mimeForGraphicPath(abs: string): string {
 
 function plateHasGraphic(graphicFile: string | null): boolean {
   return resolvePlateGraphicPath(graphicFile) != null;
+}
+
+export type PartsCalloutSet = {
+  boxes: Record<string, PartsCalloutBox>;
+  width: number;
+  height: number;
+};
+
+const EMPTY_CALLOUTS: PartsCalloutSet = { boxes: {}, width: 0, height: 0 };
+
+/** POSID boxes from sibling *.hotspots.json (CGM), normalized 0–1 of the plate image. */
+export function loadPlateCallouts(graphicFile: string | null | undefined): PartsCalloutSet {
+  const raw = String(graphicFile || "").trim().replace(/\\/g, "/");
+  if (!raw) return EMPTY_CALLOUTS;
+  const stem = basename(raw).replace(/\.[^.]+$/, "");
+  const jsonPath = join(partsGraphicsDir(), `${stem}.hotspots.json`);
+  if (!existsSync(jsonPath)) return EMPTY_CALLOUTS;
+  try {
+    const parsed = JSON.parse(readFileSync(jsonPath, "utf8")) as {
+      width?: number;
+      height?: number;
+      callouts?: Record<string, { x?: number; y?: number; w?: number; h?: number }>;
+    };
+    const out: Record<string, PartsCalloutBox> = {};
+    for (const [id, box] of Object.entries(parsed.callouts || {})) {
+      const x = Number(box.x);
+      const y = Number(box.y);
+      const w = Number(box.w);
+      const h = Number(box.h);
+      if (![x, y, w, h].every((n) => Number.isFinite(n) && n >= 0) || w <= 0 || h <= 0) continue;
+      const key = String(id).trim();
+      if (!key) continue;
+      if (w > 0.08 || h > 0.08) {
+        const nw = Math.min(w, 0.03);
+        const nh = Math.min(h, 0.03);
+        out[key] = { x: x + (w - nw) / 2, y: y + (h - nh) / 2, w: nw, h: nh };
+      } else {
+        out[key] = { x, y, w, h };
+      }
+    }
+    return {
+      boxes: out,
+      width: Number(parsed.width) || 0,
+      height: Number(parsed.height) || 0,
+    };
+  } catch {
+    return EMPTY_CALLOUTS;
+  }
 }
 
 function mapPlateRow(r: {
@@ -340,10 +396,34 @@ export function listPartsTree(opts: {
     return node;
   });
   // Hide FG branches with no plates for the selected model (VIDA-like).
+  const visible = cid != null ? nodes.filter((n) => (n.plateCount ?? 0) > 0) : nodes;
+  if (visible.length === 0) return visible;
+  const paths = visible.map((n) => n.path);
+  const marks = paths.map(() => "?").join(",");
+  const parents = new Set<string>();
   if (cid != null) {
-    return nodes.filter((n) => (n.plateCount ?? 0) > 0);
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT f.parent_path AS parent_path
+         FROM fg_nodes f
+         JOIN plates p ON p.fg_path = f.path OR p.fg_path LIKE f.path || '/%'
+         JOIN plate_models pm ON pm.plate_id = p.id AND pm.model_cid = ?
+         WHERE f.parent_path IN (${marks})`,
+      )
+      .all(cid, ...paths) as Array<{ parent_path: string | null }>;
+    for (const r of rows) {
+      if (r.parent_path) parents.add(r.parent_path);
+    }
+  } else {
+    const rows = db
+      .prepare(`SELECT DISTINCT parent_path FROM fg_nodes WHERE parent_path IN (${marks})`)
+      .all(...paths) as Array<{ parent_path: string | null }>;
+    for (const r of rows) {
+      if (r.parent_path) parents.add(r.parent_path);
+    }
   }
-  return nodes;
+  for (const n of visible) n.hasChildren = parents.has(n.path);
+  return visible;
 }
 
 function normalizeFgPath(raw: string): string {
@@ -450,18 +530,33 @@ export function getPlateDetail(opts: {
   const plate = mapPlateRow(row);
   const partRows = db
     .prepare(
-      `SELECT hotspot, pn, title_ru, title_en, qty, unit, seq
-       FROM plate_parts
-       WHERE plate_id = ?
-       ORDER BY
-         CASE WHEN hotspot GLOB '[0-9]*' THEN CAST(hotspot AS INTEGER) ELSE 999999 END,
-         seq, id`,
+      (() => {
+        const cols = (
+          db.prepare(`PRAGMA table_info(plate_parts)`).all() as Array<{ name: string }>
+        ).map((c) => c.name);
+        const notes = cols.includes("note_ru");
+        return notes
+          ? `SELECT hotspot, pn, title_ru, title_en, note_ru, note_en, qty, unit, seq
+             FROM plate_parts
+             WHERE plate_id = ?
+             ORDER BY
+               CASE WHEN hotspot GLOB '[0-9]*' THEN CAST(hotspot AS INTEGER) ELSE 999999 END,
+               seq, id`
+          : `SELECT hotspot, pn, title_ru, title_en, NULL AS note_ru, NULL AS note_en, qty, unit, seq
+             FROM plate_parts
+             WHERE plate_id = ?
+             ORDER BY
+               CASE WHEN hotspot GLOB '[0-9]*' THEN CAST(hotspot AS INTEGER) ELSE 999999 END,
+               seq, id`;
+      })(),
     )
     .all(plateId) as Array<{
     hotspot: string | null;
     pn: string | null;
     title_ru: string | null;
     title_en: string | null;
+    note_ru: string | null;
+    note_en: string | null;
     qty: number | null;
     unit: string | null;
     seq: number;
@@ -472,13 +567,16 @@ export function getPlateDetail(opts: {
     pn: p.pn,
     titleRu: p.title_ru,
     titleEn: p.title_en,
+    noteRu: p.note_ru ?? null,
+    noteEn: p.note_en ?? null,
     qty: p.qty,
     unit: p.unit,
     seq: Number(p.seq || 0),
   }));
 
   const graphicUrl = plate.graphicAvailable ? `/api/parts-catalog/graphic/${plate.id}` : null;
-  return { plate, parts, graphicUrl };
+  const loaded = loadPlateCallouts(row.graphic_file);
+  return { plate, parts, graphicUrl, callouts: loaded.boxes, graphicWidth: loaded.width, graphicHeight: loaded.height };
 }
 
 export function getPlateGraphicFile(plateId: number): { path: string; mime: string } | null {
@@ -502,6 +600,15 @@ export function partDisplayTitle(
   const fallback = p.pn || (p.hotspot ? `#${p.hotspot}` : "—");
   if (lang === "en") return displayTitle(p.titleEn, p.titleRu, fallback);
   return displayTitle(p.titleRu, p.titleEn, fallback);
+}
+
+export function partDisplayNote(
+  p: Pick<PartsPlatePart, "noteRu" | "noteEn">,
+  lang: "ru" | "en" = "ru",
+): string | null {
+  const raw = lang === "en" ? p.noteEn || p.noteRu : p.noteRu || p.noteEn;
+  const text = String(raw || "").trim();
+  return text || null;
 }
 
 export function plateDisplayTitle(p: PartsPlate, lang: "ru" | "en" = "ru"): string {

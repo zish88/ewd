@@ -149,6 +149,8 @@ def init_sqlite(path: Path) -> sqlite3.Connection:
           pn TEXT,
           title_ru TEXT,
           title_en TEXT,
+          note_ru TEXT,
+          note_en TEXT,
           qty REAL,
           unit TEXT,
           seq INTEGER NOT NULL DEFAULT 0
@@ -372,7 +374,94 @@ def import_all(sql_conn, out: sqlite3.Connection) -> dict[str, int]:
     stats["plate_parts"] = n_parts
     log(f"    {stats['plate_parts']} plate_parts")
     out.commit()
+    note_n = import_plate_part_notes(cur, out)
+    stats["plate_part_notes"] = note_n
     return stats
+
+
+def ensure_plate_part_note_columns(out: sqlite3.Connection) -> None:
+    cols = {str(r[1]) for r in out.execute("PRAGMA table_info(plate_parts)")}
+    if "note_ru" not in cols:
+        out.execute("ALTER TABLE plate_parts ADD COLUMN note_ru TEXT")
+    if "note_en" not in cols:
+        out.execute("ALTER TABLE plate_parts ADD COLUMN note_en TEXT")
+    out.commit()
+
+
+def _join_notes(chunks: list[str]) -> str | None:
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in chunks:
+        text = re.sub(r"\s+", " ", str(raw or "")).strip().strip(" .")
+        if not text or text in {"-", "—"}:
+            continue
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return " · ".join(out) if out else None
+
+
+def import_plate_part_notes(cur, out: sqlite3.Connection) -> int:
+    """VIDA ComponentDescriptions types 1–3: CH, trim, option footnotes."""
+    ensure_plate_part_note_columns(out)
+    plate_ids = [int(r[0]) for r in out.execute("SELECT id FROM plates")]
+    log("  plate_parts notes (VIDA footnotes)…")
+    grouped: dict[tuple[int, str, str], dict[str, list[str]]] = {}
+    chunk = 400
+    for i in range(0, len(plate_ids), chunk):
+        ids = plate_ids[i : i + chunk]
+        id_list = ",".join(str(x) for x in ids)
+        cur.execute(
+            f"""
+            SELECT
+              c.ParentComponentId,
+              LTRIM(RTRIM(c.HotspotKey)),
+              LTRIM(RTRIM(pi.ItemNumber)),
+              lex.fkLanguage,
+              LTRIM(RTRIM(lex.Description))
+            FROM dbo.CatalogueComponents c
+            JOIN dbo.PartItems pi ON pi.Id = c.fkPartItem
+            JOIN dbo.ComponentDescriptions cd
+              ON cd.fkCatalogueComponent = c.Id
+             AND cd.DescriptionTypeId IN (1, 2, 3)
+            JOIN dbo.Lexicon lex
+              ON lex.DescriptionId = cd.DescriptionId
+             AND lex.fkLanguage IN ({LANG_RU}, {LANG_EN})
+            WHERE c.ParentComponentId IN ({id_list})
+              AND c.TypeId IN (4, 5)
+            """
+        )
+        for parent_id, hotspot, pn, lang, desc in cur.fetchall():
+            if not pn or not desc:
+                continue
+            key = (int(parent_id), str(hotspot or "").strip(), str(pn).strip())
+            bucket = grouped.setdefault(key, {"ru": [], "en": []})
+            if int(lang) == LANG_RU:
+                bucket["ru"].append(str(desc))
+            else:
+                bucket["en"].append(str(desc))
+        if (i // chunk) % 5 == 0:
+            log(f"    … notes scan {i + len(ids)}/{len(plate_ids)} plates")
+    rows = []
+    for (plate_id, hotspot, pn), langs in grouped.items():
+        ru = _join_notes(langs["ru"])
+        en = _join_notes(langs["en"])
+        if not ru and not en:
+            continue
+        rows.append((ru, en, plate_id, hotspot, pn))
+    out.executemany(
+        """
+        UPDATE plate_parts
+           SET note_ru = ?, note_en = ?
+         WHERE plate_id = ? AND IFNULL(hotspot,'') = ? AND IFNULL(pn,'') = ?
+        """,
+        rows,
+    )
+    out.commit()
+    log(f"    {len(rows)} plate_parts with notes")
+    return len(rows)
 
 
 def extract_plate_graphics(
@@ -492,6 +581,11 @@ def main() -> int:
         help="Output dir for plate CGM/SVG files",
     )
     ap.add_argument("--skip-graphics", action="store_true", help="Skip ImageRepository extract")
+    ap.add_argument(
+        "--notes-only",
+        action="store_true",
+        help="Patch note_ru/note_en on an existing parts.sqlite (does not rebuild)",
+    )
     args = ap.parse_args()
 
     manual = Path(args.manual) if args.manual else Path(r"E:\manual")
@@ -501,18 +595,44 @@ def main() -> int:
     graphics_dir = Path(args.graphics_dir)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    log("resolve EPC…")
-    mdf, ldf = resolve_epc_files(manual if not mdf_arg else None, mdf_arg, tmp)
-    log(f"  mdf={mdf}")
-
     vx.ensure_localdb_started()
     server = vx.resolve_server()
-    log(f"  attach EPC on {server}…")
-    vx.attach_mdf(server, vx.DB_EPC, mdf, ldf)
-
-    sql_conn = vx.get_odbc_connection(server, vx.DB_EPC)
+    mdf: Path | None = None
+    ldf: Path | None = None
+    if args.notes_only:
+        log("  try already-attached EPC…")
+        try:
+            sql_conn = vx.get_odbc_connection(server, vx.DB_EPC)
+        except Exception:
+            sql_conn = None
+        if sql_conn is None:
+            log("resolve EPC…")
+            mdf, ldf = resolve_epc_files(manual if not mdf_arg else None, mdf_arg, tmp)
+            log(f"  mdf={mdf}")
+            log(f"  attach EPC on {server}…")
+            vx.attach_mdf(server, vx.DB_EPC, mdf, ldf)
+            sql_conn = vx.get_odbc_connection(server, vx.DB_EPC)
+    else:
+        log("resolve EPC…")
+        mdf, ldf = resolve_epc_files(manual if not mdf_arg else None, mdf_arg, tmp)
+        log(f"  mdf={mdf}")
+        log(f"  attach EPC on {server}…")
+        vx.attach_mdf(server, vx.DB_EPC, mdf, ldf)
+        sql_conn = vx.get_odbc_connection(server, vx.DB_EPC)
     stats: dict[str, int] = {}
     try:
+        if args.notes_only:
+            if not out_path.is_file():
+                log(f"missing {out_path}")
+                return 1
+            out = sqlite3.connect(str(out_path))
+            try:
+                n = import_plate_part_notes(sql_conn.cursor(), out)
+                stats["plate_part_notes"] = n
+            finally:
+                out.close()
+            log(f"OK notes-only → {out_path} {stats}")
+            return 0
         out = init_sqlite(out_path)
         try:
             stats = import_all(sql_conn, out)
