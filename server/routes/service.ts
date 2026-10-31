@@ -177,7 +177,7 @@ export function createServiceRouter(): Router {
   });
 
   /** Illustration from ImageRepository (file cache or portable graphics.sqlite). */
-  router.get("/graphic/:id(*)", async (req, res) => {
+  router.get("/graphic/:id", async (req, res) => {
     const id = parseGraphicId(String(req.params.id || ""));
     if (!id) {
       res.status(400).json({ ok: false, error: "bad_id" });
