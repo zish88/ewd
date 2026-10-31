@@ -239,8 +239,9 @@ export function ensureServiceGraphic(id: string): Promise<boolean> {
   if (!existsSync(join(ROOT, "scripts", "servicerep_fetch_graphic.py"))) {
     return Promise.resolve(false);
   }
+  const mdfRaw = String(process.env.VIDA_IMAGE_MDF || "").trim();
   const mdf =
-    process.env.VIDA_IMAGE_MDF ||
+    mdfRaw ||
     (existsSync("E:\\manual\\imagerepository_Data.MDF") ? "E:\\manual\\imagerepository_Data.MDF" : "");
   if (!mdf || !existsSync(mdf)) {
     return Promise.resolve(false);

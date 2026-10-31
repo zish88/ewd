@@ -187,7 +187,11 @@ export function createServiceRouter(): Router {
     try {
       let hit = findCachedGraphic(id);
       if (!hit) {
-        await ensureServiceGraphic(id);
+        try {
+          await ensureServiceGraphic(id);
+        } catch {
+          /* VPS has no ImageRepository MDF — sqlite/files only */
+        }
         hit = findCachedGraphic(id);
       }
       if (!hit) {
@@ -196,11 +200,15 @@ export function createServiceRouter(): Router {
       }
       res.setHeader("Content-Type", hit.mime);
       res.setHeader("Cache-Control", "public, max-age=86400");
-      if (hit.kind === "buffer") {
+      if (hit.kind === "buffer" && hit.bytes) {
         res.send(hit.bytes);
         return;
       }
-      createReadStream(hit.path).pipe(res);
+      if (hit.kind === "file" && hit.path) {
+        createReadStream(hit.path).pipe(res);
+        return;
+      }
+      res.status(404).json({ ok: false, error: "graphic_not_found", id });
     } catch (e) {
       res.status(500).json({
         ok: false,
