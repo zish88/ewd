@@ -104,6 +104,8 @@ export const UI_RU: UiDict = {
   "service.noBody": "без текста",
   "service.bodyNotImported": "Заголовок есть, полный текст не извлечён при импорте (увеличьте --html-limit).",
   "service.docMissing": "Документ не найден",
+  "service.xrefOtherVehicle":
+    "Ссылка из VIDA ведёт на статью другой модели/годов. Открыта как есть — не для выбранного авто.",
   "service.disclaimer": "Неофициальная справка для мастерской. Не связана с ПО дилерской диагностики.",
   "service.tabTree": "Дерево",
   "service.tabDoc": "Документ",
@@ -361,6 +363,8 @@ export const UI_EN: UiDict = {
   "service.noBody": "no body",
   "service.bodyNotImported": "Title exists, but full text was not extracted (raise --html-limit).",
   "service.docMissing": "Document not found",
+  "service.xrefOtherVehicle":
+    "This VIDA link points to an article for another model/year range. Opened as-is — not filtered to the selected vehicle.",
   "service.disclaimer": "Unofficial workshop reference. Not affiliated with dealer diagnostic software.",
   "service.tabTree": "Tree",
   "service.tabDoc": "Document",

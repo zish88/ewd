@@ -375,6 +375,7 @@ export function ServicePage() {
   const [loading, setLoading] = useState(false);
   const [docLoading, setDocLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [docNote, setDocNote] = useState("");
   const [mobilePane, setMobilePane] = useState<"tree" | "doc">("tree");
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -598,13 +599,15 @@ export function ServicePage() {
     return s ? `?${s}` : "";
   }
 
-  function openDoc(id: number, syncUrl = true, opts?: { pushHistory?: boolean }) {
+  function openDoc(id: number, syncUrl = true, opts?: { pushHistory?: boolean; ignoreVehicle?: boolean }) {
     setErr("");
+    if (!opts?.ignoreVehicle) setDocNote("");
     setDocLoading(true);
     if (isMobile) setMobilePane("doc");
     scrollDocToTop();
     if (opts?.pushHistory) pushDocHistory(docRef.current?.id);
-    fetch(`/api/service/doc/${id}${vehicleQs()}`)
+    const extra = opts?.ignoreVehicle ? { xref: "1" } : undefined;
+    fetch(`/api/service/doc/${id}${vehicleQs(extra)}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.ok || !d.doc) {
@@ -634,10 +637,13 @@ export function ServicePage() {
       .then((d) => {
         if (!d.ok || !d.hit?.id) {
           setErr(t("service.docMissing"));
+          setDocNote("");
           setDocLoading(false);
           return;
         }
-        openDoc(d.hit.id, true, { pushHistory: true });
+        if (d.vehicleMismatch) setDocNote(t("service.xrefOtherVehicle"));
+        else setDocNote("");
+        openDoc(d.hit.id, true, { pushHistory: true, ignoreVehicle: Boolean(d.vehicleMismatch) });
       })
       .catch((e) => {
         setErr(e instanceof Error ? e.message : String(e));
@@ -1194,6 +1200,7 @@ export function ServicePage() {
                 </div>
               ) : null}
               {err ? <p className="text-sm text-red-600 mb-2">{err}</p> : null}
+              {docNote ? <p className="text-sm text-amber-600 mb-2">{docNote}</p> : null}
               {docLoading && !doc ? (
                 <p className="text-sm text-[var(--text-muted)]">{lang === "en" ? "Loading…" : "Загрузка…"}</p>
               ) : null}

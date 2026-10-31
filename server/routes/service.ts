@@ -144,7 +144,8 @@ export function createServiceRouter(): Router {
     const id = Number(req.params.id);
     const model = String(req.query.model || "").trim();
     const year = String(req.query.year || "").trim();
-    const doc = getServiceDoc(id, { model, year });
+    const ignoreVehicle = req.query.xref === "1" || req.query.ignoreVehicle === "1";
+    const doc = getServiceDoc(id, { model, year, ignoreVehicle });
     if (!doc) {
       res.status(404).json({ ok: false, error: "not_found" });
       return;
@@ -170,7 +171,7 @@ export function createServiceRouter(): Router {
     }
     // Same vehicle gate as /doc when model is selected.
     if (model && !getServiceDoc(hit.id, { model, year })) {
-      res.status(404).json({ ok: false, error: "not_found", ref, reason: "vehicle_mismatch" });
+      res.json({ ok: true, ref, hit, vehicleMismatch: true });
       return;
     }
     res.json({ ok: true, ref, hit });

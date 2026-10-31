@@ -4339,8 +4339,12 @@ main.is-filters-sheet-open {
 }
 
 .service-doc-html a.sr-xref {
-  display: inline-block;
-  margin: 0.15rem 0;
+  display: inline;
+  margin: 0;
+}
+
+.service-doc-html a.sr-xref + a.sr-xref::before {
+  content: " ";
 }
 
 .service-doc-html .sr-para > p {

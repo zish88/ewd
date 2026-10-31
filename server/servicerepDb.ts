@@ -1056,7 +1056,7 @@ function documentAllowedForVehicle(
 
 export function getServiceDoc(
   id: number,
-  opts?: { model?: string; year?: string },
+  opts?: { model?: string; year?: string; ignoreVehicle?: boolean },
 ): ServiceDoc | null {
   const d = openServicerepDb();
   if (!d || !Number.isFinite(id)) return null;
@@ -1090,7 +1090,11 @@ export function getServiceDoc(
     const tip = extractTorqueinfoFromHtml(row.html);
     if (tip && (!title || !title.trim())) title = torqueinfoDisplayTitle(tip);
   }
-  if (model && !documentAllowedForVehicle(d, row.id, title || repairServiceTitle(row.title), model, year)) {
+  if (
+    model &&
+    !opts?.ignoreVehicle &&
+    !documentAllowedForVehicle(d, row.id, title || repairServiceTitle(row.title), model, year)
+  ) {
     return null;
   }
   const chronIds = [
